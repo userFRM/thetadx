@@ -1,8 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use thetadatadx::fpss::protocol::{
-    build_credentials_payload, build_subscribe_payload, Contract,
-};
+use thetadatadx::fpss::protocol::{build_credentials_payload, build_subscribe_payload, Contract};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  FPSS protocol benchmarks
@@ -62,10 +60,7 @@ fn bench_build_subscribe_payload(c: &mut Criterion) {
     let contract = Contract::option("SPY", 20261218, true, 60000);
     c.bench_function("build_subscribe_payload", |b| {
         b.iter(|| {
-            black_box(build_subscribe_payload(
-                black_box(42),
-                black_box(&contract),
-            ));
+            black_box(build_subscribe_payload(black_box(42), black_box(&contract)));
         });
     });
 }

@@ -53,21 +53,21 @@ fn build_trade_data_table(n: usize) -> proto::DataTable {
     let mut rows = Vec::with_capacity(n);
     for i in 0..n {
         rows.push(row_of(vec![
-            dv_number(34_200_000 + i as i64 * 100),   // ms_of_day
-            dv_number(i as i64 + 1),                   // sequence
-            dv_number(0),                               // ext_condition1
-            dv_number(0),                               // ext_condition2
-            dv_number(0),                               // ext_condition3
-            dv_number(0),                               // ext_condition4
-            dv_number(0),                               // condition
-            dv_number(100 + (i % 50) as i64),           // size
-            dv_number(4),                               // exchange (NYSE)
-            dv_price(15025 + (i % 200) as i32, 8),     // price ~150.25
-            dv_number(0),                               // condition_flags
-            dv_number(0),                               // price_flags
-            dv_number(0),                               // volume_type
-            dv_number(0),                               // records_back
-            dv_number(20240315),                        // date
+            dv_number(34_200_000 + i as i64 * 100), // ms_of_day
+            dv_number(i as i64 + 1),                // sequence
+            dv_number(0),                           // ext_condition1
+            dv_number(0),                           // ext_condition2
+            dv_number(0),                           // ext_condition3
+            dv_number(0),                           // ext_condition4
+            dv_number(0),                           // condition
+            dv_number(100 + (i % 50) as i64),       // size
+            dv_number(4),                           // exchange (NYSE)
+            dv_price(15025 + (i % 200) as i32, 8),  // price ~150.25
+            dv_number(0),                           // condition_flags
+            dv_number(0),                           // price_flags
+            dv_number(0),                           // volume_type
+            dv_number(0),                           // records_back
+            dv_number(20240315),                    // date
         ]));
     }
     proto::DataTable {
@@ -94,15 +94,15 @@ fn build_quote_data_table(n: usize) -> proto::DataTable {
     for i in 0..n {
         rows.push(row_of(vec![
             dv_number(34_200_000 + i as i64 * 50),
-            dv_number(10 + (i % 100) as i64),           // bid_size
-            dv_number(4),                                 // bid_exchange
-            dv_price(15020 + (i % 100) as i32, 8),       // bid ~150.20
-            dv_number(1),                                 // bid_condition
-            dv_number(5 + (i % 80) as i64),              // ask_size
-            dv_number(4),                                 // ask_exchange
-            dv_price(15030 + (i % 100) as i32, 8),       // ask ~150.30
-            dv_number(1),                                 // ask_condition
-            dv_number(20240315),                          // date
+            dv_number(10 + (i % 100) as i64),      // bid_size
+            dv_number(4),                          // bid_exchange
+            dv_price(15020 + (i % 100) as i32, 8), // bid ~150.20
+            dv_number(1),                          // bid_condition
+            dv_number(5 + (i % 80) as i64),        // ask_size
+            dv_number(4),                          // ask_exchange
+            dv_price(15030 + (i % 100) as i32, 8), // ask ~150.30
+            dv_number(1),                          // ask_condition
+            dv_number(20240315),                   // date
         ]));
     }
     proto::DataTable {
@@ -128,13 +128,13 @@ fn build_ohlc_data_table(n: usize) -> proto::DataTable {
         let base = 15000 + (i % 300) as i32;
         rows.push(row_of(vec![
             dv_number(34_200_000 + i as i64 * 60_000), // ms_of_day (1-min bars)
-            dv_price(base, 8),                           // open
-            dv_price(base + 50, 8),                      // high
-            dv_price(base - 30, 8),                      // low
-            dv_price(base + 10, 8),                      // close
+            dv_price(base, 8),                         // open
+            dv_price(base + 50, 8),                    // high
+            dv_price(base - 30, 8),                    // low
+            dv_price(base + 10, 8),                    // close
             dv_number(10_000 + (i * 137 % 5000) as i64), // volume
-            dv_number(100 + (i % 200) as i64),           // count
-            dv_number(20240315),                          // date
+            dv_number(100 + (i % 200) as i64),         // count
+            dv_number(20240315),                       // date
         ]));
     }
     proto::DataTable {

@@ -49,16 +49,16 @@ fn bench_data_type_from_code_1000(c: &mut Criterion) {
     // Mix of valid DataType codes
     let codes: Vec<i32> = (0..1000)
         .map(|i| match i % 20 {
-            0 => 0,   // Date
-            1 => 1,   // MsOfDay
-            2 => 101, // BidSize
-            3 => 103, // Bid
-            4 => 107, // Ask
-            5 => 131, // Sequence
-            6 => 132, // Size
-            7 => 134, // Price
-            8 => 141, // Volume
-            9 => 151, // Theta
+            0 => 0,    // Date
+            1 => 1,    // MsOfDay
+            2 => 101,  // BidSize
+            3 => 103,  // Bid
+            4 => 107,  // Ask
+            5 => 131,  // Sequence
+            6 => 132,  // Size
+            7 => 134,  // Price
+            8 => 141,  // Volume
+            9 => 151,  // Theta
             10 => 153, // Delta
             11 => 161, // Gamma
             12 => 191, // Open
@@ -68,7 +68,7 @@ fn bench_data_type_from_code_1000(c: &mut Criterion) {
             16 => 201, // ImpliedVol
             17 => 204, // UnderlyingPrice
             18 => 261, // OutstandingShares
-            _ => 999, // Unknown (miss)
+            _ => 999,  // Unknown (miss)
         })
         .collect();
     c.bench_function("data_type_from_code_1000", |b| {

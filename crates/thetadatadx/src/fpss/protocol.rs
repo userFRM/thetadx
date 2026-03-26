@@ -177,26 +177,35 @@ impl Contract {
     /// [exp_date: i32 BE] [is_call: u8] [strike: i32 BE]
     /// ```
     ///
-    /// `total_size` counts everything after itself (root_len + root + sec_type + option fields).
+    /// `total_size` counts the entire buffer including itself, matching Java's
+    /// `Contract.toBytes()` exactly:
+    ///   - Stock: `3 + root.length()` = size(1) + root_len(1) + root(N) + sec_type(1)
+    ///   - Option: `12 + root.length()` = size(1) + root_len(1) + root(N) + sec_type(1) + exp(4) + is_call(1) + strike(4)
+    ///
+    /// Java's `fromBytes()` validates `len == size`, confirming the size byte
+    /// counts itself.
     pub fn to_bytes(&self) -> Vec<u8> {
         let root_bytes = self.root.as_bytes();
         assert!(
-            root_bytes.len() <= 244,
-            "contract root too long: {} bytes (max 244 to fit in u8 total_size with option fields)",
+            root_bytes.len() <= 16,
+            "contract root too long: {} bytes (max 16 to match Java Contract.toBytes())",
             root_bytes.len()
         );
         let root_len = root_bytes.len() as u8;
 
-        // Base size: root_len(1) + root(N) + sec_type(1)
-        let base_size = 1 + root_bytes.len() + 1;
-
         let is_option = self.sec_type == SecType::Option;
-        // Option adds: exp_date(4) + is_call(1) + strike(4) = 9
-        let total_size = if is_option { base_size + 9 } else { base_size };
 
-        let mut buf = Vec::with_capacity(1 + total_size);
+        // Java: `3 + root.length()` for non-option, `12 + root.length()` for option.
+        // The size byte counts itself: size(1) + root_len(1) + root(N) + sec_type(1) [+ option fields(9)]
+        let total_size = if is_option {
+            12 + root_bytes.len()
+        } else {
+            3 + root_bytes.len()
+        };
 
-        // total_size byte (everything after this byte)
+        let mut buf = Vec::with_capacity(total_size);
+
+        // total_size byte (includes itself — matches Java's Contract.toBytes())
         buf.push(total_size as u8);
         // root_len
         buf.push(root_len);
@@ -227,18 +236,21 @@ impl Contract {
             return Err(ContractParseError::TooShort);
         }
 
+        // Java's size byte counts itself: the total buffer length equals the size byte value.
+        // Java fromBytes: `if (len != size) throw ...` where len is the total span including size.
         let total_size = data[0] as usize;
-        let needed = 1 + total_size;
-        if data.len() < needed {
+        if data.len() < total_size {
             return Err(ContractParseError::TooShort);
         }
 
-        if total_size < 2 {
+        // Minimum: size(1) + root_len(1) + root(>=0) + sec_type(1) = 3
+        if total_size < 3 {
             return Err(ContractParseError::InvalidSize(total_size));
         }
 
         let root_len = data[1] as usize;
-        if total_size < 1 + root_len + 1 {
+        // Validate: size(1) + root_len(1) + root(N) + sec_type(1) <= total_size
+        if total_size < 2 + root_len + 1 {
             return Err(ContractParseError::InvalidSize(total_size));
         }
 
@@ -281,7 +293,7 @@ impl Contract {
                     is_call: Some(is_call),
                     strike: Some(strike),
                 },
-                needed,
+                total_size,
             ))
         } else {
             Ok((
@@ -292,7 +304,7 @@ impl Contract {
                     is_call: None,
                     strike: None,
                 },
-                needed,
+                total_size,
             ))
         }
     }
@@ -585,9 +597,9 @@ mod tests {
     fn stock_contract_roundtrip() {
         let c = Contract::stock("AAPL");
         let bytes = c.to_bytes();
-        // total_size(1) + root_len(1) + "AAPL"(4) + sec_type(1) = 7
+        // Java: 3 + root.length() = 3 + 4 = 7 total bytes, size byte = 7
         assert_eq!(bytes.len(), 7);
-        assert_eq!(bytes[0], 6); // total_size = 1+4+1 = 6
+        assert_eq!(bytes[0], 7); // total_size includes itself (Java: `3 + root.length()`)
 
         let (parsed, consumed) = Contract::from_bytes(&bytes).unwrap();
         assert_eq!(consumed, 7);
@@ -598,9 +610,9 @@ mod tests {
     fn option_contract_roundtrip() {
         let c = Contract::option("SPY", 20261218, true, 60000);
         let bytes = c.to_bytes();
-        // total_size(1) + root_len(1) + "SPY"(3) + sec_type(1) + exp(4) + is_call(1) + strike(4) = 15
+        // Java: 12 + root.length() = 12 + 3 = 15 total bytes, size byte = 15
         assert_eq!(bytes.len(), 15);
-        assert_eq!(bytes[0], 14); // total_size = 1+3+1+9 = 14
+        assert_eq!(bytes[0], 15); // total_size includes itself (Java: `12 + root.length()`)
 
         let (parsed, consumed) = Contract::from_bytes(&bytes).unwrap();
         assert_eq!(consumed, 15);
@@ -627,9 +639,9 @@ mod tests {
 
     #[test]
     fn contract_from_bytes_invalid_size() {
-        // total_size = 1, but need at least root_len + 1 byte root + sec_type
-        let err = Contract::from_bytes(&[1, 0]).unwrap_err();
-        assert_eq!(err, ContractParseError::InvalidSize(1));
+        // total_size = 2, but minimum valid is 3 (size + root_len + sec_type with root_len=0)
+        let err = Contract::from_bytes(&[2, 0]).unwrap_err();
+        assert_eq!(err, ContractParseError::InvalidSize(2));
     }
 
     #[test]
@@ -767,5 +779,65 @@ mod tests {
             SubscriptionKind::OpenInterest.unsubscribe_code(),
             StreamMsgType::RemoveOpenInterest
         );
+    }
+
+    // ── Java wire-format parity tests ──────────────────────────────────
+    // These verify byte-for-byte compatibility with Java's Contract.toBytes().
+
+    #[test]
+    fn java_parity_stock_aapl() {
+        // Java: root="AAPL" (4 bytes), sec=STOCK
+        // Java allocates: 3 + 4 = 7 bytes
+        // Wire: [7, 4, 'A', 'A', 'P', 'L', sec_type_code]
+        let c = Contract::stock("AAPL");
+        let bytes = c.to_bytes();
+        assert_eq!(bytes[0], 7); // size byte = 3 + root.length()
+        assert_eq!(bytes[1], 4); // root_len
+        assert_eq!(&bytes[2..6], b"AAPL");
+        assert_eq!(bytes[6], SecType::Stock as u8);
+        assert_eq!(bytes.len(), 7);
+    }
+
+    #[test]
+    fn java_parity_option_spy() {
+        // Java: root="SPY" (3 bytes), sec=OPTION, exp=20261218, isCall=true, strike=60000
+        // Java allocates: 12 + 3 = 15 bytes
+        // Wire: [15, 3, 'S','P','Y', sec_type, exp(4), is_call(1), strike(4)]
+        let c = Contract::option("SPY", 20261218, true, 60000);
+        let bytes = c.to_bytes();
+        assert_eq!(bytes[0], 15); // size byte = 12 + root.length()
+        assert_eq!(bytes[1], 3); // root_len
+        assert_eq!(&bytes[2..5], b"SPY");
+        assert_eq!(bytes[5], SecType::Option as u8);
+        // exp_date = 20261218 big-endian
+        assert_eq!(&bytes[6..10], &20261218i32.to_be_bytes());
+        assert_eq!(bytes[10], 1); // is_call = true
+                                  // strike = 60000 big-endian
+        assert_eq!(&bytes[11..15], &60000i32.to_be_bytes());
+    }
+
+    #[test]
+    fn java_parity_index_spx() {
+        // Java: root="SPX" (3 bytes), sec=INDEX
+        // Java allocates: 3 + 3 = 6 bytes
+        let c = Contract::index("SPX");
+        let bytes = c.to_bytes();
+        assert_eq!(bytes[0], 6);
+        assert_eq!(bytes[1], 3);
+        assert_eq!(&bytes[2..5], b"SPX");
+        assert_eq!(bytes[5], SecType::Index as u8);
+        assert_eq!(bytes.len(), 6);
+    }
+
+    #[test]
+    fn java_parity_single_char_root() {
+        // Edge case: root="A" (1 byte), sec=STOCK
+        // Java allocates: 3 + 1 = 4 bytes
+        let c = Contract::stock("A");
+        let bytes = c.to_bytes();
+        assert_eq!(bytes[0], 4);
+        assert_eq!(bytes[1], 1);
+        assert_eq!(bytes[2], b'A');
+        assert_eq!(bytes.len(), 4);
     }
 }

@@ -174,6 +174,13 @@ pub async fn authenticate(creds: &Credentials) -> Result<AuthResponse, Error> {
         .map_err(|e| Error::Auth(format!("Nexus API request failed: {e}")))?;
 
     let status = resp.status();
+    // Java special-cases 401 and 404 as "invalid credentials".
+    // Source: AuthenticationManager.authenticateViaCloud() in decompiled terminal.
+    if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::NOT_FOUND {
+        return Err(Error::Auth(
+            "invalid credentials (server returned 401/404)".into(),
+        ));
+    }
     if !status.is_success() {
         let body_text = resp
             .text()

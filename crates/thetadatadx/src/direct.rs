@@ -239,6 +239,10 @@ impl DirectClient {
             }),
             query_parameters,
             client_type: CLIENT_TYPE.to_string(),
+            // Intentional divergence from Java (see jvm-deviations.md):
+            // Java fills this with the terminal's build git commit hash.
+            // We are not the Java terminal and have no git commit to report,
+            // so we leave it empty. The server accepts empty strings here.
             terminal_git_commit: String::new(),
             terminal_version: TERMINAL_VERSION.to_string(),
         };
@@ -1805,24 +1809,17 @@ fn parse_eod_from_table(table: &proto::DataTable) -> Vec<EodTick> {
     let h: Vec<&str> = table.headers.iter().map(|s| s.as_str()).collect();
     let find = |name: &str| h.iter().position(|&s| s == name);
 
-    fn num(row: &proto::DataValueList, idx: usize) -> i32 {
+    // EOD rows may have Price-typed cells (value + type) or plain Number cells.
+    // `eod_num` tries Price.value first, then Number, matching the dual-typed
+    // columns that EOD data can return. This is distinct from `decode::row_number`
+    // which only handles Number cells (used for pure tick data).
+    fn eod_num(row: &proto::DataValueList, idx: usize) -> i32 {
         row.values
             .get(idx)
             .and_then(|dv| dv.data_type.as_ref())
             .and_then(|dt| match dt {
                 proto::data_value::DataType::Number(n) => Some(*n as i32),
                 proto::data_value::DataType::Price(p) => Some(p.value),
-                _ => None,
-            })
-            .unwrap_or(0)
-    }
-
-    fn price_type(row: &proto::DataValueList, idx: usize) -> i32 {
-        row.values
-            .get(idx)
-            .and_then(|dv| dv.data_type.as_ref())
-            .and_then(|dt| match dt {
-                proto::data_value::DataType::Price(p) => Some(p.r#type),
                 _ => None,
             })
             .unwrap_or(0)
@@ -1851,27 +1848,29 @@ fn parse_eod_from_table(table: &proto::DataTable) -> Vec<EodTick> {
         .data_table
         .iter()
         .map(|row| {
-            let pt = open_idx.map(|i| price_type(row, i)).unwrap_or(0);
+            let pt = open_idx
+                .map(|i| decode::row_price_type(row, i))
+                .unwrap_or(0);
 
             EodTick {
-                ms_of_day: ms_of_day_idx.map(|i| num(row, i)).unwrap_or(0),
-                ms_of_day2: ms_of_day2_idx.map(|i| num(row, i)).unwrap_or(0),
-                open: open_idx.map(|i| num(row, i)).unwrap_or(0),
-                high: high_idx.map(|i| num(row, i)).unwrap_or(0),
-                low: low_idx.map(|i| num(row, i)).unwrap_or(0),
-                close: close_idx.map(|i| num(row, i)).unwrap_or(0),
-                volume: volume_idx.map(|i| num(row, i)).unwrap_or(0),
-                count: count_idx.map(|i| num(row, i)).unwrap_or(0),
-                bid_size: bid_size_idx.map(|i| num(row, i)).unwrap_or(0),
-                bid_exchange: bid_exchange_idx.map(|i| num(row, i)).unwrap_or(0),
-                bid: bid_idx.map(|i| num(row, i)).unwrap_or(0),
-                bid_condition: bid_condition_idx.map(|i| num(row, i)).unwrap_or(0),
-                ask_size: ask_size_idx.map(|i| num(row, i)).unwrap_or(0),
-                ask_exchange: ask_exchange_idx.map(|i| num(row, i)).unwrap_or(0),
-                ask: ask_idx.map(|i| num(row, i)).unwrap_or(0),
-                ask_condition: ask_condition_idx.map(|i| num(row, i)).unwrap_or(0),
+                ms_of_day: ms_of_day_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                ms_of_day2: ms_of_day2_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                open: open_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                high: high_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                low: low_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                close: close_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                volume: volume_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                count: count_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                bid_size: bid_size_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                bid_exchange: bid_exchange_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                bid: bid_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                bid_condition: bid_condition_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                ask_size: ask_size_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                ask_exchange: ask_exchange_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                ask: ask_idx.map(|i| eod_num(row, i)).unwrap_or(0),
+                ask_condition: ask_condition_idx.map(|i| eod_num(row, i)).unwrap_or(0),
                 price_type: pt,
-                date: date_idx.map(|i| num(row, i)).unwrap_or(0),
+                date: date_idx.map(|i| eod_num(row, i)).unwrap_or(0),
             }
         })
         .collect()
@@ -1901,5 +1900,49 @@ mod tests {
         assert!(validate_date("").is_err());
         // Whitespace
         assert!(validate_date("2024 101").is_err());
+    }
+
+    #[test]
+    fn parse_eod_handles_empty_table() {
+        let table = proto::DataTable {
+            headers: vec!["ms_of_day".into(), "open".into(), "date".into()],
+            data_table: vec![],
+        };
+        let ticks = parse_eod_from_table(&table);
+        assert!(ticks.is_empty());
+    }
+
+    #[test]
+    fn parse_eod_handles_number_typed_columns() {
+        let table = proto::DataTable {
+            headers: vec![
+                "ms_of_day".into(),
+                "open".into(),
+                "close".into(),
+                "date".into(),
+            ],
+            data_table: vec![proto::DataValueList {
+                values: vec![
+                    proto::DataValue {
+                        data_type: Some(proto::data_value::DataType::Number(34200000)),
+                    },
+                    proto::DataValue {
+                        data_type: Some(proto::data_value::DataType::Number(15000)),
+                    },
+                    proto::DataValue {
+                        data_type: Some(proto::data_value::DataType::Number(15100)),
+                    },
+                    proto::DataValue {
+                        data_type: Some(proto::data_value::DataType::Number(20240301)),
+                    },
+                ],
+            }],
+        };
+        let ticks = parse_eod_from_table(&table);
+        assert_eq!(ticks.len(), 1);
+        assert_eq!(ticks[0].ms_of_day, 34200000);
+        assert_eq!(ticks[0].open, 15000);
+        assert_eq!(ticks[0].close, 15100);
+        assert_eq!(ticks[0].date, 20240301);
     }
 }

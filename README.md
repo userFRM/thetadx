@@ -110,39 +110,93 @@ async fn main() -> Result<(), thetadatadx::Error> {
 
 ## Supported Endpoints
 
-### Stock
+61 typed methods covering all ThetaData MDDS endpoints (60 gRPC RPCs).
+
+### Stock (13 methods)
 
 | Category | Method | Description |
 |----------|--------|-------------|
 | List | `stock_list_symbols()` | All available stock symbols |
+| List | `stock_list_dates()` | Available dates for a stock by request type |
+| Snapshot | `stock_snapshot_ohlc()` | Latest OHLC snapshot |
+| Snapshot | `stock_snapshot_trade()` | Latest trade snapshot |
+| Snapshot | `stock_snapshot_quote()` | Latest NBBO quote snapshot |
+| Snapshot | `stock_snapshot_market_value()` | Latest market value snapshot |
 | History | `stock_history_eod()` | End-of-day data for a date range |
 | History | `stock_history_ohlc()` | Intraday OHLC bars for a single date |
 | History | `stock_history_ohlc_range()` | Intraday OHLC bars across a date range |
 | History | `stock_history_trade()` | All trades on a given date |
 | History | `stock_history_quote()` | NBBO quotes at a given interval |
 | History | `stock_history_trade_quote()` | Combined trade + quote ticks |
-| Snapshot | `stock_snapshot_quote()` | Latest NBBO quote for one or more symbols |
-| Snapshot | `stock_snapshot_ohlc()` | Latest OHLC snapshot |
-| Snapshot | `stock_snapshot_trade()` | Latest trade snapshot |
+| AtTime | `stock_at_time_trade()` | Trade at a specific time across a date range |
+| AtTime | `stock_at_time_quote()` | Quote at a specific time across a date range |
 
-### Option
+### Option (34 methods)
 
 | Category | Method | Description |
 |----------|--------|-------------|
 | List | `option_list_symbols()` | All available option underlyings |
+| List | `option_list_dates()` | Available dates for an option contract |
 | List | `option_list_expirations()` | Expiration dates for an underlying |
 | List | `option_list_strikes()` | Strike prices for a given expiration |
+| List | `option_list_contracts()` | All contracts for a symbol on a date |
+| Snapshot | `option_snapshot_ohlc()` | Latest OHLC snapshot for options |
+| Snapshot | `option_snapshot_trade()` | Latest trade snapshot for options |
+| Snapshot | `option_snapshot_quote()` | Latest NBBO quote snapshot for options |
+| Snapshot | `option_snapshot_open_interest()` | Latest open interest snapshot |
+| Snapshot | `option_snapshot_market_value()` | Latest market value snapshot |
+| Snapshot Greeks | `option_snapshot_greeks_implied_volatility()` | IV snapshot |
+| Snapshot Greeks | `option_snapshot_greeks_all()` | All Greeks snapshot |
+| Snapshot Greeks | `option_snapshot_greeks_first_order()` | First-order Greeks snapshot |
+| Snapshot Greeks | `option_snapshot_greeks_second_order()` | Second-order Greeks snapshot |
+| Snapshot Greeks | `option_snapshot_greeks_third_order()` | Third-order Greeks snapshot |
 | History | `option_history_eod()` | End-of-day option data |
 | History | `option_history_ohlc()` | Intraday option OHLC bars |
 | History | `option_history_trade()` | Option trades on a given date |
 | History | `option_history_quote()` | Option NBBO quotes |
+| History | `option_history_trade_quote()` | Combined trade + quote ticks |
+| History | `option_history_open_interest()` | Open interest history |
+| History Greeks | `option_history_greeks_eod()` | EOD Greeks history |
+| History Greeks | `option_history_greeks_all()` | All Greeks history (intraday) |
+| History Greeks | `option_history_greeks_first_order()` | First-order Greeks history |
+| History Greeks | `option_history_greeks_second_order()` | Second-order Greeks history |
+| History Greeks | `option_history_greeks_third_order()` | Third-order Greeks history |
+| History Greeks | `option_history_greeks_implied_volatility()` | IV history (intraday) |
+| History Trade Greeks | `option_history_trade_greeks_all()` | All Greeks per trade |
+| History Trade Greeks | `option_history_trade_greeks_first_order()` | First-order Greeks per trade |
+| History Trade Greeks | `option_history_trade_greeks_second_order()` | Second-order Greeks per trade |
+| History Trade Greeks | `option_history_trade_greeks_third_order()` | Third-order Greeks per trade |
+| History Trade Greeks | `option_history_trade_greeks_implied_volatility()` | IV per trade |
+| AtTime | `option_at_time_trade()` | Trade at a specific time across a date range |
+| AtTime | `option_at_time_quote()` | Quote at a specific time across a date range |
 
-### Index
+### Index (9 methods)
 
 | Category | Method | Description |
 |----------|--------|-------------|
 | List | `index_list_symbols()` | All available index symbols |
+| List | `index_list_dates()` | Available dates for an index |
+| Snapshot | `index_snapshot_ohlc()` | Latest OHLC snapshot |
+| Snapshot | `index_snapshot_price()` | Latest price snapshot |
+| Snapshot | `index_snapshot_market_value()` | Latest market value snapshot |
 | History | `index_history_eod()` | End-of-day index data |
+| History | `index_history_ohlc()` | Intraday OHLC bars |
+| History | `index_history_price()` | Intraday price history |
+| AtTime | `index_at_time_price()` | Price at a specific time across a date range |
+
+### Interest Rate (1 method)
+
+| Category | Method | Description |
+|----------|--------|-------------|
+| History | `interest_rate_history_eod()` | End-of-day interest rate history |
+
+### Calendar (3 methods)
+
+| Category | Method | Description |
+|----------|--------|-------------|
+| Calendar | `calendar_open_today()` | Whether the market is open today |
+| Calendar | `calendar_on_date()` | Calendar info for a specific date |
+| Calendar | `calendar_year()` | Calendar info for an entire year |
 
 ### Streaming (FPSS)
 
@@ -156,7 +210,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
 | `unsubscribe_trades()` | Stop trade stream |
 | `unsubscribe_open_interest()` | Stop open interest stream |
 
-### Greeks
+### Greeks Calculator
 
 | Function | Description |
 |----------|-------------|

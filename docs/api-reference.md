@@ -29,15 +29,47 @@ let client = DirectClient::connect(&creds, DirectConfig::production()).await?;
 | `channel()` | `&self -> &tonic::transport::Channel` | Access the underlying gRPC channel |
 | `raw_query_info()` | `&self -> proto_v3::QueryInfo` | Get a QueryInfo for use with raw_query |
 
-### Stock -- List
+### Stock -- List (2)
 
 ```rust
 pub async fn stock_list_symbols(&self) -> Result<Vec<String>, Error>
 ```
 
-Returns all available stock symbols.
+All available stock symbols. gRPC: `GetStockListSymbols`
 
-### Stock -- History
+```rust
+pub async fn stock_list_dates(&self, request_type: &str, symbol: &str) -> Result<Vec<String>, Error>
+```
+
+Available dates for a stock by request type (e.g. `"EOD"`, `"TRADE"`, `"QUOTE"`). gRPC: `GetStockListDates`
+
+### Stock -- Snapshot (4)
+
+```rust
+pub async fn stock_snapshot_ohlc(&self, symbols: &[&str]) -> Result<Vec<OhlcTick>, Error>
+```
+
+Latest OHLC snapshot for one or more stocks. gRPC: `GetStockSnapshotOhlc`
+
+```rust
+pub async fn stock_snapshot_trade(&self, symbols: &[&str]) -> Result<Vec<TradeTick>, Error>
+```
+
+Latest trade snapshot for one or more stocks. gRPC: `GetStockSnapshotTrade`
+
+```rust
+pub async fn stock_snapshot_quote(&self, symbols: &[&str]) -> Result<Vec<QuoteTick>, Error>
+```
+
+Latest NBBO quote snapshot for one or more stocks. gRPC: `GetStockSnapshotQuote`
+
+```rust
+pub async fn stock_snapshot_market_value(&self, symbols: &[&str]) -> Result<proto::DataTable, Error>
+```
+
+Latest market value snapshot for one or more stocks. gRPC: `GetStockSnapshotMarketValue`
+
+### Stock -- History (6)
 
 ```rust
 pub async fn stock_history_eod(
@@ -45,7 +77,7 @@ pub async fn stock_history_eod(
 ) -> Result<Vec<EodTick>, Error>
 ```
 
-End-of-day stock data for a date range. Dates are `YYYYMMDD` strings.
+End-of-day stock data for a date range. Dates are `YYYYMMDD` strings. gRPC: `GetStockHistoryEod`
 
 ```rust
 pub async fn stock_history_ohlc(
@@ -53,7 +85,7 @@ pub async fn stock_history_ohlc(
 ) -> Result<Vec<OhlcTick>, Error>
 ```
 
-Intraday OHLC bars for a single date. `interval` is milliseconds (e.g., `"60000"` for 1-minute bars).
+Intraday OHLC bars for a single date. `interval` is milliseconds (e.g., `"60000"` for 1-minute bars). gRPC: `GetStockHistoryOhlc`
 
 ```rust
 pub async fn stock_history_ohlc_range(
@@ -61,7 +93,7 @@ pub async fn stock_history_ohlc_range(
 ) -> Result<Vec<OhlcTick>, Error>
 ```
 
-Intraday OHLC bars across a date range.
+Intraday OHLC bars across a date range. Uses `start_date`/`end_date` instead of single `date`. gRPC: `GetStockHistoryOhlc`
 
 ```rust
 pub async fn stock_history_trade(
@@ -69,7 +101,7 @@ pub async fn stock_history_trade(
 ) -> Result<Vec<TradeTick>, Error>
 ```
 
-All trades for a stock on a given date.
+All trades for a stock on a given date. gRPC: `GetStockHistoryTrade`
 
 ```rust
 pub async fn stock_history_quote(
@@ -77,7 +109,7 @@ pub async fn stock_history_quote(
 ) -> Result<Vec<QuoteTick>, Error>
 ```
 
-NBBO quotes at a given interval. Use `"0"` for every quote change.
+NBBO quotes at a given interval. Use `"0"` for every quote change. gRPC: `GetStockHistoryQuote`
 
 ```rust
 pub async fn stock_history_trade_quote(
@@ -85,35 +117,47 @@ pub async fn stock_history_trade_quote(
 ) -> Result<proto::DataTable, Error>
 ```
 
-Combined trade + quote ticks. Returns raw `DataTable` (not yet parsed to a typed tick).
+Combined trade + quote ticks. Returns raw `DataTable`. gRPC: `GetStockHistoryTradeQuote`
 
-### Stock -- Snapshot
-
-```rust
-pub async fn stock_snapshot_quote(&self, symbols: &[&str]) -> Result<Vec<QuoteTick>, Error>
-pub async fn stock_snapshot_ohlc(&self, symbols: &[&str]) -> Result<Vec<OhlcTick>, Error>
-pub async fn stock_snapshot_trade(&self, symbols: &[&str]) -> Result<Vec<TradeTick>, Error>
-```
-
-Latest quote/OHLC/trade snapshot for one or more symbols. Pass multiple symbols for batch requests.
+### Stock -- AtTime (2)
 
 ```rust
-let quotes = client.stock_snapshot_quote(&["AAPL", "MSFT", "GOOG"]).await?;
+pub async fn stock_at_time_trade(
+    &self, symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+) -> Result<Vec<TradeTick>, Error>
 ```
 
-### Option -- List
+Trade at a specific time of day across a date range. `time_of_day` is milliseconds from midnight (e.g. `"34200000"` for 9:30 AM ET). gRPC: `GetStockAtTimeTrade`
+
+```rust
+pub async fn stock_at_time_quote(
+    &self, symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+) -> Result<Vec<QuoteTick>, Error>
+```
+
+Quote at a specific time of day across a date range. gRPC: `GetStockAtTimeQuote`
+
+### Option -- List (5)
 
 ```rust
 pub async fn option_list_symbols(&self) -> Result<Vec<String>, Error>
 ```
 
-All available option underlying symbols.
+All available option underlying symbols. gRPC: `GetOptionListSymbols`
+
+```rust
+pub async fn option_list_dates(
+    &self, request_type: &str, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<Vec<String>, Error>
+```
+
+Available dates for an option contract by request type. gRPC: `GetOptionListDates`
 
 ```rust
 pub async fn option_list_expirations(&self, symbol: &str) -> Result<Vec<String>, Error>
 ```
 
-Expiration dates for an underlying. Returns `YYYYMMDD` strings.
+Expiration dates for an underlying. Returns `YYYYMMDD` strings. gRPC: `GetOptionListExpirations`
 
 ```rust
 pub async fn option_list_strikes(
@@ -121,9 +165,101 @@ pub async fn option_list_strikes(
 ) -> Result<Vec<String>, Error>
 ```
 
-Strike prices for a given expiration.
+Strike prices for a given expiration. gRPC: `GetOptionListStrikes`
 
-### Option -- History
+```rust
+pub async fn option_list_contracts(
+    &self, request_type: &str, symbol: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+All option contracts for a symbol on a given date. Returns `DataTable` with contract details. gRPC: `GetOptionListContracts`
+
+### Option -- Snapshot (5)
+
+```rust
+pub async fn option_snapshot_ohlc(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<Vec<OhlcTick>, Error>
+```
+
+Latest OHLC snapshot for option contracts. gRPC: `GetOptionSnapshotOhlc`
+
+```rust
+pub async fn option_snapshot_trade(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<Vec<TradeTick>, Error>
+```
+
+Latest trade snapshot for option contracts. gRPC: `GetOptionSnapshotTrade`
+
+```rust
+pub async fn option_snapshot_quote(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<Vec<QuoteTick>, Error>
+```
+
+Latest NBBO quote snapshot for option contracts. gRPC: `GetOptionSnapshotQuote`
+
+```rust
+pub async fn option_snapshot_open_interest(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Latest open interest snapshot for option contracts. gRPC: `GetOptionSnapshotOpenInterest`
+
+```rust
+pub async fn option_snapshot_market_value(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Latest market value snapshot for option contracts. gRPC: `GetOptionSnapshotMarketValue`
+
+### Option -- Snapshot Greeks (5)
+
+```rust
+pub async fn option_snapshot_greeks_implied_volatility(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Implied volatility snapshot. gRPC: `GetOptionSnapshotGreeksImpliedVolatility`
+
+```rust
+pub async fn option_snapshot_greeks_all(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+All Greeks snapshot. gRPC: `GetOptionSnapshotGreeksAll`
+
+```rust
+pub async fn option_snapshot_greeks_first_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+First-order Greeks snapshot (delta, theta, rho, etc.). gRPC: `GetOptionSnapshotGreeksFirstOrder`
+
+```rust
+pub async fn option_snapshot_greeks_second_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Second-order Greeks snapshot (gamma, vanna, charm, etc.). gRPC: `GetOptionSnapshotGreeksSecondOrder`
+
+```rust
+pub async fn option_snapshot_greeks_third_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Third-order Greeks snapshot (speed, color, ultima, etc.). gRPC: `GetOptionSnapshotGreeksThirdOrder`
+
+### Option -- History (6)
 
 ```rust
 pub async fn option_history_eod(
@@ -132,7 +268,7 @@ pub async fn option_history_eod(
 ) -> Result<Vec<EodTick>, Error>
 ```
 
-End-of-day option data. `right` is `"C"` or `"P"`.
+End-of-day option data. `right` is `"C"` or `"P"`. gRPC: `GetOptionHistoryEod`
 
 ```rust
 pub async fn option_history_ohlc(
@@ -141,16 +277,15 @@ pub async fn option_history_ohlc(
 ) -> Result<Vec<OhlcTick>, Error>
 ```
 
-Intraday option OHLC bars.
+Intraday option OHLC bars. gRPC: `GetOptionHistoryOhlc`
 
 ```rust
 pub async fn option_history_trade(
-    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
-    date: &str
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
 ) -> Result<Vec<TradeTick>, Error>
 ```
 
-Option trades on a given date.
+Option trades on a given date. gRPC: `GetOptionHistoryTrade`
 
 ```rust
 pub async fn option_history_quote(
@@ -159,16 +294,241 @@ pub async fn option_history_quote(
 ) -> Result<Vec<QuoteTick>, Error>
 ```
 
-Option NBBO quotes.
+Option NBBO quotes. gRPC: `GetOptionHistoryQuote`
 
-### Index
+```rust
+pub async fn option_history_trade_quote(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Combined trade + quote ticks for an option contract. gRPC: `GetOptionHistoryTradeQuote`
+
+```rust
+pub async fn option_history_open_interest(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Open interest history for an option contract. gRPC: `GetOptionHistoryOpenInterest`
+
+### Option -- History Greeks (6)
+
+```rust
+pub async fn option_history_greeks_eod(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    start_date: &str, end_date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+EOD Greeks history for an option contract. gRPC: `GetOptionHistoryGreeksEod`
+
+```rust
+pub async fn option_history_greeks_all(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+All Greeks history (intraday, sampled by interval). gRPC: `GetOptionHistoryGreeksAll`
+
+```rust
+pub async fn option_history_greeks_first_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+First-order Greeks history (intraday, sampled by interval). gRPC: `GetOptionHistoryGreeksFirstOrder`
+
+```rust
+pub async fn option_history_greeks_second_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Second-order Greeks history (intraday, sampled by interval). gRPC: `GetOptionHistoryGreeksSecondOrder`
+
+```rust
+pub async fn option_history_greeks_third_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Third-order Greeks history (intraday, sampled by interval). gRPC: `GetOptionHistoryGreeksThirdOrder`
+
+```rust
+pub async fn option_history_greeks_implied_volatility(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Implied volatility history (intraday, sampled by interval). gRPC: `GetOptionHistoryGreeksImpliedVolatility`
+
+### Option -- History Trade Greeks (5)
+
+```rust
+pub async fn option_history_trade_greeks_all(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+All Greeks computed on each trade. gRPC: `GetOptionHistoryTradeGreeksAll`
+
+```rust
+pub async fn option_history_trade_greeks_first_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+First-order Greeks on each trade. gRPC: `GetOptionHistoryTradeGreeksFirstOrder`
+
+```rust
+pub async fn option_history_trade_greeks_second_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Second-order Greeks on each trade. gRPC: `GetOptionHistoryTradeGreeksSecondOrder`
+
+```rust
+pub async fn option_history_trade_greeks_third_order(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Third-order Greeks on each trade. gRPC: `GetOptionHistoryTradeGreeksThirdOrder`
+
+```rust
+pub async fn option_history_trade_greeks_implied_volatility(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Implied volatility on each trade. gRPC: `GetOptionHistoryTradeGreeksImpliedVolatility`
+
+### Option -- AtTime (2)
+
+```rust
+pub async fn option_at_time_trade(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    start_date: &str, end_date: &str, time_of_day: &str
+) -> Result<Vec<TradeTick>, Error>
+```
+
+Trade at a specific time of day across a date range for an option. gRPC: `GetOptionAtTimeTrade`
+
+```rust
+pub async fn option_at_time_quote(
+    &self, symbol: &str, expiration: &str, strike: &str, right: &str,
+    start_date: &str, end_date: &str, time_of_day: &str
+) -> Result<Vec<QuoteTick>, Error>
+```
+
+Quote at a specific time of day across a date range for an option. gRPC: `GetOptionAtTimeQuote`
+
+### Index -- List (2)
 
 ```rust
 pub async fn index_list_symbols(&self) -> Result<Vec<String>, Error>
+```
+
+All available index symbols. gRPC: `GetIndexListSymbols`
+
+```rust
+pub async fn index_list_dates(&self, symbol: &str) -> Result<Vec<String>, Error>
+```
+
+Available dates for an index symbol. gRPC: `GetIndexListDates`
+
+### Index -- Snapshot (3)
+
+```rust
+pub async fn index_snapshot_ohlc(&self, symbols: &[&str]) -> Result<Vec<OhlcTick>, Error>
+```
+
+Latest OHLC snapshot for one or more indices. gRPC: `GetIndexSnapshotOhlc`
+
+```rust
+pub async fn index_snapshot_price(&self, symbols: &[&str]) -> Result<proto::DataTable, Error>
+```
+
+Latest price snapshot for one or more indices. gRPC: `GetIndexSnapshotPrice`
+
+```rust
+pub async fn index_snapshot_market_value(&self, symbols: &[&str]) -> Result<proto::DataTable, Error>
+```
+
+Latest market value snapshot for one or more indices. gRPC: `GetIndexSnapshotMarketValue`
+
+### Index -- History (3)
+
+```rust
 pub async fn index_history_eod(
     &self, symbol: &str, start: &str, end: &str
 ) -> Result<Vec<EodTick>, Error>
 ```
+
+End-of-day index data for a date range. gRPC: `GetIndexHistoryEod`
+
+```rust
+pub async fn index_history_ohlc(
+    &self, symbol: &str, start_date: &str, end_date: &str, interval: &str
+) -> Result<Vec<OhlcTick>, Error>
+```
+
+Intraday OHLC bars for an index. gRPC: `GetIndexHistoryOhlc`
+
+```rust
+pub async fn index_history_price(
+    &self, symbol: &str, date: &str, interval: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Intraday price history for an index. gRPC: `GetIndexHistoryPrice`
+
+### Index -- AtTime (1)
+
+```rust
+pub async fn index_at_time_price(
+    &self, symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+) -> Result<proto::DataTable, Error>
+```
+
+Index price at a specific time of day across a date range. gRPC: `GetIndexAtTimePrice`
+
+### Interest Rate (1)
+
+```rust
+pub async fn interest_rate_history_eod(
+    &self, symbol: &str, start_date: &str, end_date: &str
+) -> Result<proto::DataTable, Error>
+```
+
+End-of-day interest rate history. gRPC: `GetInterestRateHistoryEod`
+
+### Calendar (3)
+
+```rust
+pub async fn calendar_open_today(&self) -> Result<proto::DataTable, Error>
+```
+
+Whether the market is open today. gRPC: `GetCalendarOpenToday`
+
+```rust
+pub async fn calendar_on_date(&self, date: &str) -> Result<proto::DataTable, Error>
+```
+
+Calendar information for a specific date. gRPC: `GetCalendarOnDate`
+
+```rust
+pub async fn calendar_year(&self, year: &str) -> Result<proto::DataTable, Error>
+```
+
+Calendar information for an entire year. `year` is a 4-digit string (e.g. `"2024"`). gRPC: `GetCalendarYear`
 
 ### Raw Query
 

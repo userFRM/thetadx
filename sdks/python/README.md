@@ -112,14 +112,10 @@ Returns `(iv, error)` tuple.
 
 ## Architecture
 
-```
-Python code
-    │  (PyO3 FFI)
-    ▼
-thetadatadx Rust crate
-    │  (tonic gRPC / tokio TCP)
-    ▼
-ThetaData servers
+```mermaid
+graph TD
+    A["Python code"] -- "PyO3 FFI" --> B["thetadatadx Rust crate"]
+    B -- "tonic gRPC / TLS TCP" --> C["ThetaData servers"]
 ```
 
 No HTTP middleware, no Java terminal, no subprocess. Direct wire protocol access at Rust speed.

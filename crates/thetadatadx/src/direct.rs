@@ -40,6 +40,109 @@ const CLIENT_TYPE: &str = "rust-thetadatadx";
 /// Version string sent in `QueryInfo.terminal_version`.
 const TERMINAL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// ═══════════════════════════════════════════════════════════════════════
+//  Endpoint macros — eliminate boilerplate across all 60 gRPC RPCs
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Generate a list endpoint that returns `Vec<String>` by extracting a text
+/// column from the response `DataTable`.
+///
+/// Pattern: build request -> gRPC call -> collect stream -> extract text column.
+macro_rules! list_endpoint {
+    (
+        $(#[$meta:meta])*
+        fn $name:ident( $($arg:ident : $arg_ty:ty),* ) -> $col:literal;
+        grpc: $grpc:ident;
+        request: $req:ident;
+        query: $query:ident { $($field:ident : $val:expr),* $(,)? };
+    ) => {
+        $(#[$meta])*
+        pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<Vec<String>, Error> {
+            tracing::debug!(endpoint = stringify!($name), "gRPC request");
+            let request = proto_v3::$req {
+                query_info: Some(self.query_info()),
+                params: Some(proto_v3::$query { $($field : $val),* }),
+            };
+            let stream = self.stub().$grpc(request).await?.into_inner();
+            let table = self.collect_stream(stream).await?;
+            Ok(decode::extract_text_column(&table, $col)
+                .into_iter()
+                .flatten()
+                .collect())
+        }
+    };
+}
+
+/// Generate an endpoint that returns parsed tick data (`Vec<T>`) via a decode
+/// function.
+///
+/// Pattern: build request -> gRPC call -> collect stream -> parse ticks.
+///
+/// Dates are validated with `validate_date` via the `dates:` clause.
+macro_rules! parsed_endpoint {
+    (
+        $(#[$meta:meta])*
+        fn $name:ident( $($arg:ident : $arg_ty:ty),* ) -> $ret:ty;
+        grpc: $grpc:ident;
+        request: $req:ident;
+        query: $query:ident { $($field:ident : $val:expr),* $(,)? };
+        parse: $parser:expr;
+        $(dates: $($date_arg:ident),+ ;)?
+    ) => {
+        $(#[$meta])*
+        pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<$ret, Error> {
+            $($(validate_date($date_arg)?;)+)?
+            tracing::debug!(endpoint = stringify!($name), "gRPC request");
+            let request = proto_v3::$req {
+                query_info: Some(self.query_info()),
+                params: Some(proto_v3::$query { $($field : $val),* }),
+            };
+            let stream = self.stub().$grpc(request).await?.into_inner();
+            let table = self.collect_stream(stream).await?;
+            Ok($parser(&table))
+        }
+    };
+}
+
+/// Generate an endpoint that returns the raw `proto::DataTable`.
+///
+/// Used for Greeks, calendar, interest rates, and other endpoints where the
+/// column schema varies or is best consumed as a raw table.
+macro_rules! raw_endpoint {
+    (
+        $(#[$meta:meta])*
+        fn $name:ident( $($arg:ident : $arg_ty:ty),* ) -> proto::DataTable;
+        grpc: $grpc:ident;
+        request: $req:ident;
+        query: $query:ident { $($field:ident : $val:expr),* $(,)? };
+        $(dates: $($date_arg:ident),+ ;)?
+    ) => {
+        $(#[$meta])*
+        pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<proto::DataTable, Error> {
+            $($(validate_date($date_arg)?;)+)?
+            tracing::debug!(endpoint = stringify!($name), "gRPC request");
+            let request = proto_v3::$req {
+                query_info: Some(self.query_info()),
+                params: Some(proto_v3::$query { $($field : $val),* }),
+            };
+            let stream = self.stub().$grpc(request).await?.into_inner();
+            self.collect_stream(stream).await
+        }
+    };
+}
+
+/// Helper: build a `proto::ContractSpec` from the four standard option params.
+macro_rules! contract_spec {
+    ($symbol:expr, $expiration:expr, $strike:expr, $right:expr) => {
+        Some(proto::ContractSpec {
+            symbol: $symbol.to_string(),
+            expiration: $expiration.to_string(),
+            strike: Some($strike.to_string()),
+            right: Some($right.to_string()),
+        })
+    };
+}
+
 /// Direct client for ThetaData server access.
 ///
 /// Connects to MDDS (gRPC, historical data) without requiring the Java
@@ -186,681 +289,1345 @@ impl DirectClient {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Stock — List endpoints
+    //  Stock — List endpoints (2)
     // ═══════════════════════════════════════════════════════════════════
 
-    /// List all available stock symbols.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockListSymbols`
-    pub async fn stock_list_symbols(&self) -> Result<Vec<String>, Error> {
-        tracing::debug!("stock_list_symbols");
-        let request = proto_v3::StockListSymbolsRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockListSymbolsRequestQuery {}),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_list_symbols(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::extract_text_column(&table, "symbol")
-            .into_iter()
-            .flatten()
-            .collect())
+    // 1. GetStockListSymbols
+    list_endpoint! {
+        /// List all available stock symbols.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockListSymbols`
+        fn stock_list_symbols() -> "symbol";
+        grpc: get_stock_list_symbols;
+        request: StockListSymbolsRequest;
+        query: StockListSymbolsRequestQuery {};
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    //  Stock — History endpoints
-    // ═══════════════════════════════════════════════════════════════════
-
-    /// Fetch end-of-day stock data for a date range.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryEod`
-    ///
-    /// Dates are `YYYYMMDD` strings (e.g. `"20240101"`).
-    pub async fn stock_history_eod(
-        &self,
-        symbol: &str,
-        start: &str,
-        end: &str,
-    ) -> Result<Vec<EodTick>, Error> {
-        validate_date(start)?;
-        validate_date(end)?;
-        tracing::debug!(symbol, start, end, "stock_history_eod");
-        let request = proto_v3::StockHistoryEodRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryEodRequestQuery {
-                symbol: symbol.to_string(),
-                start_date: start.to_string(),
-                end_date: end.to_string(),
-            }),
+    // 2. GetStockListDates
+    list_endpoint! {
+        /// List available dates for a stock by request type.
+        ///
+        /// `request_type` is e.g. `"EOD"`, `"TRADE"`, `"QUOTE"`, etc.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockListDates`
+        fn stock_list_dates(request_type: &str, symbol: &str) -> "date";
+        grpc: get_stock_list_dates;
+        request: StockListDatesRequest;
+        query: StockListDatesRequestQuery {
+            request_type: request_type.to_string(),
+            symbol: vec![symbol.to_string()],
         };
-
-        let stream = self
-            .stub()
-            .get_stock_history_eod(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(parse_eod_from_table(&table))
-    }
-
-    /// Fetch intraday OHLC bars for a stock.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryOhlc`
-    ///
-    /// `interval` is in milliseconds (e.g. `"60000"` for 1-minute bars).
-    /// `date` is `YYYYMMDD` for a single day, or use `start_date`/`end_date`
-    /// via [`stock_history_ohlc_range`] for multi-day queries.
-    pub async fn stock_history_ohlc(
-        &self,
-        symbol: &str,
-        date: &str,
-        interval: &str,
-    ) -> Result<Vec<OhlcTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(symbol, date, interval, "stock_history_ohlc");
-        let request = proto_v3::StockHistoryOhlcRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryOhlcRequestQuery {
-                symbol: symbol.to_string(),
-                date: Some(date.to_string()),
-                interval: interval.to_string(),
-                start_time: None,
-                end_time: None,
-                venue: None,
-                start_date: None,
-                end_date: None,
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_history_ohlc(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_ohlc_ticks(&table))
-    }
-
-    /// Fetch intraday OHLC bars across a date range.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryOhlc`
-    ///
-    /// Uses `start_date`/`end_date` instead of single `date`.
-    pub async fn stock_history_ohlc_range(
-        &self,
-        symbol: &str,
-        start_date: &str,
-        end_date: &str,
-        interval: &str,
-    ) -> Result<Vec<OhlcTick>, Error> {
-        validate_date(start_date)?;
-        validate_date(end_date)?;
-        tracing::debug!(
-            symbol,
-            start_date,
-            end_date,
-            interval,
-            "stock_history_ohlc_range"
-        );
-        let request = proto_v3::StockHistoryOhlcRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryOhlcRequestQuery {
-                symbol: symbol.to_string(),
-                date: None,
-                interval: interval.to_string(),
-                start_time: None,
-                end_time: None,
-                venue: None,
-                start_date: Some(start_date.to_string()),
-                end_date: Some(end_date.to_string()),
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_history_ohlc(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_ohlc_ticks(&table))
-    }
-
-    /// Fetch all trades for a stock on a given date.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryTrade`
-    pub async fn stock_history_trade(
-        &self,
-        symbol: &str,
-        date: &str,
-    ) -> Result<Vec<TradeTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(symbol, date, "stock_history_trade");
-        let request = proto_v3::StockHistoryTradeRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryTradeRequestQuery {
-                symbol: symbol.to_string(),
-                date: Some(date.to_string()),
-                start_time: None,
-                end_time: None,
-                venue: None,
-                start_date: None,
-                end_date: None,
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_history_trade(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_trade_ticks(&table))
-    }
-
-    /// Fetch NBBO quotes for a stock on a given date at a given interval.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryQuote`
-    ///
-    /// `interval` is in milliseconds (e.g. `"0"` for every quote change).
-    pub async fn stock_history_quote(
-        &self,
-        symbol: &str,
-        date: &str,
-        interval: &str,
-    ) -> Result<Vec<QuoteTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(symbol, date, interval, "stock_history_quote");
-        let request = proto_v3::StockHistoryQuoteRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryQuoteRequestQuery {
-                symbol: symbol.to_string(),
-                date: Some(date.to_string()),
-                interval: interval.to_string(),
-                start_time: None,
-                end_time: None,
-                venue: None,
-                start_date: None,
-                end_date: None,
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_history_quote(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_quote_ticks(&table))
-    }
-
-    /// Fetch combined trade + quote ticks for a stock on a given date.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockHistoryTradeQuote`
-    pub async fn stock_history_trade_quote(
-        &self,
-        symbol: &str,
-        date: &str,
-    ) -> Result<proto::DataTable, Error> {
-        validate_date(date)?;
-        tracing::debug!(symbol, date, "stock_history_trade_quote");
-        let request = proto_v3::StockHistoryTradeQuoteRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockHistoryTradeQuoteRequestQuery {
-                symbol: symbol.to_string(),
-                date: Some(date.to_string()),
-                start_time: None,
-                end_time: None,
-                exclusive: None,
-                venue: None,
-                start_date: None,
-                end_date: None,
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_stock_history_trade_quote(request)
-            .await?
-            .into_inner();
-
-        self.collect_stream(stream).await
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Stock — Snapshot endpoints
+    //  Stock — Snapshot endpoints (4)
     // ═══════════════════════════════════════════════════════════════════
 
-    /// Get the latest NBBO quote snapshot for one or more stocks.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockSnapshotQuote`
-    pub async fn stock_snapshot_quote(&self, symbols: &[&str]) -> Result<Vec<QuoteTick>, Error> {
-        tracing::debug!(?symbols, "stock_snapshot_quote");
-        let request = proto_v3::StockSnapshotQuoteRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockSnapshotQuoteRequestQuery {
-                symbol: symbols.iter().map(|s| s.to_string()).collect(),
-                venue: None,
-                min_time: None,
-            }),
+    // 3. GetStockSnapshotOhlc
+    parsed_endpoint! {
+        /// Get the latest OHLC snapshot for one or more stocks.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockSnapshotOhlc`
+        fn stock_snapshot_ohlc(symbols: &[&str]) -> Vec<OhlcTick>;
+        grpc: get_stock_snapshot_ohlc;
+        request: StockSnapshotOhlcRequest;
+        query: StockSnapshotOhlcRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            venue: None,
+            min_time: None,
         };
-
-        let stream = self
-            .stub()
-            .get_stock_snapshot_quote(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_quote_ticks(&table))
+        parse: decode::parse_ohlc_ticks;
     }
 
-    /// Get the latest OHLC snapshot for one or more stocks.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockSnapshotOhlc`
-    pub async fn stock_snapshot_ohlc(&self, symbols: &[&str]) -> Result<Vec<OhlcTick>, Error> {
-        tracing::debug!(?symbols, "stock_snapshot_ohlc");
-        let request = proto_v3::StockSnapshotOhlcRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockSnapshotOhlcRequestQuery {
-                symbol: symbols.iter().map(|s| s.to_string()).collect(),
-                venue: None,
-                min_time: None,
-            }),
+    // 4. GetStockSnapshotTrade
+    parsed_endpoint! {
+        /// Get the latest trade snapshot for one or more stocks.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockSnapshotTrade`
+        fn stock_snapshot_trade(symbols: &[&str]) -> Vec<TradeTick>;
+        grpc: get_stock_snapshot_trade;
+        request: StockSnapshotTradeRequest;
+        query: StockSnapshotTradeRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            venue: None,
+            min_time: None,
         };
-
-        let stream = self
-            .stub()
-            .get_stock_snapshot_ohlc(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_ohlc_ticks(&table))
+        parse: decode::parse_trade_ticks;
     }
 
-    /// Get the latest trade snapshot for one or more stocks.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetStockSnapshotTrade`
-    pub async fn stock_snapshot_trade(&self, symbols: &[&str]) -> Result<Vec<TradeTick>, Error> {
-        tracing::debug!(?symbols, "stock_snapshot_trade");
-        let request = proto_v3::StockSnapshotTradeRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::StockSnapshotTradeRequestQuery {
-                symbol: symbols.iter().map(|s| s.to_string()).collect(),
-                venue: None,
-                min_time: None,
-            }),
+    // 5. GetStockSnapshotQuote
+    parsed_endpoint! {
+        /// Get the latest NBBO quote snapshot for one or more stocks.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockSnapshotQuote`
+        fn stock_snapshot_quote(symbols: &[&str]) -> Vec<QuoteTick>;
+        grpc: get_stock_snapshot_quote;
+        request: StockSnapshotQuoteRequest;
+        query: StockSnapshotQuoteRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            venue: None,
+            min_time: None,
         };
+        parse: decode::parse_quote_ticks;
+    }
 
-        let stream = self
-            .stub()
-            .get_stock_snapshot_trade(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_trade_ticks(&table))
+    // 6. GetStockSnapshotMarketValue
+    raw_endpoint! {
+        /// Get the latest market value snapshot for one or more stocks.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockSnapshotMarketValue`
+        fn stock_snapshot_market_value(symbols: &[&str]) -> proto::DataTable;
+        grpc: get_stock_snapshot_market_value;
+        request: StockSnapshotMarketValueRequest;
+        query: StockSnapshotMarketValueRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            venue: None,
+            min_time: None,
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Option — List endpoints
+    //  Stock — History endpoints (5)
     // ═══════════════════════════════════════════════════════════════════
 
-    /// List available expiration dates for an option underlying.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionListExpirations`
-    pub async fn option_list_expirations(&self, symbol: &str) -> Result<Vec<String>, Error> {
-        tracing::debug!(symbol, "option_list_expirations");
-        let request = proto_v3::OptionListExpirationsRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionListExpirationsRequestQuery {
-                symbol: vec![symbol.to_string()],
-            }),
+    // 7. GetStockHistoryEod
+    parsed_endpoint! {
+        /// Fetch end-of-day stock data for a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryEod`
+        ///
+        /// Dates are `YYYYMMDD` strings (e.g. `"20240101"`).
+        fn stock_history_eod(symbol: &str, start: &str, end: &str) -> Vec<EodTick>;
+        grpc: get_stock_history_eod;
+        request: StockHistoryEodRequest;
+        query: StockHistoryEodRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start.to_string(),
+            end_date: end.to_string(),
         };
-
-        let stream = self
-            .stub()
-            .get_option_list_expirations(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::extract_text_column(&table, "expiration")
-            .into_iter()
-            .flatten()
-            .collect())
+        parse: parse_eod_from_table;
+        dates: start, end;
     }
 
-    /// List available strike prices for an option underlying at a given expiration.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionListStrikes`
-    ///
-    /// `expiration` is `YYYYMMDD`.
-    pub async fn option_list_strikes(
-        &self,
-        symbol: &str,
-        expiration: &str,
-    ) -> Result<Vec<String>, Error> {
-        tracing::debug!(symbol, expiration, "option_list_strikes");
-        let request = proto_v3::OptionListStrikesRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionListStrikesRequestQuery {
-                symbol: vec![symbol.to_string()],
-                expiration: expiration.to_string(),
-            }),
+    // 8. GetStockHistoryOhlc
+    parsed_endpoint! {
+        /// Fetch intraday OHLC bars for a stock on a single date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryOhlc`
+        ///
+        /// `interval` is in milliseconds (e.g. `"60000"` for 1-minute bars).
+        fn stock_history_ohlc(symbol: &str, date: &str, interval: &str) -> Vec<OhlcTick>;
+        grpc: get_stock_history_ohlc;
+        request: StockHistoryOhlcRequest;
+        query: StockHistoryOhlcRequestQuery {
+            symbol: symbol.to_string(),
+            date: Some(date.to_string()),
+            interval: interval.to_string(),
+            start_time: None,
+            end_time: None,
+            venue: None,
+            start_date: None,
+            end_date: None,
         };
-
-        let stream = self
-            .stub()
-            .get_option_list_strikes(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::extract_text_column(&table, "strike")
-            .into_iter()
-            .flatten()
-            .collect())
+        parse: decode::parse_ohlc_ticks;
+        dates: date;
     }
 
-    /// List all available option underlying symbols.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionListSymbols`
-    pub async fn option_list_symbols(&self) -> Result<Vec<String>, Error> {
-        tracing::debug!("option_list_symbols");
-        let request = proto_v3::OptionListSymbolsRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionListSymbolsRequestQuery {}),
+    // (bonus variant) GetStockHistoryOhlc with date range
+    parsed_endpoint! {
+        /// Fetch intraday OHLC bars across a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryOhlc`
+        ///
+        /// Uses `start_date`/`end_date` instead of single `date`.
+        fn stock_history_ohlc_range(
+            symbol: &str, start_date: &str, end_date: &str, interval: &str
+        ) -> Vec<OhlcTick>;
+        grpc: get_stock_history_ohlc;
+        request: StockHistoryOhlcRequest;
+        query: StockHistoryOhlcRequestQuery {
+            symbol: symbol.to_string(),
+            date: None,
+            interval: interval.to_string(),
+            start_time: None,
+            end_time: None,
+            venue: None,
+            start_date: Some(start_date.to_string()),
+            end_date: Some(end_date.to_string()),
         };
-
-        let stream = self
-            .stub()
-            .get_option_list_symbols(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::extract_text_column(&table, "symbol")
-            .into_iter()
-            .flatten()
-            .collect())
+        parse: decode::parse_ohlc_ticks;
+        dates: start_date, end_date;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    //  Option — History endpoints
-    // ═══════════════════════════════════════════════════════════════════
-
-    /// Fetch end-of-day option data for a contract over a date range.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionHistoryEod`
-    pub async fn option_history_eod(
-        &self,
-        symbol: &str,
-        expiration: &str,
-        strike: &str,
-        right: &str,
-        start: &str,
-        end: &str,
-    ) -> Result<Vec<EodTick>, Error> {
-        validate_date(start)?;
-        validate_date(end)?;
-        tracing::debug!(
-            symbol,
-            expiration,
-            strike,
-            right,
-            start,
-            end,
-            "option_history_eod"
-        );
-        let request = proto_v3::OptionHistoryEodRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionHistoryEodRequestQuery {
-                contract_spec: Some(proto::ContractSpec {
-                    symbol: symbol.to_string(),
-                    expiration: expiration.to_string(),
-                    strike: Some(strike.to_string()),
-                    right: Some(right.to_string()),
-                }),
-                start_date: start.to_string(),
-                end_date: end.to_string(),
-                expiration: expiration.to_string(),
-                max_dte: None,
-                strike_range: None,
-            }),
+    // 9. GetStockHistoryTrade
+    parsed_endpoint! {
+        /// Fetch all trades for a stock on a given date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryTrade`
+        fn stock_history_trade(symbol: &str, date: &str) -> Vec<TradeTick>;
+        grpc: get_stock_history_trade;
+        request: StockHistoryTradeRequest;
+        query: StockHistoryTradeRequestQuery {
+            symbol: symbol.to_string(),
+            date: Some(date.to_string()),
+            start_time: None,
+            end_time: None,
+            venue: None,
+            start_date: None,
+            end_date: None,
         };
-
-        let stream = self
-            .stub()
-            .get_option_history_eod(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(parse_eod_from_table(&table))
+        parse: decode::parse_trade_ticks;
+        dates: date;
     }
 
-    /// Fetch intraday OHLC bars for an option contract.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionHistoryOhlc`
-    pub async fn option_history_ohlc(
-        &self,
-        symbol: &str,
-        expiration: &str,
-        strike: &str,
-        right: &str,
-        date: &str,
-        interval: &str,
-    ) -> Result<Vec<OhlcTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(
-            symbol,
-            expiration,
-            strike,
-            right,
-            date,
-            interval,
-            "option_history_ohlc"
-        );
-        let request = proto_v3::OptionHistoryOhlcRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionHistoryOhlcRequestQuery {
-                contract_spec: Some(proto::ContractSpec {
-                    symbol: symbol.to_string(),
-                    expiration: expiration.to_string(),
-                    strike: Some(strike.to_string()),
-                    right: Some(right.to_string()),
-                }),
-                date: Some(date.to_string()),
-                expiration: expiration.to_string(),
-                interval: interval.to_string(),
-                start_time: None,
-                end_time: None,
-                strike_range: None,
-                start_date: None,
-                end_date: None,
-            }),
+    // 10. GetStockHistoryQuote
+    parsed_endpoint! {
+        /// Fetch NBBO quotes for a stock on a given date at a given interval.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryQuote`
+        ///
+        /// `interval` is in milliseconds (e.g. `"0"` for every quote change).
+        fn stock_history_quote(symbol: &str, date: &str, interval: &str) -> Vec<QuoteTick>;
+        grpc: get_stock_history_quote;
+        request: StockHistoryQuoteRequest;
+        query: StockHistoryQuoteRequestQuery {
+            symbol: symbol.to_string(),
+            date: Some(date.to_string()),
+            interval: interval.to_string(),
+            start_time: None,
+            end_time: None,
+            venue: None,
+            start_date: None,
+            end_date: None,
         };
-
-        let stream = self
-            .stub()
-            .get_option_history_ohlc(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_ohlc_ticks(&table))
+        parse: decode::parse_quote_ticks;
+        dates: date;
     }
 
-    /// Fetch all trades for an option contract on a given date.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionHistoryTrade`
-    pub async fn option_history_trade(
-        &self,
-        symbol: &str,
-        expiration: &str,
-        strike: &str,
-        right: &str,
-        date: &str,
-    ) -> Result<Vec<TradeTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(
-            symbol,
-            expiration,
-            strike,
-            right,
-            date,
-            "option_history_trade"
-        );
-        let request = proto_v3::OptionHistoryTradeRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionHistoryTradeRequestQuery {
-                contract_spec: Some(proto::ContractSpec {
-                    symbol: symbol.to_string(),
-                    expiration: expiration.to_string(),
-                    strike: Some(strike.to_string()),
-                    right: Some(right.to_string()),
-                }),
-                date: Some(date.to_string()),
-                expiration: expiration.to_string(),
-                start_time: None,
-                end_time: None,
-                max_dte: None,
-                strike_range: None,
-                start_date: None,
-                end_date: None,
-            }),
+    // 11. GetStockHistoryTradeQuote
+    raw_endpoint! {
+        /// Fetch combined trade + quote ticks for a stock on a given date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockHistoryTradeQuote`
+        fn stock_history_trade_quote(symbol: &str, date: &str) -> proto::DataTable;
+        grpc: get_stock_history_trade_quote;
+        request: StockHistoryTradeQuoteRequest;
+        query: StockHistoryTradeQuoteRequestQuery {
+            symbol: symbol.to_string(),
+            date: Some(date.to_string()),
+            start_time: None,
+            end_time: None,
+            exclusive: None,
+            venue: None,
+            start_date: None,
+            end_date: None,
         };
-
-        let stream = self
-            .stub()
-            .get_option_history_trade(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_trade_ticks(&table))
-    }
-
-    /// Fetch NBBO quotes for an option contract on a given date.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetOptionHistoryQuote`
-    pub async fn option_history_quote(
-        &self,
-        symbol: &str,
-        expiration: &str,
-        strike: &str,
-        right: &str,
-        date: &str,
-        interval: &str,
-    ) -> Result<Vec<QuoteTick>, Error> {
-        validate_date(date)?;
-        tracing::debug!(
-            symbol,
-            expiration,
-            strike,
-            right,
-            date,
-            interval,
-            "option_history_quote"
-        );
-        let request = proto_v3::OptionHistoryQuoteRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::OptionHistoryQuoteRequestQuery {
-                contract_spec: Some(proto::ContractSpec {
-                    symbol: symbol.to_string(),
-                    expiration: expiration.to_string(),
-                    strike: Some(strike.to_string()),
-                    right: Some(right.to_string()),
-                }),
-                date: Some(date.to_string()),
-                expiration: expiration.to_string(),
-                start_time: None,
-                end_time: None,
-                interval: interval.to_string(),
-                max_dte: None,
-                strike_range: None,
-                start_date: None,
-                end_date: None,
-            }),
-        };
-
-        let stream = self
-            .stub()
-            .get_option_history_quote(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::parse_quote_ticks(&table))
+        dates: date;
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  Index — List / History
+    //  Stock — At-Time endpoints (2)
     // ═══════════════════════════════════════════════════════════════════
 
-    /// List all available index symbols.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetIndexListSymbols`
-    pub async fn index_list_symbols(&self) -> Result<Vec<String>, Error> {
-        tracing::debug!("index_list_symbols");
-        let request = proto_v3::IndexListSymbolsRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::IndexListSymbolsRequestQuery {}),
+    // 12. GetStockAtTimeTrade
+    parsed_endpoint! {
+        /// Fetch the trade at a specific time of day across a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockAtTimeTrade`
+        ///
+        /// `time_of_day` is milliseconds from midnight (e.g. `"34200000"` for 9:30 AM ET).
+        fn stock_at_time_trade(
+            symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+        ) -> Vec<TradeTick>;
+        grpc: get_stock_at_time_trade;
+        request: StockAtTimeTradeRequest;
+        query: StockAtTimeTradeRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            time_of_day: time_of_day.to_string(),
+            venue: None,
         };
-
-        let stream = self
-            .stub()
-            .get_index_list_symbols(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
-
-        Ok(decode::extract_text_column(&table, "symbol")
-            .into_iter()
-            .flatten()
-            .collect())
+        parse: decode::parse_trade_ticks;
+        dates: start_date, end_date;
     }
 
-    /// Fetch end-of-day index data for a date range.
-    ///
-    /// gRPC: `BetaThetaTerminal/GetIndexHistoryEod`
-    pub async fn index_history_eod(
-        &self,
-        symbol: &str,
-        start: &str,
-        end: &str,
-    ) -> Result<Vec<EodTick>, Error> {
-        validate_date(start)?;
-        validate_date(end)?;
-        tracing::debug!(symbol, start, end, "index_history_eod");
-        let request = proto_v3::IndexHistoryEodRequest {
-            query_info: Some(self.query_info()),
-            params: Some(proto_v3::IndexHistoryEodRequestQuery {
-                symbol: symbol.to_string(),
-                start_date: start.to_string(),
-                end_date: end.to_string(),
-            }),
+    // 13. GetStockAtTimeQuote
+    parsed_endpoint! {
+        /// Fetch the quote at a specific time of day across a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetStockAtTimeQuote`
+        fn stock_at_time_quote(
+            symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+        ) -> Vec<QuoteTick>;
+        grpc: get_stock_at_time_quote;
+        request: StockAtTimeQuoteRequest;
+        query: StockAtTimeQuoteRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            time_of_day: time_of_day.to_string(),
+            venue: None,
         };
+        parse: decode::parse_quote_ticks;
+        dates: start_date, end_date;
+    }
 
-        let stream = self
-            .stub()
-            .get_index_history_eod(request)
-            .await?
-            .into_inner();
-        let table = self.collect_stream(stream).await?;
+    // ═══════════════════════════════════════════════════════════════════
+    //  Option — List endpoints (5)
+    // ═══════════════════════════════════════════════════════════════════
 
-        Ok(parse_eod_from_table(&table))
+    // 14. GetOptionListSymbols
+    list_endpoint! {
+        /// List all available option underlying symbols.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionListSymbols`
+        fn option_list_symbols() -> "symbol";
+        grpc: get_option_list_symbols;
+        request: OptionListSymbolsRequest;
+        query: OptionListSymbolsRequestQuery {};
+    }
+
+    // 15. GetOptionListDates
+    list_endpoint! {
+        /// List available dates for an option contract by request type.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionListDates`
+        fn option_list_dates(
+            request_type: &str, symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> "date";
+        grpc: get_option_list_dates;
+        request: OptionListDatesRequest;
+        query: OptionListDatesRequestQuery {
+            request_type: request_type.to_string(),
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+        };
+    }
+
+    // 16. GetOptionListExpirations
+    list_endpoint! {
+        /// List available expiration dates for an option underlying.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionListExpirations`
+        fn option_list_expirations(symbol: &str) -> "expiration";
+        grpc: get_option_list_expirations;
+        request: OptionListExpirationsRequest;
+        query: OptionListExpirationsRequestQuery {
+            symbol: vec![symbol.to_string()],
+        };
+    }
+
+    // 17. GetOptionListStrikes
+    list_endpoint! {
+        /// List available strike prices for an option underlying at a given expiration.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionListStrikes`
+        ///
+        /// `expiration` is `YYYYMMDD`.
+        fn option_list_strikes(symbol: &str, expiration: &str) -> "strike";
+        grpc: get_option_list_strikes;
+        request: OptionListStrikesRequest;
+        query: OptionListStrikesRequestQuery {
+            symbol: vec![symbol.to_string()],
+            expiration: expiration.to_string(),
+        };
+    }
+
+    // 18. GetOptionListContracts
+    raw_endpoint! {
+        /// List all option contracts for a symbol on a given date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionListContracts`
+        ///
+        /// Returns a `DataTable` with contract details (symbol, expiration, strike, right).
+        fn option_list_contracts(
+            request_type: &str, symbol: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_list_contracts;
+        request: OptionListContractsRequest;
+        query: OptionListContractsRequestQuery {
+            request_type: request_type.to_string(),
+            symbol: vec![symbol.to_string()],
+            date: date.to_string(),
+            max_dte: None,
+        };
+        dates: date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Option — Snapshot endpoints (10)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 19. GetOptionSnapshotOhlc
+    parsed_endpoint! {
+        /// Get the latest OHLC snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotOhlc`
+        fn option_snapshot_ohlc(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> Vec<OhlcTick>;
+        grpc: get_option_snapshot_ohlc;
+        request: OptionSnapshotOhlcRequest;
+        query: OptionSnapshotOhlcRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+        };
+        parse: decode::parse_ohlc_ticks;
+    }
+
+    // 20. GetOptionSnapshotTrade
+    parsed_endpoint! {
+        /// Get the latest trade snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotTrade`
+        fn option_snapshot_trade(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> Vec<TradeTick>;
+        grpc: get_option_snapshot_trade;
+        request: OptionSnapshotTradeRequest;
+        query: OptionSnapshotTradeRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            strike_range: None,
+            min_time: None,
+        };
+        parse: decode::parse_trade_ticks;
+    }
+
+    // 21. GetOptionSnapshotQuote
+    parsed_endpoint! {
+        /// Get the latest NBBO quote snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotQuote`
+        fn option_snapshot_quote(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> Vec<QuoteTick>;
+        grpc: get_option_snapshot_quote;
+        request: OptionSnapshotQuoteRequest;
+        query: OptionSnapshotQuoteRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+        };
+        parse: decode::parse_quote_ticks;
+    }
+
+    // 22. GetOptionSnapshotOpenInterest
+    raw_endpoint! {
+        /// Get the latest open interest snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotOpenInterest`
+        fn option_snapshot_open_interest(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_open_interest;
+        request: OptionSnapshotOpenInterestRequest;
+        query: OptionSnapshotOpenInterestRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+        };
+    }
+
+    // 23. GetOptionSnapshotMarketValue
+    raw_endpoint! {
+        /// Get the latest market value snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotMarketValue`
+        fn option_snapshot_market_value(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_market_value;
+        request: OptionSnapshotMarketValueRequest;
+        query: OptionSnapshotMarketValueRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+        };
+    }
+
+    // 24. GetOptionSnapshotGreeksImpliedVolatility
+    raw_endpoint! {
+        /// Get implied volatility snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotGreeksImpliedVolatility`
+        fn option_snapshot_greeks_implied_volatility(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_greeks_implied_volatility;
+        request: OptionSnapshotGreeksImpliedVolatilityRequest;
+        query: OptionSnapshotGreeksImpliedVolatilityRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            stock_price: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+            use_market_value: None,
+        };
+    }
+
+    // 25. GetOptionSnapshotGreeksAll
+    raw_endpoint! {
+        /// Get all Greeks snapshot for option contracts.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotGreeksAll`
+        fn option_snapshot_greeks_all(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_greeks_all;
+        request: OptionSnapshotGreeksAllRequest;
+        query: OptionSnapshotGreeksAllRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            stock_price: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+            use_market_value: None,
+        };
+    }
+
+    // 26. GetOptionSnapshotGreeksFirstOrder
+    raw_endpoint! {
+        /// Get first-order Greeks snapshot (delta, theta, rho, etc.).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotGreeksFirstOrder`
+        fn option_snapshot_greeks_first_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_greeks_first_order;
+        request: OptionSnapshotGreeksFirstOrderRequest;
+        query: OptionSnapshotGreeksFirstOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            stock_price: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+            use_market_value: None,
+        };
+    }
+
+    // 27. GetOptionSnapshotGreeksSecondOrder
+    raw_endpoint! {
+        /// Get second-order Greeks snapshot (gamma, vanna, charm, etc.).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotGreeksSecondOrder`
+        fn option_snapshot_greeks_second_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_greeks_second_order;
+        request: OptionSnapshotGreeksSecondOrderRequest;
+        query: OptionSnapshotGreeksSecondOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            stock_price: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+            use_market_value: None,
+        };
+    }
+
+    // 28. GetOptionSnapshotGreeksThirdOrder
+    raw_endpoint! {
+        /// Get third-order Greeks snapshot (speed, color, ultima, etc.).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionSnapshotGreeksThirdOrder`
+        fn option_snapshot_greeks_third_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str
+        ) -> proto::DataTable;
+        grpc: get_option_snapshot_greeks_third_order;
+        request: OptionSnapshotGreeksThirdOrderRequest;
+        query: OptionSnapshotGreeksThirdOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            stock_price: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            min_time: None,
+            use_market_value: None,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Option — History endpoints (6)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 29. GetOptionHistoryEod
+    parsed_endpoint! {
+        /// Fetch end-of-day option data for a contract over a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryEod`
+        fn option_history_eod(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            start: &str, end: &str
+        ) -> Vec<EodTick>;
+        grpc: get_option_history_eod;
+        request: OptionHistoryEodRequest;
+        query: OptionHistoryEodRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            start_date: start.to_string(),
+            end_date: end.to_string(),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+        };
+        parse: parse_eod_from_table;
+        dates: start, end;
+    }
+
+    // 30. GetOptionHistoryOhlc
+    parsed_endpoint! {
+        /// Fetch intraday OHLC bars for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryOhlc`
+        fn option_history_ohlc(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> Vec<OhlcTick>;
+        grpc: get_option_history_ohlc;
+        request: OptionHistoryOhlcRequest;
+        query: OptionHistoryOhlcRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            interval: interval.to_string(),
+            start_time: None,
+            end_time: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        parse: decode::parse_ohlc_ticks;
+        dates: date;
+    }
+
+    // 31. GetOptionHistoryTrade
+    parsed_endpoint! {
+        /// Fetch all trades for an option contract on a given date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTrade`
+        fn option_history_trade(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> Vec<TradeTick>;
+        grpc: get_option_history_trade;
+        request: OptionHistoryTradeRequest;
+        query: OptionHistoryTradeRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        parse: decode::parse_trade_ticks;
+        dates: date;
+    }
+
+    // 32. GetOptionHistoryQuote
+    parsed_endpoint! {
+        /// Fetch NBBO quotes for an option contract on a given date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryQuote`
+        fn option_history_quote(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> Vec<QuoteTick>;
+        grpc: get_option_history_quote;
+        request: OptionHistoryQuoteRequest;
+        query: OptionHistoryQuoteRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        parse: decode::parse_quote_ticks;
+        dates: date;
+    }
+
+    // 33. GetOptionHistoryTradeQuote
+    raw_endpoint! {
+        /// Fetch combined trade + quote ticks for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeQuote`
+        fn option_history_trade_quote(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_quote;
+        request: OptionHistoryTradeQuoteRequest;
+        query: OptionHistoryTradeQuoteRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            exclusive: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 34. GetOptionHistoryOpenInterest
+    raw_endpoint! {
+        /// Fetch open interest history for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryOpenInterest`
+        fn option_history_open_interest(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_open_interest;
+        request: OptionHistoryOpenInterestRequest;
+        query: OptionHistoryOpenInterestRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Option — History Greeks endpoints (12)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 35. GetOptionHistoryGreeksEod
+    raw_endpoint! {
+        /// Fetch end-of-day Greeks history for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksEod`
+        fn option_history_greeks_eod(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            start_date: &str, end_date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_eod;
+        request: OptionHistoryGreeksEodRequest;
+        query: OptionHistoryGreeksEodRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            expiration: expiration.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            underlyer_use_nbbo: None,
+            max_dte: None,
+            strike_range: None,
+        };
+        dates: start_date, end_date;
+    }
+
+    // 36. GetOptionHistoryGreeksAll
+    raw_endpoint! {
+        /// Fetch all Greeks history for an option contract (intraday, sampled by interval).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksAll`
+        fn option_history_greeks_all(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_all;
+        request: OptionHistoryGreeksAllRequest;
+        query: OptionHistoryGreeksAllRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 37. GetOptionHistoryTradeGreeksAll
+    raw_endpoint! {
+        /// Fetch all Greeks on each trade for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksAll`
+        fn option_history_trade_greeks_all(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_greeks_all;
+        request: OptionHistoryTradeGreeksAllRequest;
+        query: OptionHistoryTradeGreeksAllRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 38. GetOptionHistoryGreeksFirstOrder
+    raw_endpoint! {
+        /// Fetch first-order Greeks history (intraday, sampled by interval).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksFirstOrder`
+        fn option_history_greeks_first_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_first_order;
+        request: OptionHistoryGreeksFirstOrderRequest;
+        query: OptionHistoryGreeksFirstOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 39. GetOptionHistoryTradeGreeksFirstOrder
+    raw_endpoint! {
+        /// Fetch first-order Greeks on each trade for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksFirstOrder`
+        fn option_history_trade_greeks_first_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_greeks_first_order;
+        request: OptionHistoryTradeGreeksFirstOrderRequest;
+        query: OptionHistoryTradeGreeksFirstOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 40. GetOptionHistoryGreeksSecondOrder
+    raw_endpoint! {
+        /// Fetch second-order Greeks history (intraday, sampled by interval).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksSecondOrder`
+        fn option_history_greeks_second_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_second_order;
+        request: OptionHistoryGreeksSecondOrderRequest;
+        query: OptionHistoryGreeksSecondOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 41. GetOptionHistoryTradeGreeksSecondOrder
+    raw_endpoint! {
+        /// Fetch second-order Greeks on each trade for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksSecondOrder`
+        fn option_history_trade_greeks_second_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_greeks_second_order;
+        request: OptionHistoryTradeGreeksSecondOrderRequest;
+        query: OptionHistoryTradeGreeksSecondOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 42. GetOptionHistoryGreeksThirdOrder
+    raw_endpoint! {
+        /// Fetch third-order Greeks history (intraday, sampled by interval).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksThirdOrder`
+        fn option_history_greeks_third_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_third_order;
+        request: OptionHistoryGreeksThirdOrderRequest;
+        query: OptionHistoryGreeksThirdOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 43. GetOptionHistoryTradeGreeksThirdOrder
+    raw_endpoint! {
+        /// Fetch third-order Greeks on each trade for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksThirdOrder`
+        fn option_history_trade_greeks_third_order(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_greeks_third_order;
+        request: OptionHistoryTradeGreeksThirdOrderRequest;
+        query: OptionHistoryTradeGreeksThirdOrderRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 44. GetOptionHistoryGreeksImpliedVolatility
+    raw_endpoint! {
+        /// Fetch implied volatility history (intraday, sampled by interval).
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryGreeksImpliedVolatility`
+        fn option_history_greeks_implied_volatility(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_greeks_implied_volatility;
+        request: OptionHistoryGreeksImpliedVolatilityRequest;
+        query: OptionHistoryGreeksImpliedVolatilityRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // 45. GetOptionHistoryTradeGreeksImpliedVolatility
+    raw_endpoint! {
+        /// Fetch implied volatility on each trade for an option contract.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksImpliedVolatility`
+        fn option_history_trade_greeks_implied_volatility(
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+        ) -> proto::DataTable;
+        grpc: get_option_history_trade_greeks_implied_volatility;
+        request: OptionHistoryTradeGreeksImpliedVolatilityRequest;
+        query: OptionHistoryTradeGreeksImpliedVolatilityRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            date: Some(date.to_string()),
+            expiration: expiration.to_string(),
+            start_time: None,
+            end_time: None,
+            annual_dividend: None,
+            rate_type: None,
+            rate_value: None,
+            version: None,
+            max_dte: None,
+            strike_range: None,
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Option — At-Time endpoints (2)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 46. GetOptionAtTimeTrade
+    parsed_endpoint! {
+        /// Fetch the trade at a specific time of day across a date range for an option.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionAtTimeTrade`
+        fn option_at_time_trade(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            start_date: &str, end_date: &str, time_of_day: &str
+        ) -> Vec<TradeTick>;
+        grpc: get_option_at_time_trade;
+        request: OptionAtTimeTradeRequest;
+        query: OptionAtTimeTradeRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            time_of_day: time_of_day.to_string(),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+        };
+        parse: decode::parse_trade_ticks;
+        dates: start_date, end_date;
+    }
+
+    // 47. GetOptionAtTimeQuote
+    parsed_endpoint! {
+        /// Fetch the quote at a specific time of day across a date range for an option.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetOptionAtTimeQuote`
+        fn option_at_time_quote(
+            symbol: &str, expiration: &str, strike: &str, right: &str,
+            start_date: &str, end_date: &str, time_of_day: &str
+        ) -> Vec<QuoteTick>;
+        grpc: get_option_at_time_quote;
+        request: OptionAtTimeQuoteRequest;
+        query: OptionAtTimeQuoteRequestQuery {
+            contract_spec: contract_spec!(symbol, expiration, strike, right),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            time_of_day: time_of_day.to_string(),
+            expiration: expiration.to_string(),
+            max_dte: None,
+            strike_range: None,
+        };
+        parse: decode::parse_quote_ticks;
+        dates: start_date, end_date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Index — List endpoints (2)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 48. GetIndexListSymbols
+    list_endpoint! {
+        /// List all available index symbols.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexListSymbols`
+        fn index_list_symbols() -> "symbol";
+        grpc: get_index_list_symbols;
+        request: IndexListSymbolsRequest;
+        query: IndexListSymbolsRequestQuery {};
+    }
+
+    // 49. GetIndexListDates
+    list_endpoint! {
+        /// List available dates for an index symbol.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexListDates`
+        fn index_list_dates(symbol: &str) -> "date";
+        grpc: get_index_list_dates;
+        request: IndexListDatesRequest;
+        query: IndexListDatesRequestQuery {
+            symbol: vec![symbol.to_string()],
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Index — Snapshot endpoints (3)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 50. GetIndexSnapshotOhlc
+    parsed_endpoint! {
+        /// Get the latest OHLC snapshot for one or more indices.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexSnapshotOhlc`
+        fn index_snapshot_ohlc(symbols: &[&str]) -> Vec<OhlcTick>;
+        grpc: get_index_snapshot_ohlc;
+        request: IndexSnapshotOhlcRequest;
+        query: IndexSnapshotOhlcRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            min_time: None,
+        };
+        parse: decode::parse_ohlc_ticks;
+    }
+
+    // 51. GetIndexSnapshotPrice
+    raw_endpoint! {
+        /// Get the latest price snapshot for one or more indices.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexSnapshotPrice`
+        fn index_snapshot_price(symbols: &[&str]) -> proto::DataTable;
+        grpc: get_index_snapshot_price;
+        request: IndexSnapshotPriceRequest;
+        query: IndexSnapshotPriceRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            min_time: None,
+        };
+    }
+
+    // 52. GetIndexSnapshotMarketValue
+    raw_endpoint! {
+        /// Get the latest market value snapshot for one or more indices.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexSnapshotMarketValue`
+        fn index_snapshot_market_value(symbols: &[&str]) -> proto::DataTable;
+        grpc: get_index_snapshot_market_value;
+        request: IndexSnapshotMarketValueRequest;
+        query: IndexSnapshotMarketValueRequestQuery {
+            symbol: symbols.iter().map(|s| s.to_string()).collect(),
+            min_time: None,
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Index — History endpoints (3)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 53. GetIndexHistoryEod
+    parsed_endpoint! {
+        /// Fetch end-of-day index data for a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexHistoryEod`
+        fn index_history_eod(symbol: &str, start: &str, end: &str) -> Vec<EodTick>;
+        grpc: get_index_history_eod;
+        request: IndexHistoryEodRequest;
+        query: IndexHistoryEodRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start.to_string(),
+            end_date: end.to_string(),
+        };
+        parse: parse_eod_from_table;
+        dates: start, end;
+    }
+
+    // 54. GetIndexHistoryOhlc
+    parsed_endpoint! {
+        /// Fetch intraday OHLC bars for an index.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexHistoryOhlc`
+        fn index_history_ohlc(
+            symbol: &str, start_date: &str, end_date: &str, interval: &str
+        ) -> Vec<OhlcTick>;
+        grpc: get_index_history_ohlc;
+        request: IndexHistoryOhlcRequest;
+        query: IndexHistoryOhlcRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            interval: interval.to_string(),
+            start_time: None,
+            end_time: None,
+        };
+        parse: decode::parse_ohlc_ticks;
+        dates: start_date, end_date;
+    }
+
+    // 55. GetIndexHistoryPrice
+    raw_endpoint! {
+        /// Fetch intraday price history for an index.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexHistoryPrice`
+        fn index_history_price(
+            symbol: &str, date: &str, interval: &str
+        ) -> proto::DataTable;
+        grpc: get_index_history_price;
+        request: IndexHistoryPriceRequest;
+        query: IndexHistoryPriceRequestQuery {
+            date: Some(date.to_string()),
+            symbol: symbol.to_string(),
+            start_time: None,
+            end_time: None,
+            interval: interval.to_string(),
+            start_date: None,
+            end_date: None,
+        };
+        dates: date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Index — At-Time endpoints (1)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 56. GetIndexAtTimePrice
+    raw_endpoint! {
+        /// Fetch the index price at a specific time of day across a date range.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetIndexAtTimePrice`
+        fn index_at_time_price(
+            symbol: &str, start_date: &str, end_date: &str, time_of_day: &str
+        ) -> proto::DataTable;
+        grpc: get_index_at_time_price;
+        request: IndexAtTimePriceRequest;
+        query: IndexAtTimePriceRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+            time_of_day: time_of_day.to_string(),
+        };
+        dates: start_date, end_date;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Calendar endpoints (3)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 57. GetCalendarOpenToday
+    raw_endpoint! {
+        /// Check whether the market is open today.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetCalendarOpenToday`
+        fn calendar_open_today() -> proto::DataTable;
+        grpc: get_calendar_open_today;
+        request: CalendarOpenTodayRequest;
+        query: CalendarOpenTodayRequestQuery {};
+    }
+
+    // 58. GetCalendarOnDate
+    raw_endpoint! {
+        /// Get calendar information for a specific date.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetCalendarOnDate`
+        fn calendar_on_date(date: &str) -> proto::DataTable;
+        grpc: get_calendar_on_date;
+        request: CalendarOnDateRequest;
+        query: CalendarOnDateRequestQuery {
+            date: date.to_string(),
+        };
+        dates: date;
+    }
+
+    // 59. GetCalendarYear
+    raw_endpoint! {
+        /// Get calendar information for an entire year.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetCalendarYear`
+        ///
+        /// `year` is a 4-digit year string (e.g. `"2024"`).
+        fn calendar_year(year: &str) -> proto::DataTable;
+        grpc: get_calendar_year;
+        request: CalendarYearRequest;
+        query: CalendarYearRequestQuery {
+            year: year.to_string(),
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  Interest Rate endpoints (1)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 60. GetInterestRateHistoryEod
+    raw_endpoint! {
+        /// Fetch end-of-day interest rate history.
+        ///
+        /// gRPC: `BetaThetaTerminal/GetInterestRateHistoryEod`
+        fn interest_rate_history_eod(
+            symbol: &str, start_date: &str, end_date: &str
+        ) -> proto::DataTable;
+        grpc: get_interest_rate_history_eod;
+        request: InterestRateHistoryEodRequest;
+        query: InterestRateHistoryEodRequestQuery {
+            symbol: symbol.to_string(),
+            start_date: start_date.to_string(),
+            end_date: end_date.to_string(),
+        };
+        dates: start_date, end_date;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -869,10 +1636,9 @@ impl DirectClient {
 
     /// Execute a raw gRPC query and return the merged `DataTable`.
     ///
-    /// Use this for endpoints not yet wrapped by typed methods above.
-    /// You get direct access to the gRPC stub and can construct any
-    /// request type from `proto_v3`, then feed the streaming response
-    /// back through `collect_stream` for decoding.
+    /// Use this for endpoints that need custom parameter combinations not
+    /// covered by the typed methods above (e.g. passing optional `venue`,
+    /// `start_time`/`end_time`, or `max_dte`/`strike_range` filters).
     ///
     /// # Example
     ///

@@ -65,5 +65,41 @@ tonic-prost-build = "=0.14.5"
 prost-build = "=0.14.3"
 
 [[bench]]
-name = "bench"
+name = "bench_fit"
+harness = false
+
+[[bench]]
+name = "bench_fie"
+harness = false
+
+[[bench]]
+name = "bench_price"
+harness = false
+
+[[bench]]
+name = "bench_greeks"
+harness = false
+
+[[bench]]
+name = "bench_decode"
+harness = false
+
+[[bench]]
+name = "bench_framing"
+harness = false
+
+[[bench]]
+name = "bench_protocol"
+harness = false
+
+[[bench]]
+name = "bench_auth"
+harness = false
+
+[[bench]]
+name = "bench_enums"
+harness = false
+
+[[bench]]
+name = "bench_tick"
 harness = false

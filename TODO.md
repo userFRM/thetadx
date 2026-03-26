@@ -61,7 +61,7 @@ the ibx playbook (cache-line aligned structs, zero-alloc hot paths, pre-allocate
 - [ ] Stack-allocated `ArrayVec` in FIT decoder — `flush_digits` currently allocates on heap
 - [ ] Precomputed `10i64.pow()` lookup table for Price comparison — currently computes per compare
 - [ ] `#[inline]` / `#[inline(always)]` on hot-path functions (FIT nibble processing, price conversion, tick field accessors)
-- [ ] Lock-free ring buffer for FPSS events — `mpsc` channel adds overhead vs photon-ring style SPMC
+- [x] Lock-free ring buffer for FPSS events — implemented on `perf` branch using `disruptor-rs` v4 (LMAX Disruptor pattern); `main` branch retains `tokio::mpsc` for simplicity
 - [ ] Reusable buffer pool for zstd decompression — currently allocates a new Vec per chunk
 - [ ] Streaming iterator for `collect_stream` — currently materializes all rows into a Vec
 - [ ] Faster `norm_cdf` in Greeks — current Abramowitz & Stegun uses 5 multiplies, could use rational approximation or lookup table

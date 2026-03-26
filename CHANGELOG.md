@@ -24,8 +24,9 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 
 ### Added
 
-- **DirectClient** for MDDS gRPC — 19 typed endpoints for historical market data
-  (stock/option/index: list, history, snapshot, at-time, greeks)
+- **DirectClient** for MDDS gRPC — all 60 gRPC RPCs exposed as 61 typed endpoint methods
+  (stock/option/index/rate/calendar: list, history, snapshot, at-time, greeks) via
+  declarative `define_endpoint!` macro
 - **FpssClient** for FPSS streaming — real-time quotes, trades, open interest, OHLC
   via TLS/TCP with heartbeat and manual reconnection
 - **Auth module** — Nexus API authentication (email/password → session UUID)

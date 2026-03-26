@@ -173,6 +173,37 @@ static QuoteTick parse_quote_tick(const std::string& obj) {
     };
 }
 
+// Build a JSON array string from a vector of strings: ["a","b","c"]
+static std::string build_json_array(const std::vector<std::string>& items) {
+    std::string json = "[";
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i > 0) json += ",";
+        json += "\"" + items[i] + "\"";
+    }
+    json += "]";
+    return json;
+}
+
+// Helper: call FFI, check result, return string
+static std::string ffi_call_string(char* ptr) {
+    FfiString result(ptr);
+    if (!result.ok()) throw std::runtime_error("thetadatadx: " + last_ffi_error());
+    return result.str();
+}
+
+// Helper: parse typed tick arrays
+template<typename T>
+using TickParser = T(*)(const std::string&);
+
+template<typename T>
+static std::vector<T> parse_tick_array(const std::string& json, TickParser<T> parser) {
+    auto objects = split_json_array(json);
+    std::vector<T> ticks;
+    ticks.reserve(objects.size());
+    for (auto& obj : objects) ticks.push_back(parser(obj));
+    return ticks;
+}
+
 } // namespace detail
 
 // ── Credentials ──
@@ -207,121 +238,564 @@ Client Client::connect(const Credentials& creds, const Config& config) {
     return Client(h);
 }
 
-// Stock endpoints
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — List endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
 
 std::vector<std::string> Client::stock_list_symbols() const {
-    detail::FfiString result(tdx_stock_list_symbols(handle_.get()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-    return detail::parse_string_array(result.str());
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_stock_list_symbols(handle_.get())));
 }
+
+std::vector<std::string> Client::stock_list_dates(
+    const std::string& request_type, const std::string& symbol) const
+{
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_stock_list_dates(
+            handle_.get(), request_type.c_str(), symbol.c_str())));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — Snapshot endpoints (4)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<OhlcTick> Client::stock_snapshot_ohlc(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    auto json = detail::ffi_call_string(tdx_stock_snapshot_ohlc(handle_.get(), json_arg.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
+
+std::vector<TradeTick> Client::stock_snapshot_trade(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    auto json = detail::ffi_call_string(tdx_stock_snapshot_trade(handle_.get(), json_arg.c_str()));
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
+}
+
+std::vector<QuoteTick> Client::stock_snapshot_quote(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    auto json = detail::ffi_call_string(tdx_stock_snapshot_quote(handle_.get(), json_arg.c_str()));
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
+}
+
+std::string Client::stock_snapshot_market_value(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    return detail::ffi_call_string(tdx_stock_snapshot_market_value(handle_.get(), json_arg.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — History endpoints (5 + bonus)
+// ═══════════════════════════════════════════════════════════════════════
 
 std::vector<EodTick> Client::stock_history_eod(
     const std::string& symbol, const std::string& start_date, const std::string& end_date) const
 {
-    detail::FfiString result(tdx_stock_history_eod(
+    auto json = detail::ffi_call_string(tdx_stock_history_eod(
         handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-
-    auto objects = detail::split_json_array(result.str());
-    std::vector<EodTick> ticks;
-    ticks.reserve(objects.size());
-    for (auto& obj : objects) ticks.push_back(detail::parse_eod_tick(obj));
-    return ticks;
+    return detail::parse_tick_array<EodTick>(json, detail::parse_eod_tick);
 }
 
 std::vector<OhlcTick> Client::stock_history_ohlc(
     const std::string& symbol, const std::string& date, const std::string& interval) const
 {
-    detail::FfiString result(tdx_stock_history_ohlc(
+    auto json = detail::ffi_call_string(tdx_stock_history_ohlc(
         handle_.get(), symbol.c_str(), date.c_str(), interval.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
 
-    auto objects = detail::split_json_array(result.str());
-    std::vector<OhlcTick> ticks;
-    ticks.reserve(objects.size());
-    for (auto& obj : objects) ticks.push_back(detail::parse_ohlc_tick(obj));
-    return ticks;
+std::vector<OhlcTick> Client::stock_history_ohlc_range(
+    const std::string& symbol, const std::string& start_date,
+    const std::string& end_date, const std::string& interval) const
+{
+    auto json = detail::ffi_call_string(tdx_stock_history_ohlc_range(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str(), interval.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
 }
 
 std::vector<TradeTick> Client::stock_history_trade(
     const std::string& symbol, const std::string& date) const
 {
-    detail::FfiString result(tdx_stock_history_trade(
+    auto json = detail::ffi_call_string(tdx_stock_history_trade(
         handle_.get(), symbol.c_str(), date.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-
-    auto objects = detail::split_json_array(result.str());
-    std::vector<TradeTick> ticks;
-    ticks.reserve(objects.size());
-    for (auto& obj : objects) ticks.push_back(detail::parse_trade_tick(obj));
-    return ticks;
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
 }
 
 std::vector<QuoteTick> Client::stock_history_quote(
     const std::string& symbol, const std::string& date, const std::string& interval) const
 {
-    detail::FfiString result(tdx_stock_history_quote(
+    auto json = detail::ffi_call_string(tdx_stock_history_quote(
         handle_.get(), symbol.c_str(), date.c_str(), interval.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-
-    auto objects = detail::split_json_array(result.str());
-    std::vector<QuoteTick> ticks;
-    ticks.reserve(objects.size());
-    for (auto& obj : objects) ticks.push_back(detail::parse_quote_tick(obj));
-    return ticks;
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
 }
 
-std::vector<QuoteTick> Client::stock_snapshot_quote(const std::vector<std::string>& symbols) const {
-    // Build JSON array manually
-    std::string json = "[";
-    for (size_t i = 0; i < symbols.size(); ++i) {
-        if (i > 0) json += ",";
-        json += "\"" + symbols[i] + "\"";
-    }
-    json += "]";
-
-    detail::FfiString result(tdx_stock_snapshot_quote(handle_.get(), json.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-
-    auto objects = detail::split_json_array(result.str());
-    std::vector<QuoteTick> ticks;
-    ticks.reserve(objects.size());
-    for (auto& obj : objects) ticks.push_back(detail::parse_quote_tick(obj));
-    return ticks;
+std::string Client::stock_history_trade_quote(
+    const std::string& symbol, const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_stock_history_trade_quote(
+        handle_.get(), symbol.c_str(), date.c_str()));
 }
 
-// Option endpoints
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — At-Time endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<TradeTick> Client::stock_at_time_trade(
+    const std::string& symbol, const std::string& start_date,
+    const std::string& end_date, const std::string& time_of_day) const
+{
+    auto json = detail::ffi_call_string(tdx_stock_at_time_trade(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str(), time_of_day.c_str()));
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
+}
+
+std::vector<QuoteTick> Client::stock_at_time_quote(
+    const std::string& symbol, const std::string& start_date,
+    const std::string& end_date, const std::string& time_of_day) const
+{
+    auto json = detail::ffi_call_string(tdx_stock_at_time_quote(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str(), time_of_day.c_str()));
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — List endpoints (5)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<std::string> Client::option_list_symbols() const {
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_option_list_symbols(handle_.get())));
+}
+
+std::vector<std::string> Client::option_list_dates(
+    const std::string& request_type, const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_option_list_dates(
+            handle_.get(), request_type.c_str(), symbol.c_str(),
+            expiration.c_str(), strike.c_str(), right.c_str())));
+}
 
 std::vector<std::string> Client::option_list_expirations(const std::string& symbol) const {
-    detail::FfiString result(tdx_option_list_expirations(handle_.get(), symbol.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-    return detail::parse_string_array(result.str());
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_option_list_expirations(handle_.get(), symbol.c_str())));
 }
 
 std::vector<std::string> Client::option_list_strikes(
     const std::string& symbol, const std::string& expiration) const
 {
-    detail::FfiString result(tdx_option_list_strikes(
-        handle_.get(), symbol.c_str(), expiration.c_str()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-    return detail::parse_string_array(result.str());
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_option_list_strikes(
+            handle_.get(), symbol.c_str(), expiration.c_str())));
 }
 
-std::vector<std::string> Client::option_list_symbols() const {
-    detail::FfiString result(tdx_option_list_symbols(handle_.get()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-    return detail::parse_string_array(result.str());
+std::string Client::option_list_contracts(
+    const std::string& request_type, const std::string& symbol, const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_list_contracts(
+        handle_.get(), request_type.c_str(), symbol.c_str(), date.c_str()));
 }
 
-// Index endpoints
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — Snapshot endpoints (10)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<OhlcTick> Client::option_snapshot_ohlc(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    auto json = detail::ffi_call_string(tdx_option_snapshot_ohlc(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
+
+std::vector<TradeTick> Client::option_snapshot_trade(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    auto json = detail::ffi_call_string(tdx_option_snapshot_trade(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
+}
+
+std::vector<QuoteTick> Client::option_snapshot_quote(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    auto json = detail::ffi_call_string(tdx_option_snapshot_quote(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
+}
+
+std::string Client::option_snapshot_open_interest(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_open_interest(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_market_value(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_market_value(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_greeks_implied_volatility(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_greeks_implied_volatility(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_greeks_all(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_greeks_all(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_greeks_first_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_greeks_first_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_greeks_second_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_greeks_second_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+std::string Client::option_snapshot_greeks_third_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right) const
+{
+    return detail::ffi_call_string(tdx_option_snapshot_greeks_third_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — History endpoints (6)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<EodTick> Client::option_history_eod(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& start_date, const std::string& end_date) const
+{
+    auto json = detail::ffi_call_string(tdx_option_history_eod(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        start_date.c_str(), end_date.c_str()));
+    return detail::parse_tick_array<EodTick>(json, detail::parse_eod_tick);
+}
+
+std::vector<OhlcTick> Client::option_history_ohlc(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    auto json = detail::ffi_call_string(tdx_option_history_ohlc(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
+
+std::vector<TradeTick> Client::option_history_trade(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    auto json = detail::ffi_call_string(tdx_option_history_trade(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
+}
+
+std::vector<QuoteTick> Client::option_history_quote(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    auto json = detail::ffi_call_string(tdx_option_history_quote(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
+}
+
+std::string Client::option_history_trade_quote(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_quote(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+std::string Client::option_history_open_interest(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_open_interest(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — History Greeks endpoints (11)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::string Client::option_history_greeks_eod(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& start_date, const std::string& end_date) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_eod(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        start_date.c_str(), end_date.c_str()));
+}
+
+std::string Client::option_history_greeks_all(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_all(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+}
+
+std::string Client::option_history_trade_greeks_all(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_greeks_all(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+std::string Client::option_history_greeks_first_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_first_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+}
+
+std::string Client::option_history_trade_greeks_first_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_greeks_first_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+std::string Client::option_history_greeks_second_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_second_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+}
+
+std::string Client::option_history_trade_greeks_second_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_greeks_second_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+std::string Client::option_history_greeks_third_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_third_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+}
+
+std::string Client::option_history_trade_greeks_third_order(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_greeks_third_order(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+std::string Client::option_history_greeks_implied_volatility(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_option_history_greeks_implied_volatility(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str(), interval.c_str()));
+}
+
+std::string Client::option_history_trade_greeks_implied_volatility(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& date) const
+{
+    return detail::ffi_call_string(tdx_option_history_trade_greeks_implied_volatility(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        date.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — At-Time endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<TradeTick> Client::option_at_time_trade(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& start_date, const std::string& end_date,
+    const std::string& time_of_day) const
+{
+    auto json = detail::ffi_call_string(tdx_option_at_time_trade(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        start_date.c_str(), end_date.c_str(), time_of_day.c_str()));
+    return detail::parse_tick_array<TradeTick>(json, detail::parse_trade_tick);
+}
+
+std::vector<QuoteTick> Client::option_at_time_quote(
+    const std::string& symbol, const std::string& expiration,
+    const std::string& strike, const std::string& right,
+    const std::string& start_date, const std::string& end_date,
+    const std::string& time_of_day) const
+{
+    auto json = detail::ffi_call_string(tdx_option_at_time_quote(
+        handle_.get(), symbol.c_str(), expiration.c_str(), strike.c_str(), right.c_str(),
+        start_date.c_str(), end_date.c_str(), time_of_day.c_str()));
+    return detail::parse_tick_array<QuoteTick>(json, detail::parse_quote_tick);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — List endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
 
 std::vector<std::string> Client::index_list_symbols() const {
-    detail::FfiString result(tdx_index_list_symbols(handle_.get()));
-    if (!result.ok()) throw std::runtime_error("thetadatadx: " + detail::last_ffi_error());
-    return detail::parse_string_array(result.str());
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_index_list_symbols(handle_.get())));
 }
 
-// Greeks
+std::vector<std::string> Client::index_list_dates(const std::string& symbol) const {
+    return detail::parse_string_array(
+        detail::ffi_call_string(tdx_index_list_dates(handle_.get(), symbol.c_str())));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — Snapshot endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<OhlcTick> Client::index_snapshot_ohlc(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    auto json = detail::ffi_call_string(tdx_index_snapshot_ohlc(handle_.get(), json_arg.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
+
+std::string Client::index_snapshot_price(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    return detail::ffi_call_string(tdx_index_snapshot_price(handle_.get(), json_arg.c_str()));
+}
+
+std::string Client::index_snapshot_market_value(const std::vector<std::string>& symbols) const {
+    std::string json_arg = detail::build_json_array(symbols);
+    return detail::ffi_call_string(tdx_index_snapshot_market_value(handle_.get(), json_arg.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — History endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::vector<EodTick> Client::index_history_eod(
+    const std::string& symbol, const std::string& start_date, const std::string& end_date) const
+{
+    auto json = detail::ffi_call_string(tdx_index_history_eod(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str()));
+    return detail::parse_tick_array<EodTick>(json, detail::parse_eod_tick);
+}
+
+std::vector<OhlcTick> Client::index_history_ohlc(
+    const std::string& symbol, const std::string& start_date,
+    const std::string& end_date, const std::string& interval) const
+{
+    auto json = detail::ffi_call_string(tdx_index_history_ohlc(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str(), interval.c_str()));
+    return detail::parse_tick_array<OhlcTick>(json, detail::parse_ohlc_tick);
+}
+
+std::string Client::index_history_price(
+    const std::string& symbol, const std::string& date, const std::string& interval) const
+{
+    return detail::ffi_call_string(tdx_index_history_price(
+        handle_.get(), symbol.c_str(), date.c_str(), interval.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — At-Time endpoints (1)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::string Client::index_at_time_price(
+    const std::string& symbol, const std::string& start_date,
+    const std::string& end_date, const std::string& time_of_day) const
+{
+    return detail::ffi_call_string(tdx_index_at_time_price(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str(), time_of_day.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Calendar endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::string Client::calendar_open_today() const {
+    return detail::ffi_call_string(tdx_calendar_open_today(handle_.get()));
+}
+
+std::string Client::calendar_on_date(const std::string& date) const {
+    return detail::ffi_call_string(tdx_calendar_on_date(handle_.get(), date.c_str()));
+}
+
+std::string Client::calendar_year(const std::string& year) const {
+    return detail::ffi_call_string(tdx_calendar_year(handle_.get(), year.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Interest Rate endpoints (1)
+// ═══════════════════════════════════════════════════════════════════════
+
+std::string Client::interest_rate_history_eod(
+    const std::string& symbol, const std::string& start_date, const std::string& end_date) const
+{
+    return detail::ffi_call_string(tdx_interest_rate_history_eod(
+        handle_.get(), symbol.c_str(), start_date.c_str(), end_date.c_str()));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Greeks (standalone)
+// ═══════════════════════════════════════════════════════════════════════
 
 Greeks all_greeks(double spot, double strike, double rate, double div_yield,
                   double tte, double option_price, bool is_call)

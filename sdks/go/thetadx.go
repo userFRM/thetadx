@@ -30,21 +30,96 @@ extern void tdx_client_free(TdxClient* client);
 // ── String free ──
 extern void tdx_string_free(char* s);
 
-// ── Stock endpoints ──
+// ── Stock — List endpoints (2) ──
 extern char* tdx_stock_list_symbols(const TdxClient* client);
+extern char* tdx_stock_list_dates(const TdxClient* client, const char* request_type, const char* symbol);
+
+// ── Stock — Snapshot endpoints (4) ──
+extern char* tdx_stock_snapshot_ohlc(const TdxClient* client, const char* symbols_json);
+extern char* tdx_stock_snapshot_trade(const TdxClient* client, const char* symbols_json);
+extern char* tdx_stock_snapshot_quote(const TdxClient* client, const char* symbols_json);
+extern char* tdx_stock_snapshot_market_value(const TdxClient* client, const char* symbols_json);
+
+// ── Stock — History endpoints (5 + bonus) ──
 extern char* tdx_stock_history_eod(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date);
 extern char* tdx_stock_history_ohlc(const TdxClient* client, const char* symbol, const char* date, const char* interval);
+extern char* tdx_stock_history_ohlc_range(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date, const char* interval);
 extern char* tdx_stock_history_trade(const TdxClient* client, const char* symbol, const char* date);
 extern char* tdx_stock_history_quote(const TdxClient* client, const char* symbol, const char* date, const char* interval);
-extern char* tdx_stock_snapshot_quote(const TdxClient* client, const char* symbols_json);
+extern char* tdx_stock_history_trade_quote(const TdxClient* client, const char* symbol, const char* date);
 
-// ── Option endpoints ──
+// ── Stock — At-Time endpoints (2) ──
+extern char* tdx_stock_at_time_trade(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date, const char* time_of_day);
+extern char* tdx_stock_at_time_quote(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date, const char* time_of_day);
+
+// ── Option — List endpoints (5) ──
+extern char* tdx_option_list_symbols(const TdxClient* client);
+extern char* tdx_option_list_dates(const TdxClient* client, const char* request_type, const char* symbol, const char* expiration, const char* strike, const char* right);
 extern char* tdx_option_list_expirations(const TdxClient* client, const char* symbol);
 extern char* tdx_option_list_strikes(const TdxClient* client, const char* symbol, const char* expiration);
-extern char* tdx_option_list_symbols(const TdxClient* client);
+extern char* tdx_option_list_contracts(const TdxClient* client, const char* request_type, const char* symbol, const char* date);
 
-// ── Index endpoints ──
+// ── Option — Snapshot endpoints (10) ──
+extern char* tdx_option_snapshot_ohlc(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_trade(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_quote(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_open_interest(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_market_value(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_greeks_implied_volatility(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_greeks_all(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_greeks_first_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_greeks_second_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+extern char* tdx_option_snapshot_greeks_third_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right);
+
+// ── Option — History endpoints (6) ──
+extern char* tdx_option_history_eod(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* start_date, const char* end_date);
+extern char* tdx_option_history_ohlc(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_quote(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_quote(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_open_interest(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+
+// ── Option — History Greeks endpoints (11) ──
+extern char* tdx_option_history_greeks_eod(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* start_date, const char* end_date);
+extern char* tdx_option_history_greeks_all(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_greeks_all(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_greeks_first_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_greeks_first_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_greeks_second_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_greeks_second_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_greeks_third_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_greeks_third_order(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+extern char* tdx_option_history_greeks_implied_volatility(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date, const char* interval);
+extern char* tdx_option_history_trade_greeks_implied_volatility(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* date);
+
+// ── Option — At-Time endpoints (2) ──
+extern char* tdx_option_at_time_trade(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* start_date, const char* end_date, const char* time_of_day);
+extern char* tdx_option_at_time_quote(const TdxClient* client, const char* symbol, const char* expiration, const char* strike, const char* right, const char* start_date, const char* end_date, const char* time_of_day);
+
+// ── Index — List endpoints (2) ──
 extern char* tdx_index_list_symbols(const TdxClient* client);
+extern char* tdx_index_list_dates(const TdxClient* client, const char* symbol);
+
+// ── Index — Snapshot endpoints (3) ──
+extern char* tdx_index_snapshot_ohlc(const TdxClient* client, const char* symbols_json);
+extern char* tdx_index_snapshot_price(const TdxClient* client, const char* symbols_json);
+extern char* tdx_index_snapshot_market_value(const TdxClient* client, const char* symbols_json);
+
+// ── Index — History endpoints (3) ──
+extern char* tdx_index_history_eod(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date);
+extern char* tdx_index_history_ohlc(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date, const char* interval);
+extern char* tdx_index_history_price(const TdxClient* client, const char* symbol, const char* date, const char* interval);
+
+// ── Index — At-Time endpoints (1) ──
+extern char* tdx_index_at_time_price(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date, const char* time_of_day);
+
+// ── Calendar endpoints (3) ──
+extern char* tdx_calendar_open_today(const TdxClient* client);
+extern char* tdx_calendar_on_date(const TdxClient* client, const char* date);
+extern char* tdx_calendar_year(const TdxClient* client, const char* year);
+
+// ── Interest Rate endpoints (1) ──
+extern char* tdx_interest_rate_history_eod(const TdxClient* client, const char* symbol, const char* start_date, const char* end_date);
 
 // ── Greeks ──
 extern char* tdx_all_greeks(double spot, double strike, double rate, double div_yield, double tte, double option_price, int is_call);

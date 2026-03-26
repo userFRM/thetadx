@@ -98,7 +98,7 @@ unsafe fn cstr_to_str<'a>(p: *const c_char) -> Option<&'a str> {
     unsafe { CStr::from_ptr(p) }.to_str().ok()
 }
 
-/// Helper: serialize Vec<serde_json::Value> to a C string (JSON array).
+/// Helper: serialize a serde_json::Value to a C string.
 fn json_to_cstring(val: &serde_json::Value) -> *mut c_char {
     match CString::new(val.to_string()) {
         Ok(cs) => cs.into_raw(),
@@ -107,6 +107,51 @@ fn json_to_cstring(val: &serde_json::Value) -> *mut c_char {
             ptr::null_mut()
         }
     }
+}
+
+/// Helper: serialize a `DataTable` as JSON `{ "headers": [...], "rows": [[...], ...] }`.
+///
+/// Each row is an array of values matching the header columns.
+/// Values are either strings (text), numbers (int64), or price objects `{"value":N,"type":T}`.
+fn data_table_to_cstring(table: &thetadatadx::proto::DataTable) -> *mut c_char {
+    let headers: Vec<serde_json::Value> = table
+        .headers
+        .iter()
+        .map(|h| serde_json::Value::String(h.clone()))
+        .collect();
+
+    let rows: Vec<serde_json::Value> = table
+        .data_table
+        .iter()
+        .map(|row| {
+            let vals: Vec<serde_json::Value> = row
+                .values
+                .iter()
+                .map(|v| {
+                    use thetadatadx::proto::data_value::DataType;
+                    match &v.data_type {
+                        Some(DataType::Text(s)) => serde_json::Value::String(s.clone()),
+                        Some(DataType::Number(n)) => serde_json::json!(*n),
+                        Some(DataType::Price(p)) => {
+                            serde_json::json!({"value": p.value, "type": p.r#type})
+                        }
+                        Some(DataType::Timestamp(ts)) => serde_json::json!({
+                            "epoch_ms": ts.epoch_ms,
+                            "zone": ts.zone,
+                        }),
+                        None => serde_json::Value::Null,
+                    }
+                })
+                .collect();
+            serde_json::Value::Array(vals)
+        })
+        .collect();
+
+    let json = serde_json::json!({
+        "headers": headers,
+        "rows": rows,
+    });
+    json_to_cstring(&json)
 }
 
 // ── Credentials ──
@@ -244,34 +289,8 @@ pub unsafe extern "C" fn tdx_string_free(s: *mut c_char) {
     }
 }
 
-// ── Stock endpoints ──
+// ── Tick serialization helpers ──
 
-/// List all available stock symbols.
-///
-/// Returns a JSON array of strings, e.g. `["AAPL","MSFT",...]`.
-/// Caller must free the result with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_list_symbols(client: *const TdxClient) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    match runtime().block_on(client.inner.stock_list_symbols()) {
-        Ok(symbols) => {
-            let json = serde_json::Value::Array(
-                symbols.into_iter().map(serde_json::Value::String).collect(),
-            );
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
-}
-
-/// Helper macro for EOD tick serialization.
 fn eod_tick_to_json(t: &thetadatadx::types::tick::EodTick) -> serde_json::Value {
     serde_json::json!({
         "ms_of_day": t.ms_of_day,
@@ -333,370 +352,704 @@ fn quote_tick_to_json(t: &thetadatadx::types::tick::QuoteTick) -> serde_json::Va
     })
 }
 
-/// Fetch stock end-of-day history.
-///
-/// Returns a JSON array of EOD tick objects.
-/// Caller must free the result with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_history_eod(
-    client: *const TdxClient,
-    symbol: *const c_char,
-    start_date: *const c_char,
-    end_date: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-    let start = match unsafe { cstr_to_str(start_date) } {
-        Some(s) => s,
-        None => {
-            set_error("start_date is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-    let end = match unsafe { cstr_to_str(end_date) } {
-        Some(s) => s,
-        None => {
-            set_error("end_date is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
+// ═══════════════════════════════════════════════════════════════════════
+//  FFI macros — eliminate boilerplate across all endpoint wrappers
+// ═══════════════════════════════════════════════════════════════════════
 
-    match runtime().block_on(client.inner.stock_history_eod(symbol, start, end)) {
-        Ok(ticks) => {
-            let json = serde_json::Value::Array(ticks.iter().map(eod_tick_to_json).collect());
-            json_to_cstring(&json)
+/// FFI wrapper for list endpoints that return `Vec<String>` (no extra params beyond client).
+macro_rules! ffi_list_endpoint_no_params {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(client: *const TdxClient) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            match runtime().block_on(client.inner.$method()) {
+                Ok(items) => {
+                    let json = serde_json::Value::Array(
+                        items.into_iter().map(serde_json::Value::String).collect(),
+                    );
+                    json_to_cstring(&json)
+                }
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
+    };
 }
 
-/// Fetch stock intraday OHLC bars for a single date.
-///
-/// `interval` is in milliseconds as a string (e.g. "60000" for 1 min).
-/// Returns a JSON array. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_history_ohlc(
-    client: *const TdxClient,
-    symbol: *const c_char,
-    date: *const c_char,
-    interval: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
+/// FFI wrapper for list endpoints that take C string params and return `Vec<String>`.
+macro_rules! ffi_list_endpoint {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident ( $($param:ident),+ )
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            $($param: *const c_char),+
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            $(
+                let $param = match unsafe { cstr_to_str($param) } {
+                    Some(s) => s,
+                    None => {
+                        set_error(concat!(stringify!($param), " is null or invalid UTF-8"));
+                        return ptr::null_mut();
+                    }
+                };
+            )+
+            match runtime().block_on(client.inner.$method($($param),+)) {
+                Ok(items) => {
+                    let json = serde_json::Value::Array(
+                        items.into_iter().map(serde_json::Value::String).collect(),
+                    );
+                    json_to_cstring(&json)
+                }
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-    let date = match unsafe { cstr_to_str(date) } {
-        Some(s) => s,
-        None => {
-            set_error("date is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-    let interval = match unsafe { cstr_to_str(interval) } {
-        Some(s) => s,
-        None => {
-            set_error("interval is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-
-    match runtime().block_on(client.inner.stock_history_ohlc(symbol, date, interval)) {
-        Ok(ticks) => {
-            let json = serde_json::Value::Array(ticks.iter().map(ohlc_tick_to_json).collect());
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
 }
 
-/// Fetch all trades on a given date.
-///
-/// Returns a JSON array. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_history_trade(
-    client: *const TdxClient,
-    symbol: *const c_char,
-    date: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
+/// FFI wrapper for snapshot endpoints that take a JSON array of symbols and return tick arrays.
+macro_rules! ffi_snapshot_endpoint {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident, $tick_to_json:ident
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            symbols_json: *const c_char,
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            let json_str = match unsafe { cstr_to_str(symbols_json) } {
+                Some(s) => s,
+                None => {
+                    set_error("symbols_json is null or invalid UTF-8");
+                    return ptr::null_mut();
+                }
+            };
+            let symbols: Vec<String> = match serde_json::from_str(json_str) {
+                Ok(s) => s,
+                Err(e) => {
+                    set_error(&format!("invalid symbols JSON: {}", e));
+                    return ptr::null_mut();
+                }
+            };
+            let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
+            match runtime().block_on(client.inner.$method(&refs)) {
+                Ok(ticks) => {
+                    let json =
+                        serde_json::Value::Array(ticks.iter().map($tick_to_json).collect());
+                    json_to_cstring(&json)
+                }
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-    let date = match unsafe { cstr_to_str(date) } {
-        Some(s) => s,
-        None => {
-            set_error("date is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-
-    match runtime().block_on(client.inner.stock_history_trade(symbol, date)) {
-        Ok(ticks) => {
-            let json = serde_json::Value::Array(ticks.iter().map(trade_tick_to_json).collect());
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
 }
 
-/// Fetch NBBO quotes at a given interval.
-///
-/// Returns a JSON array. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_history_quote(
-    client: *const TdxClient,
-    symbol: *const c_char,
-    date: *const c_char,
-    interval: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
+/// FFI wrapper for raw snapshot endpoints (return DataTable as JSON).
+macro_rules! ffi_snapshot_raw_endpoint {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            symbols_json: *const c_char,
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            let json_str = match unsafe { cstr_to_str(symbols_json) } {
+                Some(s) => s,
+                None => {
+                    set_error("symbols_json is null or invalid UTF-8");
+                    return ptr::null_mut();
+                }
+            };
+            let symbols: Vec<String> = match serde_json::from_str(json_str) {
+                Ok(s) => s,
+                Err(e) => {
+                    set_error(&format!("invalid symbols JSON: {}", e));
+                    return ptr::null_mut();
+                }
+            };
+            let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
+            match runtime().block_on(client.inner.$method(&refs)) {
+                Ok(table) => data_table_to_cstring(&table),
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-    let date = match unsafe { cstr_to_str(date) } {
-        Some(s) => s,
-        None => {
-            set_error("date is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-    let interval = match unsafe { cstr_to_str(interval) } {
-        Some(s) => s,
-        None => {
-            set_error("interval is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-
-    match runtime().block_on(client.inner.stock_history_quote(symbol, date, interval)) {
-        Ok(ticks) => {
-            let json = serde_json::Value::Array(ticks.iter().map(quote_tick_to_json).collect());
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
 }
 
-/// Fetch latest NBBO quote snapshot for multiple symbols.
-///
-/// `symbols_json` is a JSON array of strings, e.g. `["AAPL","MSFT"]`.
-/// Returns a JSON array. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_stock_snapshot_quote(
-    client: *const TdxClient,
-    symbols_json: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let json_str = match unsafe { cstr_to_str(symbols_json) } {
-        Some(s) => s,
-        None => {
-            set_error("symbols_json is null or invalid UTF-8");
-            return ptr::null_mut();
+/// FFI wrapper for parsed tick endpoints with C string params.
+macro_rules! ffi_parsed_endpoint {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident, $tick_to_json:ident ( $($param:ident),+ )
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            $($param: *const c_char),+
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            $(
+                let $param = match unsafe { cstr_to_str($param) } {
+                    Some(s) => s,
+                    None => {
+                        set_error(concat!(stringify!($param), " is null or invalid UTF-8"));
+                        return ptr::null_mut();
+                    }
+                };
+            )+
+            match runtime().block_on(client.inner.$method($($param),+)) {
+                Ok(ticks) => {
+                    let json =
+                        serde_json::Value::Array(ticks.iter().map($tick_to_json).collect());
+                    json_to_cstring(&json)
+                }
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-    let symbols: Vec<String> = match serde_json::from_str(json_str) {
-        Ok(s) => s,
-        Err(e) => {
-            set_error(&format!("invalid symbols JSON: {}", e));
-            return ptr::null_mut();
+}
+
+/// FFI wrapper for raw DataTable endpoints with C string params.
+macro_rules! ffi_raw_endpoint {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident ( $($param:ident),+ )
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            $($param: *const c_char),+
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            $(
+                let $param = match unsafe { cstr_to_str($param) } {
+                    Some(s) => s,
+                    None => {
+                        set_error(concat!(stringify!($param), " is null or invalid UTF-8"));
+                        return ptr::null_mut();
+                    }
+                };
+            )+
+            match runtime().block_on(client.inner.$method($($param),+)) {
+                Ok(table) => data_table_to_cstring(&table),
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-    let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
-
-    match runtime().block_on(client.inner.stock_snapshot_quote(&refs)) {
-        Ok(ticks) => {
-            let json = serde_json::Value::Array(ticks.iter().map(quote_tick_to_json).collect());
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
 }
 
-// ── Option endpoints ──
-
-/// List expiration dates for an underlying.
-///
-/// Returns a JSON array of date strings. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_option_list_expirations(
-    client: *const TdxClient,
-    symbol: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
+/// FFI wrapper for raw DataTable endpoints with no params.
+macro_rules! ffi_raw_endpoint_no_params {
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(client: *const TdxClient) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            match runtime().block_on(client.inner.$method()) {
+                Ok(table) => data_table_to_cstring(&table),
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
         }
     };
-
-    match runtime().block_on(client.inner.option_list_expirations(symbol)) {
-        Ok(exps) => {
-            let json =
-                serde_json::Value::Array(exps.into_iter().map(serde_json::Value::String).collect());
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
 }
 
-/// List strike prices for a given expiration.
-///
-/// Returns a JSON array of strings. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_option_list_strikes(
-    client: *const TdxClient,
-    symbol: *const c_char,
-    expiration: *const c_char,
-) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-    let symbol = match unsafe { cstr_to_str(symbol) } {
-        Some(s) => s,
-        None => {
-            set_error("symbol is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
-    let expiration = match unsafe { cstr_to_str(expiration) } {
-        Some(s) => s,
-        None => {
-            set_error("expiration is null or invalid UTF-8");
-            return ptr::null_mut();
-        }
-    };
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — List endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
 
-    match runtime().block_on(client.inner.option_list_strikes(symbol, expiration)) {
-        Ok(strikes) => {
-            let json = serde_json::Value::Array(
-                strikes.into_iter().map(serde_json::Value::String).collect(),
-            );
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
+// 1. stock_list_symbols
+ffi_list_endpoint_no_params! {
+    /// List all available stock symbols. Returns JSON array of strings.
+    tdx_stock_list_symbols => stock_list_symbols
 }
 
-/// List all option underlyings.
-///
-/// Returns a JSON array of strings. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_option_list_symbols(client: *const TdxClient) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-
-    match runtime().block_on(client.inner.option_list_symbols()) {
-        Ok(symbols) => {
-            let json = serde_json::Value::Array(
-                symbols.into_iter().map(serde_json::Value::String).collect(),
-            );
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
+// 2. stock_list_dates
+ffi_list_endpoint! {
+    /// List available dates for a stock by request type. Returns JSON array of date strings.
+    tdx_stock_list_dates => stock_list_dates(request_type, symbol)
 }
 
-// ── Index endpoints ──
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — Snapshot endpoints (4)
+// ═══════════════════════════════════════════════════════════════════════
 
-/// List all index symbols.
-///
-/// Returns a JSON array of strings. Caller must free with `tdx_string_free`.
-#[no_mangle]
-pub unsafe extern "C" fn tdx_index_list_symbols(client: *const TdxClient) -> *mut c_char {
-    if client.is_null() {
-        set_error("client handle is null");
-        return ptr::null_mut();
-    }
-    let client = unsafe { &*client };
-
-    match runtime().block_on(client.inner.index_list_symbols()) {
-        Ok(symbols) => {
-            let json = serde_json::Value::Array(
-                symbols.into_iter().map(serde_json::Value::String).collect(),
-            );
-            json_to_cstring(&json)
-        }
-        Err(e) => {
-            set_error(&e.to_string());
-            ptr::null_mut()
-        }
-    }
+// 3. stock_snapshot_ohlc
+ffi_snapshot_endpoint! {
+    /// Get latest OHLC snapshot. symbols_json is JSON array. Returns JSON array of OHLC ticks.
+    tdx_stock_snapshot_ohlc => stock_snapshot_ohlc, ohlc_tick_to_json
 }
 
-// ── Greeks ──
+// 4. stock_snapshot_trade
+ffi_snapshot_endpoint! {
+    /// Get latest trade snapshot. symbols_json is JSON array. Returns JSON array of trade ticks.
+    tdx_stock_snapshot_trade => stock_snapshot_trade, trade_tick_to_json
+}
+
+// 5. stock_snapshot_quote
+ffi_snapshot_endpoint! {
+    /// Get latest NBBO quote snapshot. symbols_json is JSON array. Returns JSON array of quote ticks.
+    tdx_stock_snapshot_quote => stock_snapshot_quote, quote_tick_to_json
+}
+
+// 6. stock_snapshot_market_value
+ffi_snapshot_raw_endpoint! {
+    /// Get latest market value snapshot. symbols_json is JSON array. Returns JSON DataTable.
+    tdx_stock_snapshot_market_value => stock_snapshot_market_value
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — History endpoints (5 + bonus)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 7. stock_history_eod
+ffi_parsed_endpoint! {
+    /// Fetch stock end-of-day history. Returns JSON array of EOD ticks.
+    tdx_stock_history_eod => stock_history_eod, eod_tick_to_json(symbol, start_date, end_date)
+}
+
+// 8. stock_history_ohlc
+ffi_parsed_endpoint! {
+    /// Fetch stock intraday OHLC bars. Returns JSON array of OHLC ticks.
+    tdx_stock_history_ohlc => stock_history_ohlc, ohlc_tick_to_json(symbol, date, interval)
+}
+
+// 8b. stock_history_ohlc_range
+ffi_parsed_endpoint! {
+    /// Fetch stock intraday OHLC bars across a date range. Returns JSON array.
+    tdx_stock_history_ohlc_range => stock_history_ohlc_range, ohlc_tick_to_json(symbol, start_date, end_date, interval)
+}
+
+// 9. stock_history_trade
+ffi_parsed_endpoint! {
+    /// Fetch all trades on a date. Returns JSON array of trade ticks.
+    tdx_stock_history_trade => stock_history_trade, trade_tick_to_json(symbol, date)
+}
+
+// 10. stock_history_quote
+ffi_parsed_endpoint! {
+    /// Fetch NBBO quotes. Returns JSON array of quote ticks.
+    tdx_stock_history_quote => stock_history_quote, quote_tick_to_json(symbol, date, interval)
+}
+
+// 11. stock_history_trade_quote
+ffi_raw_endpoint! {
+    /// Fetch combined trade + quote ticks. Returns JSON DataTable.
+    tdx_stock_history_trade_quote => stock_history_trade_quote(symbol, date)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Stock — At-Time endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 12. stock_at_time_trade
+ffi_parsed_endpoint! {
+    /// Fetch the trade at a specific time of day across a date range.
+    tdx_stock_at_time_trade => stock_at_time_trade, trade_tick_to_json(symbol, start_date, end_date, time_of_day)
+}
+
+// 13. stock_at_time_quote
+ffi_parsed_endpoint! {
+    /// Fetch the quote at a specific time of day across a date range.
+    tdx_stock_at_time_quote => stock_at_time_quote, quote_tick_to_json(symbol, start_date, end_date, time_of_day)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — List endpoints (5)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 14. option_list_symbols
+ffi_list_endpoint_no_params! {
+    /// List all option underlyings. Returns JSON array of strings.
+    tdx_option_list_symbols => option_list_symbols
+}
+
+// 15. option_list_dates
+ffi_list_endpoint! {
+    /// List available dates for an option contract. Returns JSON array of date strings.
+    tdx_option_list_dates => option_list_dates(request_type, symbol, expiration, strike, right)
+}
+
+// 16. option_list_expirations
+ffi_list_endpoint! {
+    /// List expiration dates. Returns JSON array of date strings.
+    tdx_option_list_expirations => option_list_expirations(symbol)
+}
+
+// 17. option_list_strikes
+ffi_list_endpoint! {
+    /// List strike prices. Returns JSON array of strings.
+    tdx_option_list_strikes => option_list_strikes(symbol, expiration)
+}
+
+// 18. option_list_contracts
+ffi_raw_endpoint! {
+    /// List all option contracts for a symbol on a date. Returns JSON DataTable.
+    tdx_option_list_contracts => option_list_contracts(request_type, symbol, date)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — Snapshot endpoints (10)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 19. option_snapshot_ohlc
+ffi_parsed_endpoint! {
+    /// Get latest OHLC snapshot for options. Returns JSON array.
+    tdx_option_snapshot_ohlc => option_snapshot_ohlc, ohlc_tick_to_json(symbol, expiration, strike, right)
+}
+
+// 20. option_snapshot_trade
+ffi_parsed_endpoint! {
+    /// Get latest trade snapshot for options. Returns JSON array.
+    tdx_option_snapshot_trade => option_snapshot_trade, trade_tick_to_json(symbol, expiration, strike, right)
+}
+
+// 21. option_snapshot_quote
+ffi_parsed_endpoint! {
+    /// Get latest NBBO quote snapshot for options. Returns JSON array.
+    tdx_option_snapshot_quote => option_snapshot_quote, quote_tick_to_json(symbol, expiration, strike, right)
+}
+
+// 22. option_snapshot_open_interest
+ffi_raw_endpoint! {
+    /// Get latest open interest snapshot for options. Returns JSON DataTable.
+    tdx_option_snapshot_open_interest => option_snapshot_open_interest(symbol, expiration, strike, right)
+}
+
+// 23. option_snapshot_market_value
+ffi_raw_endpoint! {
+    /// Get latest market value snapshot for options. Returns JSON DataTable.
+    tdx_option_snapshot_market_value => option_snapshot_market_value(symbol, expiration, strike, right)
+}
+
+// 24. option_snapshot_greeks_implied_volatility
+ffi_raw_endpoint! {
+    /// Get IV snapshot for options. Returns JSON DataTable.
+    tdx_option_snapshot_greeks_implied_volatility => option_snapshot_greeks_implied_volatility(symbol, expiration, strike, right)
+}
+
+// 25. option_snapshot_greeks_all
+ffi_raw_endpoint! {
+    /// Get all Greeks snapshot for options. Returns JSON DataTable.
+    tdx_option_snapshot_greeks_all => option_snapshot_greeks_all(symbol, expiration, strike, right)
+}
+
+// 26. option_snapshot_greeks_first_order
+ffi_raw_endpoint! {
+    /// Get first-order Greeks snapshot. Returns JSON DataTable.
+    tdx_option_snapshot_greeks_first_order => option_snapshot_greeks_first_order(symbol, expiration, strike, right)
+}
+
+// 27. option_snapshot_greeks_second_order
+ffi_raw_endpoint! {
+    /// Get second-order Greeks snapshot. Returns JSON DataTable.
+    tdx_option_snapshot_greeks_second_order => option_snapshot_greeks_second_order(symbol, expiration, strike, right)
+}
+
+// 28. option_snapshot_greeks_third_order
+ffi_raw_endpoint! {
+    /// Get third-order Greeks snapshot. Returns JSON DataTable.
+    tdx_option_snapshot_greeks_third_order => option_snapshot_greeks_third_order(symbol, expiration, strike, right)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — History endpoints (6)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 29. option_history_eod
+ffi_parsed_endpoint! {
+    /// Fetch EOD option data for a contract over a date range. Returns JSON array of EOD ticks.
+    tdx_option_history_eod => option_history_eod, eod_tick_to_json(symbol, expiration, strike, right, start_date, end_date)
+}
+
+// 30. option_history_ohlc
+ffi_parsed_endpoint! {
+    /// Fetch intraday OHLC bars for an option contract. Returns JSON array.
+    tdx_option_history_ohlc => option_history_ohlc, ohlc_tick_to_json(symbol, expiration, strike, right, date, interval)
+}
+
+// 31. option_history_trade
+ffi_parsed_endpoint! {
+    /// Fetch all trades for an option contract on a date. Returns JSON array.
+    tdx_option_history_trade => option_history_trade, trade_tick_to_json(symbol, expiration, strike, right, date)
+}
+
+// 32. option_history_quote
+ffi_parsed_endpoint! {
+    /// Fetch NBBO quotes for an option contract on a date. Returns JSON array.
+    tdx_option_history_quote => option_history_quote, quote_tick_to_json(symbol, expiration, strike, right, date, interval)
+}
+
+// 33. option_history_trade_quote
+ffi_raw_endpoint! {
+    /// Fetch combined trade + quote ticks for an option contract. Returns JSON DataTable.
+    tdx_option_history_trade_quote => option_history_trade_quote(symbol, expiration, strike, right, date)
+}
+
+// 34. option_history_open_interest
+ffi_raw_endpoint! {
+    /// Fetch open interest history for an option contract. Returns JSON DataTable.
+    tdx_option_history_open_interest => option_history_open_interest(symbol, expiration, strike, right, date)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — History Greeks endpoints (11)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 35. option_history_greeks_eod
+ffi_raw_endpoint! {
+    /// Fetch EOD Greeks history. Returns JSON DataTable.
+    tdx_option_history_greeks_eod => option_history_greeks_eod(symbol, expiration, strike, right, start_date, end_date)
+}
+
+// 36. option_history_greeks_all
+ffi_raw_endpoint! {
+    /// Fetch all Greeks history (intraday). Returns JSON DataTable.
+    tdx_option_history_greeks_all => option_history_greeks_all(symbol, expiration, strike, right, date, interval)
+}
+
+// 37. option_history_trade_greeks_all
+ffi_raw_endpoint! {
+    /// Fetch all Greeks on each trade. Returns JSON DataTable.
+    tdx_option_history_trade_greeks_all => option_history_trade_greeks_all(symbol, expiration, strike, right, date)
+}
+
+// 38. option_history_greeks_first_order
+ffi_raw_endpoint! {
+    /// Fetch first-order Greeks history. Returns JSON DataTable.
+    tdx_option_history_greeks_first_order => option_history_greeks_first_order(symbol, expiration, strike, right, date, interval)
+}
+
+// 39. option_history_trade_greeks_first_order
+ffi_raw_endpoint! {
+    /// Fetch first-order Greeks on each trade. Returns JSON DataTable.
+    tdx_option_history_trade_greeks_first_order => option_history_trade_greeks_first_order(symbol, expiration, strike, right, date)
+}
+
+// 40. option_history_greeks_second_order
+ffi_raw_endpoint! {
+    /// Fetch second-order Greeks history. Returns JSON DataTable.
+    tdx_option_history_greeks_second_order => option_history_greeks_second_order(symbol, expiration, strike, right, date, interval)
+}
+
+// 41. option_history_trade_greeks_second_order
+ffi_raw_endpoint! {
+    /// Fetch second-order Greeks on each trade. Returns JSON DataTable.
+    tdx_option_history_trade_greeks_second_order => option_history_trade_greeks_second_order(symbol, expiration, strike, right, date)
+}
+
+// 42. option_history_greeks_third_order
+ffi_raw_endpoint! {
+    /// Fetch third-order Greeks history. Returns JSON DataTable.
+    tdx_option_history_greeks_third_order => option_history_greeks_third_order(symbol, expiration, strike, right, date, interval)
+}
+
+// 43. option_history_trade_greeks_third_order
+ffi_raw_endpoint! {
+    /// Fetch third-order Greeks on each trade. Returns JSON DataTable.
+    tdx_option_history_trade_greeks_third_order => option_history_trade_greeks_third_order(symbol, expiration, strike, right, date)
+}
+
+// 44. option_history_greeks_implied_volatility
+ffi_raw_endpoint! {
+    /// Fetch IV history (intraday). Returns JSON DataTable.
+    tdx_option_history_greeks_implied_volatility => option_history_greeks_implied_volatility(symbol, expiration, strike, right, date, interval)
+}
+
+// 45. option_history_trade_greeks_implied_volatility
+ffi_raw_endpoint! {
+    /// Fetch IV on each trade. Returns JSON DataTable.
+    tdx_option_history_trade_greeks_implied_volatility => option_history_trade_greeks_implied_volatility(symbol, expiration, strike, right, date)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Option — At-Time endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 46. option_at_time_trade
+ffi_parsed_endpoint! {
+    /// Fetch the trade at a specific time for an option contract. Returns JSON array.
+    tdx_option_at_time_trade => option_at_time_trade, trade_tick_to_json(symbol, expiration, strike, right, start_date, end_date, time_of_day)
+}
+
+// 47. option_at_time_quote
+ffi_parsed_endpoint! {
+    /// Fetch the quote at a specific time for an option contract. Returns JSON array.
+    tdx_option_at_time_quote => option_at_time_quote, quote_tick_to_json(symbol, expiration, strike, right, start_date, end_date, time_of_day)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — List endpoints (2)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 48. index_list_symbols
+ffi_list_endpoint_no_params! {
+    /// List all index symbols. Returns JSON array of strings.
+    tdx_index_list_symbols => index_list_symbols
+}
+
+// 49. index_list_dates
+ffi_list_endpoint! {
+    /// List available dates for an index. Returns JSON array of date strings.
+    tdx_index_list_dates => index_list_dates(symbol)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — Snapshot endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 50. index_snapshot_ohlc
+ffi_snapshot_endpoint! {
+    /// Get latest OHLC snapshot for indices. Returns JSON array.
+    tdx_index_snapshot_ohlc => index_snapshot_ohlc, ohlc_tick_to_json
+}
+
+// 51. index_snapshot_price
+ffi_snapshot_raw_endpoint! {
+    /// Get latest price snapshot for indices. Returns JSON DataTable.
+    tdx_index_snapshot_price => index_snapshot_price
+}
+
+// 52. index_snapshot_market_value
+ffi_snapshot_raw_endpoint! {
+    /// Get latest market value snapshot for indices. Returns JSON DataTable.
+    tdx_index_snapshot_market_value => index_snapshot_market_value
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — History endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 53. index_history_eod
+ffi_parsed_endpoint! {
+    /// Fetch EOD index data for a date range. Returns JSON array of EOD ticks.
+    tdx_index_history_eod => index_history_eod, eod_tick_to_json(symbol, start_date, end_date)
+}
+
+// 54. index_history_ohlc
+ffi_parsed_endpoint! {
+    /// Fetch intraday OHLC bars for an index. Returns JSON array.
+    tdx_index_history_ohlc => index_history_ohlc, ohlc_tick_to_json(symbol, start_date, end_date, interval)
+}
+
+// 55. index_history_price
+ffi_raw_endpoint! {
+    /// Fetch intraday price history for an index. Returns JSON DataTable.
+    tdx_index_history_price => index_history_price(symbol, date, interval)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Index — At-Time endpoints (1)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 56. index_at_time_price
+ffi_raw_endpoint! {
+    /// Fetch index price at a specific time across a date range. Returns JSON DataTable.
+    tdx_index_at_time_price => index_at_time_price(symbol, start_date, end_date, time_of_day)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Calendar endpoints (3)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 57. calendar_open_today
+ffi_raw_endpoint_no_params! {
+    /// Check whether the market is open today. Returns JSON DataTable.
+    tdx_calendar_open_today => calendar_open_today
+}
+
+// 58. calendar_on_date
+ffi_raw_endpoint! {
+    /// Get calendar information for a specific date. Returns JSON DataTable.
+    tdx_calendar_on_date => calendar_on_date(date)
+}
+
+// 59. calendar_year
+ffi_raw_endpoint! {
+    /// Get calendar information for an entire year. Returns JSON DataTable.
+    tdx_calendar_year => calendar_year(year)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Interest Rate endpoints (1)
+// ═══════════════════════════════════════════════════════════════════════
+
+// 60. interest_rate_history_eod
+ffi_raw_endpoint! {
+    /// Fetch EOD interest rate history. Returns JSON DataTable.
+    tdx_interest_rate_history_eod => interest_rate_history_eod(symbol, start_date, end_date)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Greeks (standalone, not client methods)
+// ═══════════════════════════════════════════════════════════════════════
 
 /// Compute all 22 Black-Scholes Greeks + IV.
 ///

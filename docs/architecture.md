@@ -57,8 +57,8 @@ MDDS is a standard gRPC service over TLS, operating on port 443.
 
 - **Package**: `BetaEndpoints`
 - **Service**: `BetaThetaTerminal`
-- **Methods**: 60 RPCs, all server-streaming (returning `stream ResponseData`)
-- **Categories**: Stock, Option, Index, Interest Rate -- each with List, History, Snapshot, AtTime, and Greeks sub-categories
+- **Methods**: 60 RPCs, all server-streaming (returning `stream ResponseData`). thetadatadx wraps all 60 gRPC RPCs plus 1 convenience range-query variant = **61 DirectClient methods**, generated via a declarative `define_endpoint!` macro.
+- **Categories**: Stock, Option, Index, Interest Rate, Calendar -- each with List, History, Snapshot, AtTime, and Greeks sub-categories
 
 ### Request Structure
 
@@ -265,6 +265,10 @@ Security type codes: Stock=0, Option=1, Index=2, Rate=3.
 
 After successful authentication, the client must send a PING (code 0x0A) with payload `[0x00]` every 100ms. Failure to send pings causes the server to disconnect.
 
+### Disruptor Ring Buffer (perf branch)
+
+The `perf` branch replaces the default `tokio::mpsc` channel for FPSS event dispatch with a lock-free disruptor ring buffer (`disruptor-rs` v4), matching Java's LMAX Disruptor pattern. This eliminates channel overhead on the hot path and provides bounded-latency event delivery. The `main` branch retains `tokio::mpsc` for simplicity.
+
 ### Reconnection
 
 | Disconnect Reason | Action |
@@ -431,7 +435,7 @@ graph TD
             T_TICK["tick.rs<br/><i>Trade/Quote/OHLC/EOD</i>"]
         end
 
-        DIRECT["direct.rs<br/><i>DirectClient</i>"]
+        DIRECT["direct.rs<br/><i>DirectClient — 61 endpoints<br/>via define_endpoint! macro</i>"]
         CONFIG["config.rs<br/><i>DirectConfig</i>"]
         DECODE["decode.rs<br/><i>zstd + DataTable</i>"]
         GREEKS["greeks.rs<br/><i>22 Greeks + IV</i>"]

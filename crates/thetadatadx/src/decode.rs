@@ -137,37 +137,68 @@ pub fn extract_price_column(
 }
 
 /// Helper to get a number from a row at a given column index, defaulting to 0.
-fn row_number(row: &proto::DataValueList, idx: usize) -> i32 {
+///
+/// Returns 0 for missing cells, `NullValue` cells, or non-Number types.
+/// Tick schemas don't have nullable fields in practice — NullValue only appears
+/// in column-oriented endpoints like Greeks/calendar which use `extract_number_column`
+/// (which returns `Option`). For tick parsing, defaulting to 0 is correct and
+/// matches the Java terminal's behavior.
+pub(crate) fn row_number(row: &proto::DataValueList, idx: usize) -> i32 {
     row.values
         .get(idx)
         .and_then(|dv| dv.data_type.as_ref())
         .and_then(|dt| match dt {
             proto::data_value::DataType::Number(n) => Some(*n as i32),
-            _ => None,
+            other => {
+                tracing::trace!(
+                    column = idx,
+                    data_type = ?other,
+                    "unexpected cell type in tick row, defaulting to 0"
+                );
+                None
+            }
         })
         .unwrap_or(0)
 }
 
 /// Helper to get a price value from a row at a given column index.
-fn row_price_value(row: &proto::DataValueList, idx: usize) -> i32 {
+///
+/// See [`row_number`] for null/missing cell handling rationale.
+pub(crate) fn row_price_value(row: &proto::DataValueList, idx: usize) -> i32 {
     row.values
         .get(idx)
         .and_then(|dv| dv.data_type.as_ref())
         .and_then(|dt| match dt {
             proto::data_value::DataType::Price(p) => Some(p.value),
-            _ => None,
+            other => {
+                tracing::trace!(
+                    column = idx,
+                    data_type = ?other,
+                    "unexpected cell type in tick row (expected Price), defaulting to 0"
+                );
+                None
+            }
         })
         .unwrap_or(0)
 }
 
 /// Helper to get price type from a row at a given column index.
-fn row_price_type(row: &proto::DataValueList, idx: usize) -> i32 {
+///
+/// See [`row_number`] for null/missing cell handling rationale.
+pub(crate) fn row_price_type(row: &proto::DataValueList, idx: usize) -> i32 {
     row.values
         .get(idx)
         .and_then(|dv| dv.data_type.as_ref())
         .and_then(|dt| match dt {
             proto::data_value::DataType::Price(p) => Some(p.r#type),
-            _ => None,
+            other => {
+                tracing::trace!(
+                    column = idx,
+                    data_type = ?other,
+                    "unexpected cell type in tick row (expected Price type), defaulting to 0"
+                );
+                None
+            }
         })
         .unwrap_or(0)
 }
@@ -350,4 +381,158 @@ pub fn parse_ohlc_ticks(table: &proto::DataTable) -> Vec<OhlcTick> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a DataValue containing a Number.
+    fn dv_number(n: i64) -> proto::DataValue {
+        proto::DataValue {
+            data_type: Some(proto::data_value::DataType::Number(n)),
+        }
+    }
+
+    /// Build a DataValue containing a Price.
+    fn dv_price(value: i32, r#type: i32) -> proto::DataValue {
+        proto::DataValue {
+            data_type: Some(proto::data_value::DataType::Price(proto::Price {
+                value,
+                r#type,
+            })),
+        }
+    }
+
+    /// Build a DataValue containing NullValue.
+    fn dv_null() -> proto::DataValue {
+        proto::DataValue {
+            data_type: Some(proto::data_value::DataType::NullValue(0)),
+        }
+    }
+
+    /// Build a DataValue with no data_type set (missing).
+    fn dv_missing() -> proto::DataValue {
+        proto::DataValue { data_type: None }
+    }
+
+    fn row_of(values: Vec<proto::DataValue>) -> proto::DataValueList {
+        proto::DataValueList { values }
+    }
+
+    #[test]
+    fn row_number_returns_value_for_number_cell() {
+        let row = row_of(vec![dv_number(42)]);
+        assert_eq!(row_number(&row, 0), 42);
+    }
+
+    #[test]
+    fn row_number_returns_0_for_null_cell() {
+        let row = row_of(vec![dv_null()]);
+        assert_eq!(row_number(&row, 0), 0);
+    }
+
+    #[test]
+    fn row_number_returns_0_for_missing_cell() {
+        let row = row_of(vec![dv_missing()]);
+        assert_eq!(row_number(&row, 0), 0);
+    }
+
+    #[test]
+    fn row_number_returns_0_for_out_of_bounds() {
+        let row = row_of(vec![]);
+        assert_eq!(row_number(&row, 5), 0);
+    }
+
+    #[test]
+    fn row_price_value_returns_value_for_price_cell() {
+        let row = row_of(vec![dv_price(12345, 10)]);
+        assert_eq!(row_price_value(&row, 0), 12345);
+    }
+
+    #[test]
+    fn row_price_value_returns_0_for_null_cell() {
+        let row = row_of(vec![dv_null()]);
+        assert_eq!(row_price_value(&row, 0), 0);
+    }
+
+    #[test]
+    fn row_price_type_returns_type_for_price_cell() {
+        let row = row_of(vec![dv_price(12345, 10)]);
+        assert_eq!(row_price_type(&row, 0), 10);
+    }
+
+    #[test]
+    fn row_price_type_returns_0_for_null_cell() {
+        let row = row_of(vec![dv_null()]);
+        assert_eq!(row_price_type(&row, 0), 0);
+    }
+
+    #[test]
+    fn null_cells_dont_corrupt_trade_ticks() {
+        // Build a minimal DataTable with one row that has a NullValue in a field.
+        // Note: "price" header triggers Price-typed extraction, so we use a Price cell.
+        let table = proto::DataTable {
+            headers: vec![
+                "ms_of_day".into(),
+                "sequence".into(),
+                "ext_condition1".into(),
+                "ext_condition2".into(),
+                "ext_condition3".into(),
+                "ext_condition4".into(),
+                "condition".into(),
+                "size".into(),
+                "exchange".into(),
+                "price".into(),
+                "condition_flags".into(),
+                "price_flags".into(),
+                "volume_type".into(),
+                "records_back".into(),
+                "date".into(),
+            ],
+            data_table: vec![row_of(vec![
+                dv_number(34200000), // ms_of_day
+                dv_number(1),        // sequence
+                dv_null(),           // ext_condition1 = NullValue
+                dv_number(0),        // ext_condition2
+                dv_number(0),        // ext_condition3
+                dv_number(0),        // ext_condition4
+                dv_number(0),        // condition
+                dv_number(100),      // size
+                dv_number(4),        // exchange
+                dv_price(15000, 10), // price (Price-typed because header is "price")
+                dv_number(0),        // condition_flags
+                dv_number(0),        // price_flags
+                dv_number(0),        // volume_type
+                dv_number(0),        // records_back
+                dv_number(20240301), // date
+            ])],
+        };
+
+        let ticks = parse_trade_ticks(&table);
+        assert_eq!(ticks.len(), 1);
+        let tick = &ticks[0];
+        assert_eq!(tick.ms_of_day, 34200000);
+        // NullValue should default to 0, not corrupt subsequent fields.
+        assert_eq!(tick.ext_condition1, 0);
+        assert_eq!(tick.size, 100);
+        assert_eq!(tick.price, 15000);
+        assert_eq!(tick.price_type, 10);
+        assert_eq!(tick.date, 20240301);
+    }
+
+    #[test]
+    fn extract_number_column_returns_none_for_null() {
+        let table = proto::DataTable {
+            headers: vec!["val".into()],
+            data_table: vec![
+                row_of(vec![dv_number(10)]),
+                row_of(vec![dv_null()]),
+                row_of(vec![dv_number(30)]),
+            ],
+        };
+
+        let col = extract_number_column(&table, "val");
+        assert_eq!(col, vec![Some(10), None, Some(30)]);
+    }
 }

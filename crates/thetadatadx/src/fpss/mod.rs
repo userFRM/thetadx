@@ -1181,20 +1181,23 @@ fn ping_loop(
     let interval = Duration::from_millis(PING_INTERVAL_MS);
     let ping_payload = build_ping_payload();
 
-    // Java: scheduleAtFixedRate(..., 2000L, 100L) — initial delay before first ping.
+    // Java: scheduleAtFixedRate(task, 2000L, 100L) — first execution at 2000ms,
+    // then every 100ms. scheduleAtFixedRate sends THEN waits, so the first ping
+    // fires at exactly 2000ms.
     thread::sleep(Duration::from_millis(2000));
 
     loop {
-        thread::sleep(interval);
-
         if shutdown.load(Ordering::Relaxed) {
             break;
         }
         if !authenticated.load(Ordering::Relaxed) {
             // Don't send pings if not authenticated
+            thread::sleep(interval);
             continue;
         }
 
+        // Send ping FIRST, then sleep — matches Java's scheduleAtFixedRate
+        // which executes the task then waits the interval.
         let cmd = IoCommand::WriteFrame {
             code: StreamMsgType::Ping,
             payload: ping_payload.clone(),
@@ -1203,6 +1206,8 @@ fn ping_loop(
             // I/O thread has exited
             break;
         }
+
+        thread::sleep(interval);
     }
 
     tracing::debug!("fpss-ping thread exiting");
@@ -1270,9 +1275,19 @@ where
 /// Determine the reconnect delay based on the disconnect reason.
 ///
 /// Source: `FPSSClient.java` -- reconnect logic checks `RemoveReason` to decide delay.
+///
+/// # Intentional divergence from Java (see jvm-deviations.md)
+///
+/// Java only treats `AccountAlreadyConnected` (code 6) as a permanent error,
+/// retrying forever on invalid credentials — which burns rate limits and never
+/// succeeds. We treat all 7 credential/account error codes as permanent because
+/// no amount of retrying will fix bad credentials. This is a deliberate
+/// improvement over the Java behavior.
 pub fn reconnect_delay(reason: RemoveReason) -> Option<u64> {
     match reason {
         // Permanent errors -- no amount of reconnection will fix bad credentials.
+        // Java only checks AccountAlreadyConnected here; we extend this to all
+        // credential errors. See jvm-deviations.md "Permanent Disconnect".
         RemoveReason::AccountAlreadyConnected
         | RemoveReason::InvalidCredentials
         | RemoveReason::InvalidLoginValues

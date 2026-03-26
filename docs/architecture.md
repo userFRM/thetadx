@@ -147,9 +147,10 @@ flowchart TD
 
 If the `compression_description.algo` field contains an unrecognized algorithm, `decompress_response` returns `Error::Decompress` rather than silently treating the data as uncompressed.
 
-Two response processing modes are available:
-- **`collect_stream`** (default): materializes all chunks into a single merged `DataTable`. Uses `original_size` from the compression description as a pre-allocation hint for the decompression buffer.
+Three response processing modes are available:
+- **`collect_stream`** (default): materializes all chunks into a single merged `DataTable`. Uses `original_size` from the compression description as a pre-allocation hint for the decompression buffer. The decompressor uses a slab-recycled thread-local `(Decompressor, Vec<u8>)` pair — the internal buffer retains its capacity across calls, avoiding allocator pressure for repeated decompressions.
 - **`for_each_chunk`**: streaming callback that processes each chunk individually without accumulating the full response in memory.
+- **`_stream` endpoint variants**: `stock_history_trade_stream`, `stock_history_quote_stream`, `option_history_trade_stream`, `option_history_quote_stream` — these combine the gRPC call with `for_each_chunk` processing in a single method call, ideal for endpoints returning millions of rows.
 
 ## FPSS Protocol (Real-Time Streaming)
 
@@ -284,6 +285,31 @@ After successful authentication, the client waits 2000ms before sending the firs
 ### Disruptor Ring Buffer
 
 FPSS event dispatch uses a lock-free disruptor ring buffer (`disruptor-rs` v4), matching Java's LMAX Disruptor pattern. This eliminates channel overhead on the hot path and provides bounded-latency event delivery. The FPSS I/O thread is fully synchronous -- no tokio in the streaming hot path.
+
+Events delivered through the ring buffer use a split enum:
+- **`FpssEvent::Data(FpssData)`** — market data: `Quote`, `Trade`, `OpenInterest`, `Ohlcvc`
+- **`FpssEvent::Control(FpssControl)`** — lifecycle: `LoginSuccess`, `ContractAssigned`, `ReqResponse`, `MarketOpen`, `MarketClose`, `ServerError`, `Disconnected`, `Error`
+- **`FpssEvent::RawData`** — unparsed frames
+
+This split enables callers to `match` on data events without touching lifecycle logic, and vice versa.
+
+### OHLCVC-from-Trade Derivation
+
+The `OhlcvcAccumulator` derives OHLCVC bars from trade ticks in real time. Behavior:
+1. The accumulator is **not active** until the server sends an initial OHLCVC bar (server-seeded).
+2. After initialization, each incoming trade updates open/high/low/close/volume/count.
+3. Derived OHLCVC events are emitted as `FpssEvent::Data(FpssData::Ohlcvc { .. })` alongside the trade event.
+4. One accumulator per contract, stored in a `HashMap<i32, OhlcvcAccumulator>`.
+
+This matches the Java terminal's behavior: OHLCVC bars are never emitted purely from trades without a server-provided seed.
+
+### SIMD FIT Decoding
+
+On x86_64 with SSE2, the FIT decoder uses SIMD-accelerated bulk nibble extraction:
+- `chunk_has_special_nibbles()` — scans 16 bytes for field/row separators and negative markers
+- `extract_nibbles_simd()` — unpacks high/low nibbles from 16 bytes in parallel
+
+The SIMD pre-scan amortizes branch misprediction cost in the scalar decoder. Results are bit-identical to the scalar path. Non-x86_64 platforms fall back to scalar.
 
 FPSS streaming is available in all SDKs:
 - **Rust**: `FpssClient::connect()` returns a disruptor-backed event receiver

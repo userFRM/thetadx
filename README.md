@@ -24,7 +24,7 @@ No-JVM ThetaData Terminal — native Rust SDK for direct market data access.
 - **Zero-copy tick types** — `TradeTick`, `QuoteTick`, `OhlcTick`, `EodTick` with fixed-point `Price` encoding
 - **Async/await** throughout — built on Tokio with concurrent gRPC streaming and background heartbeat tasks
 - **Direct authentication** — handles the Nexus API auth flow, session management, and reconnection logic
-- **FIT codec** — native decoder for ThetaData's nibble-encoded delta-compressed tick format
+- **FIT codec** — native decoder for ThetaData's nibble-encoded delta-compressed tick format, with SIMD acceleration (SSE2) on x86_64
 - **Multi-language SDKs** — Python (PyO3), Go (CGo), C++ (RAII), all powered by the Rust core, all with FPSS streaming support
 - **pandas DataFrame support** — `to_dataframe()` and `_df` convenience methods in the Python SDK
 
@@ -34,7 +34,7 @@ No-JVM ThetaData Terminal — native Rust SDK for direct market data access.
 
 ```toml
 [dependencies]
-thetadatadx = "1.1"
+thetadatadx = "1.2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -83,31 +83,32 @@ async fn main() -> Result<(), thetadatadx::Error> {
 
 ```rust
 use thetadatadx::auth::Credentials;
-use thetadatadx::fpss::{FpssClient, FpssEvent};
+use thetadatadx::fpss::{FpssClient, FpssData, FpssControl, FpssEvent};
 use thetadatadx::fpss::protocol::Contract;
 
 #[tokio::main]
 async fn main() -> Result<(), thetadatadx::Error> {
     let creds = Credentials::from_file("creds.txt")?;
-    let (client, mut events) = FpssClient::connect(&creds, 1024).await?;
-
-    let req_id = client.subscribe_quotes(&Contract::stock("AAPL")).await?;
-    println!("Subscribed (req_id={req_id})");
-
-    while let Some(event) = events.recv().await {
+    let client = FpssClient::connect(&creds, 1024, |event: &FpssEvent| {
         match event {
-            FpssEvent::Quote { contract_id, bid, ask, .. } => {
+            FpssEvent::Data(FpssData::Quote { contract_id, bid, ask, .. }) => {
                 println!("Quote: contract={contract_id} bid={bid} ask={ask}");
             }
-            FpssEvent::Trade { contract_id, price, size, .. } => {
+            FpssEvent::Data(FpssData::Trade { contract_id, price, size, .. }) => {
                 println!("Trade: contract={contract_id} price={price} size={size}");
             }
-            FpssEvent::ContractAssigned { id, contract } => {
+            FpssEvent::Control(FpssControl::ContractAssigned { id, contract }) => {
                 println!("Contract {id} = {contract}");
             }
             _ => {}
         }
-    }
+    })?;
+
+    let req_id = client.subscribe_quotes(&Contract::stock("AAPL"))?;
+    println!("Subscribed (req_id={req_id})");
+
+    // Block until shutdown
+    std::thread::park();
     Ok(())
 }
 ```

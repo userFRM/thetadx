@@ -17,11 +17,15 @@ for critical issues.
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.2.x   | :white_check_mark: |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| Version | Supported          | Notes |
+| ------- | ------------------ | ----- |
+| 1.2.x   | :white_check_mark: | Current release |
+| 1.1.x   | :x:                | Contract wire format bug — upgrade to 1.2.x |
+| < 1.1   | :x:                | |
+
+> **Important:** Versions prior to 1.2.0 contain a contract wire format bug that could
+> produce incorrect wire bytes for option contracts, causing subscription failures or
+> wrong contract assignments. All users should upgrade to 1.2.x.
 
 ## Security Design
 

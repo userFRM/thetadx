@@ -60,6 +60,28 @@ All merged to main:
 - [x] Streaming `for_each_chunk` callback on DirectClient (streaming iterator alternative)
 - [x] Faster `norm_cdf` — Horner-form Zelen & Severo approximation (~1e-7 accuracy)
 
+## PR #12 — Audit Fixes
+
+All resolved:
+- [x] Contract wire format fix (protocol bug — option serialization now matches Java)
+- [x] 6 Greeks formula corrections (operator precedence matches Java)
+- [x] Vera (DataType 166) added to second-order Greeks enum
+- [x] Auth 401/404 handling (matches Java)
+- [x] Ping 2000ms initial delay (matches Java)
+- [x] `null_value` in DataValue proto
+- [x] Row deduplication in FPSS tick streams
+- [x] 18 new tests
+
+## PR #13 — Streaming & Performance
+
+All resolved:
+- [x] OHLCVC-from-trade derivation (`OhlcvcAccumulator`, server-seeded)
+- [x] FpssEvent split (`FpssData` + `FpssControl`)
+- [x] SIMD FIT decoding (SSE2 on x86_64)
+- [x] Slab-recycled zstd decompressor
+- [x] Streaming `_stream` endpoint variants (trade, quote for stock + option)
+- [x] `all_greeks` optimization (shared intermediates)
+
 ## Architecture Improvements
 
 - [ ] Split wire format types into `thetadatadx-wire` crate

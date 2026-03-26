@@ -6,6 +6,11 @@ Intentional differences between this Rust implementation and the decompiled Java
 
 **No deviations.** Every byte sent and received is identical to the Java terminal. The gRPC requests, FPSS framing, FIT encoding, contract serialization, and auth handshake all match the Java implementation exactly.
 
+As of v1.2.0:
+- **Contract wire format** — now matches Java exactly (fixed in PR #12; previous versions had a protocol-level bug in option contract serialization).
+- **Greeks formulas** — operator precedence now matches Java exactly, including `vera` (fixed in PR #12).
+- **OHLCVC-from-trade derivation** — now matches Java: `OhlcvcAccumulator` only emits OHLCVC events after a server-seeded initial bar, then updates incrementally from trades (added in PR #13).
+
 ## Client-Side Behavior
 
 ### Endpoint Generation: Macro vs Hand-Coded
@@ -68,13 +73,13 @@ Intentional differences between this Rust implementation and the decompiled Java
 | **Truncated frame header** | `EOFException` thrown | Returns `Error::FpssProtocol` | Same — both treat as error |
 | **Rationale** | Silent drops lose subscription state and server rejection details. Surfacing errors lets callers react (retry, alert, log). | |
 
-### Reconnection: Manual vs Automatic
+### Reconnection: Manual vs Automatic (Intentional Deviation)
 
 | | Java | Rust | Impact |
 |---|---|---|---|
-| **Behavior** | Auto-reconnect on disconnect (except `AccountAlreadyConnected`) | Manual — caller must monitor `FpssEvent::Disconnected` and call `reconnect()` | Behavioral gap |
+| **Behavior** | Auto-reconnect on disconnect (except `AccountAlreadyConnected`) | Manual — caller must monitor `FpssEvent::Control(FpssControl::Disconnected { .. })` and call `reconnect()` | Behavioral gap |
 | **Source** | `FPSSClient.handleInvoluntaryDisconnect()` → `Main.handleInvoluntaryDisconnectFPSS()` | `fpss/mod.rs:reconnect()` | |
-| **Rationale** | Auto-reconnect hides failures and makes debugging harder. Manual reconnection gives callers control over retry policy, backoff, and circuit breaking. The `reconnect_delay()` helper provides Java-compatible delay calculation. | |
+| **Rationale** | Auto-reconnect hides failures and makes debugging harder. Manual reconnection gives callers explicit control over retry policy, backoff strategy, and circuit breaking. The `reconnect_delay()` helper provides Java-compatible delay calculation for callers who want to match the Java reconnection timing. This is a **deliberate, permanent deviation** — we consider explicit reconnection control to be safer for production use. | |
 | **Planned** | May add opt-in auto-reconnect behind a feature flag in a future release. | |
 
 ### Validation: Stricter
@@ -126,6 +131,30 @@ Intentional differences between this Rust implementation and the decompiled Java
 | **Source** | `MddsClient` response pipeline | `direct.rs:collect_stream()` + `direct.rs:for_each_chunk()` |
 | **Rationale** | Java's `ArrayBlockingQueue(2)` acts as a bounded buffer between the gRPC response thread and the HTTP servlet writer. In the Rust implementation, there is no HTTP servlet layer, so the consumer model is different. `collect_stream` materializes all chunks into a merged `DataTable` (with `original_size` pre-allocation hint). `for_each_chunk` provides a streaming callback that processes each chunk without full materialization, useful for very large responses. |
 
+### FpssEvent Split: `FpssData` + `FpssControl` (Intentional Improvement)
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | Single monolithic event class hierarchy | `FpssEvent` wraps `FpssData` (market data) and `FpssControl` (lifecycle) | No wire change |
+| **Source** | `FPSSClient` internal event handling | `fpss/mod.rs: FpssEvent, FpssData, FpssControl` | |
+| **Rationale** | Java handles all events through a single dispatch path. The Rust split enables exhaustive `match` on data-only events (Quote, Trade, OpenInterest, Ohlcvc) without touching lifecycle events, and vice versa. This is an intentional API improvement — the wire format is unchanged. |
+
+### SIMD FIT Decoding (Intentional Improvement)
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | Scalar nibble-by-nibble FIT decode | SSE2-accelerated bulk nibble extraction on x86_64 | Numerically identical, lower latency |
+| **Source** | `FITReader.readChanges()` | `codec/fit.rs: chunk_has_special_nibbles(), extract_nibbles_simd()` | |
+| **Rationale** | The SIMD path scans 16 bytes at a time for special nibbles (field/row separators, negative marker), amortizing the branch misprediction cost. Falls back to scalar on non-x86_64 platforms. Results are bit-identical to the scalar path. |
+
+### Streaming `_stream` Endpoint Variants (Intentional Improvement)
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | `ArrayBlockingQueue(2)` bounded buffer | `_stream` callback variants process chunks without materializing | More flexible consumer model |
+| **Source** | `MddsClient` response pipeline | `direct.rs: stock_history_trade_stream, option_history_trade_stream, etc.` | |
+| **Rationale** | The `_stream` endpoint variants extend the existing `for_each_chunk` streaming model. They are ideal for endpoints returning millions of rows (e.g., full trade history for a liquid symbol), avoiding unbounded memory growth. The standard `collect_stream` behavior is unchanged. |
+
 ### Greeks: `.exp()` vs `E.powf()`
 
 | | Java | Rust | Impact |
@@ -151,7 +180,7 @@ These are identical to the Java terminal:
 - FPSS auth handshake (CREDENTIALS → METADATA/DISCONNECTED)
 - FIT nibble encoding (digit values, separators, DATE marker, SPACING=5)
 - FIT delta compression (first tick absolute, subsequent deltas)
-- Contract binary serialization (stock vs option wire format)
+- Contract binary serialization (stock vs option wire format) — **fixed in v1.2.0**
 - FPSS ping interval (100ms), payload (`[0x00]`), and 2000ms initial delay
 - FPSS credential length read as unsigned (matches `readUnsignedShort()`)
 - FPSS write buffer flushed only on PING (batched writes, matches Java)
@@ -160,7 +189,11 @@ These are identical to the Java terminal:
 - FPSS delta state cleared on START/STOP signals (matches Java)
 - `"client": "terminal"` in gRPC `query_parameters` (matches Java)
 - Nexus auth URL, terminal key, request/response format
+- Nexus 401/404 handling treated as invalid credentials (matches Java)
 - MDDS gRPC endpoint (`mdds-01.thetadata.us:443`)
 - FPSS server list (`nj-a:20000/20001`, `nj-b:20000/20001`)
 - Price encoding formula (`value * 10^(type - 10)`)
 - All enum codes (StreamMsgType, RemoveReason, SecType, DataType, etc.)
+- Greeks formulas (operator precedence matched to Java) — **fixed in v1.2.0**
+- OHLCVC-from-trade derivation (server-seeded, then incremental) — **added in v1.2.0**
+- Vera (DataType code 166) in second-order Greeks — **added in v1.2.0**

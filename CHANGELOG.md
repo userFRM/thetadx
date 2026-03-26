@@ -5,9 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v1.2.0
+## [1.2.0] - 2026-03-26
 
-### Fixed (Audit — PR #4, commit 39f2d5f)
+### Added (PR #13)
+
+- **OHLCVC-from-trade derivation** — `OhlcvcAccumulator` derives OHLCVC bars from trade
+  ticks in real time. Only emits `FpssEvent::Data(FpssData::Ohlcvc { .. })` after a
+  server-seeded initial bar, matching the Java terminal's behavior. Subsequent trades
+  update open/high/low/close/volume/count incrementally.
+- **FpssEvent split: `FpssData` + `FpssControl`** — the monolithic `FpssEvent` enum is now
+  a 3-variant wrapper: `Data(FpssData)` for market data (Quote, Trade, OpenInterest, Ohlcvc),
+  `Control(FpssControl)` for lifecycle events (LoginSuccess, Disconnected, MarketOpen, etc.),
+  and `RawData` for unparsed frames. This enables `match` arms that handle all data without
+  touching control flow, and vice versa — an intentional improvement not present in Java.
+- **SIMD FIT decoding** — SSE2-accelerated bulk nibble extraction on x86_64. Scans 16 bytes
+  at a time for special nibbles (field/row separators, negative marker), reducing branch
+  misprediction overhead in the FIT hot path.
+- **Streaming `_stream` endpoint variants** — `stock_history_trade_stream`,
+  `stock_history_quote_stream`, `option_history_trade_stream`, `option_history_quote_stream`
+  process gRPC response chunks via callback without materializing the full response in memory.
+  Ideal for endpoints returning millions of rows.
+- **Slab-recycled zstd decompressor** — thread-local `(Decompressor, Vec<u8>)` pair reuses
+  the working buffer across calls. The internal slab retains its capacity, avoiding allocator
+  pressure for repeated decompressions of similar-sized payloads.
+- **Row deduplication** — duplicate rows in FPSS tick streams are detected and dropped,
+  preventing double-counted trades and quotes.
+- **153 tests** — 18 new tests for OHLCVC accumulator, FpssEvent split, SIMD FIT, and
+  streaming endpoints (up from ~135).
+
+### Fixed (PR #12)
 
 18 correctness and protocol-conformance fixes from a full audit against the Java terminal:
 
@@ -60,13 +86,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 14. **Per-asset subscription fields in AuthUser** — `AuthUser` now includes `stock_tier`,
     `option_tier`, `index_tier`, and `futures_tier` fields from the Nexus auth response,
     enabling per-asset-class concurrency and permission checks.
+15. **Auth 401/404 handling** — Nexus HTTP responses with status 401 (Unauthorized) or
+    404 (Not Found) are now treated as invalid credentials, matching the Java terminal's
+    behavior. Previously these could surface as generic HTTP errors.
 
 **Observability**
 
-15. **Column lookup warns instead of silent fallback** — `extract_*_column` functions now
+16. **Column lookup warns instead of silent fallback** — `extract_*_column` functions now
     emit a `warn!` log when a requested column header is not found in the DataTable,
     instead of silently returning a vec of `None`s. This makes schema mismatches
     immediately visible in logs.
+
+**Greeks**
+
+17. **6 Greeks formula fixes** — operator precedence corrections across 6 Greek functions
+    to match Java's evaluation order. All formulas now produce bit-identical results to
+    the Java terminal for the same inputs.
+18. **`Vera` DataType code (166)** — second-order Greek `Vera` added to the `DataType` enum,
+    completing the full set of second-order Greeks (vanna, charm, vomma, veta, vera, sopdk).
+
+### Security
+
+- **Contract wire format fix** — contract binary serialization now matches the Java terminal
+  exactly. Previous versions could produce incorrect wire bytes for option contracts, causing
+  subscription failures or wrong contract assignments. This was a **protocol-level bug**;
+  upgrading to 1.2.x is strongly recommended.
+
+### Performance
+
+- **SIMD FIT decoding** — SSE2-accelerated nibble extraction on x86_64 reduces per-tick
+  decode latency for the FPSS hot path.
+- **Slab-recycled zstd** — thread-local decompressor reuses its working buffer, eliminating
+  per-chunk allocation overhead.
+- **Streaming `_stream` endpoints** — process gRPC responses chunk-by-chunk without
+  materializing the full DataTable in memory.
 
 See [TODO.md](TODO.md) for the production readiness checklist and performance roadmap.
 
@@ -187,7 +240,8 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 - FIT decoder uses i64 accumulator with i32 saturation (no silent overflow)
 - Price type range enforced with `assert!` in release builds
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/userFRM/ThetaDataDx/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/userFRM/ThetaDataDx/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/userFRM/ThetaDataDx/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/userFRM/ThetaDataDx/compare/v1.0.0...v1.0.1

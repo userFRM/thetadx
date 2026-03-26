@@ -2,6 +2,7 @@ use crate::types::price::Price;
 
 /// Trade tick — 16 fields. Core unit of trade data.
 #[derive(Debug, Clone, Copy)]
+#[repr(C, align(64))]
 pub struct TradeTick {
     pub ms_of_day: i32,
     pub sequence: i32,
@@ -22,6 +23,7 @@ pub struct TradeTick {
 }
 
 impl TradeTick {
+    #[inline]
     pub fn get_price(&self) -> Price {
         Price::new(self.price, self.price_type)
     }
@@ -54,6 +56,7 @@ impl TradeTick {
 
 /// Quote tick — 11 fields. NBBO quote data.
 #[derive(Debug, Clone, Copy)]
+#[repr(C, align(64))]
 pub struct QuoteTick {
     pub ms_of_day: i32,
     pub bid_size: i32,
@@ -69,10 +72,12 @@ pub struct QuoteTick {
 }
 
 impl QuoteTick {
+    #[inline]
     pub fn bid_price(&self) -> Price {
         Price::new(self.bid, self.price_type)
     }
 
+    #[inline]
     pub fn ask_price(&self) -> Price {
         Price::new(self.ask, self.price_type)
     }
@@ -81,6 +86,7 @@ impl QuoteTick {
         self.bid / 2 + self.ask / 2 + (self.bid % 2 + self.ask % 2) / 2
     }
 
+    #[inline]
     pub fn midpoint_price(&self) -> Price {
         Price::new(self.midpoint_value(), self.price_type)
     }
@@ -88,6 +94,7 @@ impl QuoteTick {
 
 /// OHLC tick — 9 fields. Aggregated bar data.
 #[derive(Debug, Clone, Copy)]
+#[repr(C, align(64))]
 pub struct OhlcTick {
     pub ms_of_day: i32,
     pub open: i32,
@@ -101,15 +108,19 @@ pub struct OhlcTick {
 }
 
 impl OhlcTick {
+    #[inline]
     pub fn open_price(&self) -> Price {
         Price::new(self.open, self.price_type)
     }
+    #[inline]
     pub fn high_price(&self) -> Price {
         Price::new(self.high, self.price_type)
     }
+    #[inline]
     pub fn low_price(&self) -> Price {
         Price::new(self.low, self.price_type)
     }
+    #[inline]
     pub fn close_price(&self) -> Price {
         Price::new(self.close, self.price_type)
     }
@@ -117,6 +128,7 @@ impl OhlcTick {
 
 /// End-of-day tick — 18 fields. Full EOD snapshot with OHLC + quote.
 #[derive(Debug, Clone, Copy)]
+#[repr(C, align(64))]
 pub struct EodTick {
     pub ms_of_day: i32,
     pub ms_of_day2: i32,
@@ -139,24 +151,31 @@ pub struct EodTick {
 }
 
 impl EodTick {
+    #[inline]
     pub fn open_price(&self) -> Price {
         Price::new(self.open, self.price_type)
     }
+    #[inline]
     pub fn high_price(&self) -> Price {
         Price::new(self.high, self.price_type)
     }
+    #[inline]
     pub fn low_price(&self) -> Price {
         Price::new(self.low, self.price_type)
     }
+    #[inline]
     pub fn close_price(&self) -> Price {
         Price::new(self.close, self.price_type)
     }
+    #[inline]
     pub fn bid_price(&self) -> Price {
         Price::new(self.bid, self.price_type)
     }
+    #[inline]
     pub fn ask_price(&self) -> Price {
         Price::new(self.ask, self.price_type)
     }
+    #[inline]
     pub fn midpoint_value(&self) -> i32 {
         self.bid / 2 + self.ask / 2 + (self.bid % 2 + self.ask % 2) / 2
     }
@@ -183,6 +202,7 @@ pub struct SnapshotTradeTick {
 }
 
 impl SnapshotTradeTick {
+    #[inline]
     pub fn get_price(&self) -> Price {
         Price::new(self.price, self.price_type)
     }
@@ -222,12 +242,15 @@ pub struct TradeQuoteTick {
 }
 
 impl TradeQuoteTick {
+    #[inline]
     pub fn trade_price(&self) -> Price {
         Price::new(self.price, self.price_type)
     }
+    #[inline]
     pub fn bid_price(&self) -> Price {
         Price::new(self.bid, self.price_type)
     }
+    #[inline]
     pub fn ask_price(&self) -> Price {
         Price::new(self.ask, self.price_type)
     }

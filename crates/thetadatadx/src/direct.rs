@@ -170,6 +170,9 @@ pub struct DirectClient {
     channel: tonic::transport::Channel,
     /// Configuration snapshot (retained for diagnostics/reconnect).
     config: DirectConfig,
+    /// Pre-built QueryInfo template — cloned per-request instead of allocating
+    /// new Strings each time.
+    query_info_template: proto_v3::QueryInfo,
 }
 
 impl DirectClient {
@@ -211,28 +214,31 @@ impl DirectClient {
         let channel = endpoint.connect().await?;
         tracing::info!("MDDS gRPC channel connected");
 
-        Ok(Self {
-            session,
-            channel,
-            config,
-        })
-    }
-
-    /// Build a fresh `QueryInfo` for every gRPC request.
-    ///
-    /// Embeds the session UUID, client type, and version. The `query_parameters`
-    /// map is left empty — individual endpoints populate it via their typed
-    /// `params` field instead.
-    fn query_info(&self) -> proto_v3::QueryInfo {
-        proto_v3::QueryInfo {
+        let query_info_template = proto_v3::QueryInfo {
             auth_token: Some(proto::AuthToken {
-                session_uuid: self.session.session_uuid.clone(),
+                session_uuid: session.session_uuid.clone(),
             }),
             query_parameters: HashMap::new(),
             client_type: CLIENT_TYPE.to_string(),
             terminal_git_commit: String::new(),
             terminal_version: TERMINAL_VERSION.to_string(),
-        }
+        };
+
+        Ok(Self {
+            session,
+            channel,
+            config,
+            query_info_template,
+        })
+    }
+
+    /// Return a clone of the pre-built `QueryInfo` template.
+    ///
+    /// The template is constructed once at connection time, avoiding per-call
+    /// String allocations for session UUID, client type, and version.
+    #[inline]
+    fn query_info(&self) -> proto_v3::QueryInfo {
+        self.query_info_template.clone()
     }
 
     /// Create a new gRPC stub from the shared channel.
@@ -252,6 +258,10 @@ impl DirectClient {
     /// MDDS returns server-streaming responses where each chunk is a zstd-
     /// compressed `DataTable`. This helper decompresses, decodes, and merges
     /// all chunks into one contiguous table.
+    // TODO(perf): Replace collect-then-parse with a streaming iterator that decodes
+    // and yields ticks on-the-fly, avoiding the intermediate merged DataTable
+    // allocation. This would cut peak memory by ~50% for large responses (e.g.
+    // full-day trade history can be 500K+ rows).
     async fn collect_stream(
         &self,
         mut stream: tonic::Streaming<proto::ResponseData>,
@@ -1732,31 +1742,50 @@ fn parse_eod_from_table(table: &proto::DataTable) -> Vec<EodTick> {
             .unwrap_or(0)
     }
 
+    // Precompute all column indices once, outside the per-row loop.
+    let ms_of_day_idx = find("ms_of_day");
+    let ms_of_day2_idx = find("ms_of_day2");
+    let open_idx = find("open");
+    let high_idx = find("high");
+    let low_idx = find("low");
+    let close_idx = find("close");
+    let volume_idx = find("volume");
+    let count_idx = find("count");
+    let bid_size_idx = find("bid_size");
+    let bid_exchange_idx = find("bid_exchange");
+    let bid_idx = find("bid");
+    let bid_condition_idx = find("bid_condition");
+    let ask_size_idx = find("ask_size");
+    let ask_exchange_idx = find("ask_exchange");
+    let ask_idx = find("ask");
+    let ask_condition_idx = find("ask_condition");
+    let date_idx = find("date");
+
     table
         .data_table
         .iter()
         .map(|row| {
-            let pt = find("open").map(|i| price_type(row, i)).unwrap_or(0);
+            let pt = open_idx.map(|i| price_type(row, i)).unwrap_or(0);
 
             EodTick {
-                ms_of_day: find("ms_of_day").map(|i| num(row, i)).unwrap_or(0),
-                ms_of_day2: find("ms_of_day2").map(|i| num(row, i)).unwrap_or(0),
-                open: find("open").map(|i| num(row, i)).unwrap_or(0),
-                high: find("high").map(|i| num(row, i)).unwrap_or(0),
-                low: find("low").map(|i| num(row, i)).unwrap_or(0),
-                close: find("close").map(|i| num(row, i)).unwrap_or(0),
-                volume: find("volume").map(|i| num(row, i)).unwrap_or(0),
-                count: find("count").map(|i| num(row, i)).unwrap_or(0),
-                bid_size: find("bid_size").map(|i| num(row, i)).unwrap_or(0),
-                bid_exchange: find("bid_exchange").map(|i| num(row, i)).unwrap_or(0),
-                bid: find("bid").map(|i| num(row, i)).unwrap_or(0),
-                bid_condition: find("bid_condition").map(|i| num(row, i)).unwrap_or(0),
-                ask_size: find("ask_size").map(|i| num(row, i)).unwrap_or(0),
-                ask_exchange: find("ask_exchange").map(|i| num(row, i)).unwrap_or(0),
-                ask: find("ask").map(|i| num(row, i)).unwrap_or(0),
-                ask_condition: find("ask_condition").map(|i| num(row, i)).unwrap_or(0),
+                ms_of_day: ms_of_day_idx.map(|i| num(row, i)).unwrap_or(0),
+                ms_of_day2: ms_of_day2_idx.map(|i| num(row, i)).unwrap_or(0),
+                open: open_idx.map(|i| num(row, i)).unwrap_or(0),
+                high: high_idx.map(|i| num(row, i)).unwrap_or(0),
+                low: low_idx.map(|i| num(row, i)).unwrap_or(0),
+                close: close_idx.map(|i| num(row, i)).unwrap_or(0),
+                volume: volume_idx.map(|i| num(row, i)).unwrap_or(0),
+                count: count_idx.map(|i| num(row, i)).unwrap_or(0),
+                bid_size: bid_size_idx.map(|i| num(row, i)).unwrap_or(0),
+                bid_exchange: bid_exchange_idx.map(|i| num(row, i)).unwrap_or(0),
+                bid: bid_idx.map(|i| num(row, i)).unwrap_or(0),
+                bid_condition: bid_condition_idx.map(|i| num(row, i)).unwrap_or(0),
+                ask_size: ask_size_idx.map(|i| num(row, i)).unwrap_or(0),
+                ask_exchange: ask_exchange_idx.map(|i| num(row, i)).unwrap_or(0),
+                ask: ask_idx.map(|i| num(row, i)).unwrap_or(0),
+                ask_condition: ask_condition_idx.map(|i| num(row, i)).unwrap_or(0),
                 price_type: pt,
-                date: find("date").map(|i| num(row, i)).unwrap_or(0),
+                date: date_idx.map(|i| num(row, i)).unwrap_or(0),
             }
         })
         .collect()

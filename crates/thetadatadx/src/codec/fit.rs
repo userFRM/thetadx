@@ -94,6 +94,7 @@ impl<'a> FitReader<'a> {
     /// Does **not** panic — if `alloc` is too short, excess fields are silently
     /// dropped (matching the Java behavior of writing to a pre-sized array that
     /// the caller controls).
+    #[inline]
     pub fn read_changes(&mut self, alloc: &mut [i32]) -> usize {
         self.is_date = false;
 

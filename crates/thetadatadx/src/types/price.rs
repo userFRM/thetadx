@@ -1,6 +1,37 @@
 use std::cmp::Ordering;
 use std::fmt;
 
+/// Precomputed powers of 10 as i64 for fast integer scaling in Price::compare.
+static POW10_I64: [i64; 20] = [
+    1,
+    10,
+    100,
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
+    1_000_000_000,
+    10_000_000_000,
+    100_000_000_000,
+    1_000_000_000_000,
+    10_000_000_000_000,
+    100_000_000_000_000,
+    1_000_000_000_000_000,
+    10_000_000_000_000_000,
+    100_000_000_000_000_000,
+    1_000_000_000_000_000_000,
+    // 10^19 overflows i64, but index 19 is unreachable (exp capped at 18).
+    i64::MAX,
+];
+
+/// Precomputed powers of 10 as f64 for fast float conversion in Price::to_f64.
+static POW10_F64: [f64; 20] = [
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16,
+    1e17, 1e18, 1e19,
+];
+
 /// Fixed-point price with variable decimal precision.
 ///
 /// ThetaData encodes prices as `(value, type)` where `type` indicates the
@@ -22,6 +53,7 @@ impl Price {
         price_type: 0,
     };
 
+    #[inline]
     pub fn new(value: i32, price_type: i32) -> Self {
         assert!(
             (0..20).contains(&price_type),
@@ -35,11 +67,17 @@ impl Price {
     }
 
     /// Convert to f64. This is lossy but useful for display/calculations.
+    #[inline]
     pub fn to_f64(&self) -> f64 {
         if self.price_type == 0 {
             return 0.0;
         }
-        self.value as f64 * 10f64.powi(self.price_type - 10)
+        let exp = self.price_type - 10;
+        if exp >= 0 {
+            self.value as f64 * POW10_F64[exp as usize]
+        } else {
+            self.value as f64 / POW10_F64[(-exp) as usize]
+        }
     }
 
     /// Create from a protobuf Price message.
@@ -56,6 +94,7 @@ impl Price {
     }
 
     /// Normalize both prices to the same type for comparison.
+    #[inline]
     fn compare(&self, other: &Self) -> Ordering {
         if self.price_type == other.price_type {
             return self.value.cmp(&other.value);
@@ -63,23 +102,23 @@ impl Price {
         // Scale to common base using i64 to avoid overflow.
         // For exponents > 18, i64 multiplication can overflow; fall back to f64.
         if self.price_type > other.price_type {
-            let exp = (self.price_type - other.price_type) as u32;
+            let exp = (self.price_type - other.price_type) as usize;
             if exp > 18 {
                 // Fall back to f64 comparison for very large exponent differences.
                 return self.to_f64().total_cmp(&other.to_f64());
             }
-            let scaled = (self.value as i64).checked_mul(10i64.pow(exp));
+            let scaled = (self.value as i64).checked_mul(POW10_I64[exp]);
             match scaled {
                 Some(s) => s.cmp(&(other.value as i64)),
                 // Overflow: fall back to f64 for correct sign handling.
                 None => self.to_f64().total_cmp(&other.to_f64()),
             }
         } else {
-            let exp = (other.price_type - self.price_type) as u32;
+            let exp = (other.price_type - self.price_type) as usize;
             if exp > 18 {
                 return self.to_f64().total_cmp(&other.to_f64());
             }
-            let scaled = (other.value as i64).checked_mul(10i64.pow(exp));
+            let scaled = (other.value as i64).checked_mul(POW10_I64[exp]);
             match scaled {
                 Some(s) => (self.value as i64).cmp(&s),
                 None => self.to_f64().total_cmp(&other.to_f64()),

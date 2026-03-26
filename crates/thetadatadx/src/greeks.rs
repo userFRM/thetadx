@@ -41,6 +41,10 @@ fn is_degenerate(v: f64, t: f64) -> bool {
 }
 
 /// Standard normal CDF approximation (Abramowitz & Stegun).
+// TODO(perf): Replace Abramowitz & Stegun 5-term polynomial (max error ~1.5e-7)
+// with the faster Hart approximation or a minimax rational function that achieves
+// the same error in fewer multiplications. For IV solver loops (128 iterations),
+// this is the dominant cost.
 fn norm_cdf(x: f64) -> f64 {
     if x >= 0.0 {
         norm_cdf_positive(x)

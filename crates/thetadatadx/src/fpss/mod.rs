@@ -43,6 +43,10 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+// TODO(perf): Replace mpsc channels with a lock-free ring buffer (e.g. crossbeam
+// or a custom SPSC ring) for the FPSS event dispatch path. The current tokio::mpsc
+// channel adds contention under high-frequency tick data. A lock-free ring would
+// eliminate the bounded-channel backpressure stalls visible in flamegraphs.
 use tokio::sync::{mpsc, Mutex, Notify};
 use tokio::task::JoinHandle;
 

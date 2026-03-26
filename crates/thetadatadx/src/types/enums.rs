@@ -390,6 +390,7 @@ pub enum StreamMsgType {
 }
 
 impl StreamMsgType {
+    #[inline]
     pub fn from_code(code: u8) -> Option<Self> {
         match code {
             0 => Some(Self::Credentials),

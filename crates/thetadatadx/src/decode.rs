@@ -1,6 +1,15 @@
+use std::cell::RefCell;
+
 use crate::error::Error;
 use crate::proto;
 use crate::types::tick::*;
+
+thread_local! {
+    /// Reusable zstd decompressor — avoids allocating a fresh decompressor context
+    /// on every `decompress_response` call.
+    static ZSTD_DECOMPRESSOR: RefCell<zstd::bulk::Decompressor<'static>> =
+        RefCell::new(zstd::bulk::Decompressor::new().expect("failed to create zstd decompressor"));
+}
 
 /// Decompress a ResponseData payload. Returns the raw protobuf bytes of the DataTable.
 pub fn decompress_response(response: &proto::ResponseData) -> Result<Vec<u8>, Error> {
@@ -14,7 +23,11 @@ pub fn decompress_response(response: &proto::ResponseData) -> Result<Vec<u8>, Er
         proto::CompressionAlgo::None => Ok(response.compressed_data.clone()),
         proto::CompressionAlgo::Zstd => {
             let original_size = response.original_size as usize;
-            let decompressed = zstd::bulk::decompress(&response.compressed_data, original_size)
+            let decompressed = ZSTD_DECOMPRESSOR
+                .with(|cell| {
+                    let mut dec = cell.borrow_mut();
+                    dec.decompress(&response.compressed_data, original_size)
+                })
                 .map_err(|e| Error::Decompress(e.to_string()))?;
             Ok(decompressed)
         }
@@ -160,12 +173,15 @@ pub fn parse_trade_ticks(table: &proto::DataTable) -> Vec<TradeTick> {
     let pt_idx = find("price_type").unwrap_or(14);
     let date_idx = find("date").unwrap_or(15);
 
+    // Precompute whether "price" column is a Price-typed column (vs plain number).
+    let price_is_typed = find("price").is_some();
+
     table
         .data_table
         .iter()
         .map(|row| {
-            let pt = if let Some(i) = find("price") {
-                row_price_type(row, i)
+            let pt = if price_is_typed {
+                row_price_type(row, price_idx)
             } else {
                 row_number(row, pt_idx)
             };
@@ -180,7 +196,7 @@ pub fn parse_trade_ticks(table: &proto::DataTable) -> Vec<TradeTick> {
                 condition: row_number(row, cond_idx),
                 size: row_number(row, size_idx),
                 exchange: row_number(row, exg_idx),
-                price: if find("price").is_some() {
+                price: if price_is_typed {
                     row_price_value(row, price_idx)
                 } else {
                     row_number(row, price_idx)
@@ -213,12 +229,16 @@ pub fn parse_quote_ticks(table: &proto::DataTable) -> Vec<QuoteTick> {
     let pt_idx = find("price_type").unwrap_or(9);
     let date_idx = find("date").unwrap_or(10);
 
+    // Precompute whether bid/ask columns are Price-typed (vs plain number).
+    let bid_is_typed = find("bid").is_some();
+    let ask_is_typed = find("ask").is_some();
+
     table
         .data_table
         .iter()
         .map(|row| {
-            let pt = if let Some(i) = find("bid") {
-                row_price_type(row, i)
+            let pt = if bid_is_typed {
+                row_price_type(row, bid_idx)
             } else {
                 row_number(row, pt_idx)
             };
@@ -227,7 +247,7 @@ pub fn parse_quote_ticks(table: &proto::DataTable) -> Vec<QuoteTick> {
                 ms_of_day: row_number(row, ms_idx),
                 bid_size: row_number(row, bs_idx),
                 bid_exchange: row_number(row, be_idx),
-                bid: if find("bid").is_some() {
+                bid: if bid_is_typed {
                     row_price_value(row, bid_idx)
                 } else {
                     row_number(row, bid_idx)
@@ -235,7 +255,7 @@ pub fn parse_quote_ticks(table: &proto::DataTable) -> Vec<QuoteTick> {
                 bid_condition: row_number(row, bc_idx),
                 ask_size: row_number(row, as_idx),
                 ask_exchange: row_number(row, ae_idx),
-                ask: if find("ask").is_some() {
+                ask: if ask_is_typed {
                     row_price_value(row, ask_idx)
                 } else {
                     row_number(row, ask_idx)
@@ -263,34 +283,40 @@ pub fn parse_ohlc_ticks(table: &proto::DataTable) -> Vec<OhlcTick> {
     let pt_idx = find("price_type").unwrap_or(7);
     let date_idx = find("date").unwrap_or(8);
 
+    // Precompute whether OHLC columns are Price-typed (vs plain number).
+    let open_is_typed = find("open").is_some();
+    let high_is_typed = find("high").is_some();
+    let low_is_typed = find("low").is_some();
+    let close_is_typed = find("close").is_some();
+
     table
         .data_table
         .iter()
         .map(|row| {
-            let pt = if let Some(i) = find("open") {
-                row_price_type(row, i)
+            let pt = if open_is_typed {
+                row_price_type(row, o_idx)
             } else {
                 row_number(row, pt_idx)
             };
 
             OhlcTick {
                 ms_of_day: row_number(row, ms_idx),
-                open: if find("open").is_some() {
+                open: if open_is_typed {
                     row_price_value(row, o_idx)
                 } else {
                     row_number(row, o_idx)
                 },
-                high: if find("high").is_some() {
+                high: if high_is_typed {
                     row_price_value(row, hi_idx)
                 } else {
                     row_number(row, hi_idx)
                 },
-                low: if find("low").is_some() {
+                low: if low_is_typed {
                     row_price_value(row, lo_idx)
                 } else {
                     row_number(row, lo_idx)
                 },
-                close: if find("close").is_some() {
+                close: if close_is_typed {
                     row_price_value(row, c_idx)
                 } else {
                     row_number(row, c_idx)

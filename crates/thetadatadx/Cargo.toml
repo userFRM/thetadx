@@ -52,6 +52,9 @@ thiserror = "2.0.18"
 # Logging
 tracing = "0.1.44"
 
+# Lock-free ring buffer (LMAX Disruptor pattern) for FPSS event dispatch
+disruptor = "4"
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 

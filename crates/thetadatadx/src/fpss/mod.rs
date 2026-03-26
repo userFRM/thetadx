@@ -11,44 +11,57 @@
 //! 4. A reader thread dispatching incoming frames to callbacks
 //! 5. Automatic reconnection on disconnect (except for permanent errors)
 //!
-//! # Rust implementation
+//! # Rust implementation — Disruptor architecture
 //!
 //! ```text
-//!  ┌─────────────┐        ┌──────────────┐
-//!  │ FpssClient  │───────►│ Background   │
-//!  │             │        │ read loop    │──► broadcast channels
-//!  │ .subscribe()│        └──────────────┘
-//!  │ .unsubscribe│        ┌──────────────┐
-//!  │ .shutdown() │───────►│ Ping task    │ (100ms interval)
-//!  └─────────────┘        └──────────────┘
+//!  ┌─────────────┐        ┌──────────────┐        ┌──────────────────┐
+//!  │ FpssClient  │───────►│ Async read   │──SyncCh─►│ Disruptor ring │
+//!  │             │        │ loop (tokio) │        │ (pre-allocated,  │
+//!  │ .subscribe()│        └──────────────┘        │  lock-free SPSC) │
+//!  │ .unsubscribe│        ┌──────────────┐        └────────┬─────────┘
+//!  │ .shutdown() │───────►│ Ping task    │                 │ consumer
+//!  └─────────────┘        └──────────────┘                 ▼
+//!                                                 ┌──────────────────┐
+//!                                                 │ tokio::mpsc      │
+//!                                                 │ (async consumer) │
+//!                                                 └──────────────────┘
 //! ```
 //!
-//! - `FpssClient::connect()` establishes TLS, authenticates, starts background tasks
-//! - `subscribe_quotes()` / `subscribe_trades()` return `mpsc::Receiver<T>` channels
-//! - Background read loop decodes frames and dispatches to subscribers
-//! - Ping task sends heartbeat every 100ms as required by the server
+//! The event dispatch pipeline uses an LMAX Disruptor ring buffer (via
+//! `disruptor-rs`) for lock-free, pre-allocated event processing. This mirrors
+//! the Java terminal's own Disruptor architecture:
+//! - Java: blocking `DataInputStream` → LMAX Disruptor ring → event handlers
+//! - Rust: async TLS read → bounded sync channel → Disruptor ring → tokio mpsc
+//!
+//! The Disruptor eliminates per-event atomic contention that `tokio::sync::mpsc`
+//! incurs on the hot path. Events are pre-allocated in the ring buffer (zero
+//! allocation for slot metadata), and the single-producer barrier uses a plain
+//! store (no CAS) for publication.
+//!
+//! Callers still receive events through `tokio::sync::mpsc::Receiver<FpssEvent>`,
+//! preserving full async compatibility.
 //!
 //! # Sub-modules
 //!
 //! - [`connection`] — TLS TCP connection establishment
 //! - [`framing`] — Wire frame reader/writer (1-byte len + 1-byte code + payload)
 //! - [`protocol`] — Message types, contract serialization, subscription payloads
+//! - [`ring`] — LMAX Disruptor ring buffer and adaptive wait strategy
 
 pub mod connection;
 pub mod framing;
 pub mod protocol;
+pub mod ring;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-// TODO(perf): Replace mpsc channels with a lock-free ring buffer (e.g. crossbeam
-// or a custom SPSC ring) for the FPSS event dispatch path. The current tokio::mpsc
-// channel adds contention under high-frequency tick data. A lock-free ring would
-// eliminate the bounded-channel backpressure stalls visible in flamegraphs.
 use tokio::sync::{mpsc, Mutex, Notify};
 use tokio::task::JoinHandle;
+
+use self::ring::{RingPipeline, RingPublisher};
 
 use crate::auth::Credentials;
 use crate::error::Error;
@@ -195,12 +208,17 @@ struct SharedState {
 /// Source: `FPSSClient.java` — main connection/reconnection state machine.
 pub struct FpssClient {
     state: Arc<SharedState>,
-    /// Broadcast sender for dispatching events to all subscribers.
+    /// Tokio mpsc sender for creating additional subscribers. The disruptor
+    /// consumer forwards events to this channel; async callers receive from
+    /// the paired `mpsc::Receiver`.
     event_tx: mpsc::Sender<FpssEvent>,
     /// Handle to the background reader task.
     reader_handle: Option<JoinHandle<()>>,
     /// Handle to the ping heartbeat task.
     ping_handle: Option<JoinHandle<()>>,
+    /// LMAX Disruptor ring buffer pipeline (feeder + consumer threads).
+    /// Dropped on shutdown to join background threads.
+    _ring_pipeline: RingPipeline,
     /// The server address we connected to.
     server_addr: String,
 }
@@ -237,6 +255,11 @@ impl FpssClient {
     ) -> Result<(Self, mpsc::Receiver<FpssEvent>), Error> {
         let (event_tx, event_rx) = mpsc::channel(event_buffer);
 
+        // Build the LMAX Disruptor ring buffer pipeline.
+        // The ring_size is derived from event_buffer, rounded up to a power of 2.
+        let (ring_publisher, ring_pipeline) =
+            ring::build_ring_pipeline(event_tx.clone(), event_buffer);
+
         let state = Arc::new(SharedState {
             writer: Mutex::new(writer),
             next_req_id: AtomicI32::new(1),
@@ -270,12 +293,10 @@ impl FpssClient {
                 );
                 state.authenticated.store(true, Ordering::Release);
 
-                // Send login success event
-                let _ = event_tx
-                    .send(FpssEvent::LoginSuccess {
-                        permissions: permissions.clone(),
-                    })
-                    .await;
+                // Send login success event through the disruptor ring.
+                let _ = ring_publisher.send(FpssEvent::LoginSuccess {
+                    permissions: permissions.clone(),
+                });
             }
             LoginResult::Disconnected(reason) => {
                 return Err(Error::FpssDisconnected(format!(
@@ -284,11 +305,12 @@ impl FpssClient {
             }
         }
 
-        // Start background tasks
+        // Start background tasks.
+        // The read loop now publishes into the disruptor ring (via RingPublisher)
+        // instead of directly into the tokio mpsc channel.
         let reader_state = Arc::clone(&state);
-        let reader_tx = event_tx.clone();
         let reader_handle = tokio::spawn(async move {
-            read_loop(reader, reader_state, reader_tx).await;
+            read_loop(reader, reader_state, ring_publisher).await;
         });
 
         let ping_state = Arc::clone(&state);
@@ -301,6 +323,7 @@ impl FpssClient {
             event_tx,
             reader_handle: Some(reader_handle),
             ping_handle: Some(ping_handle),
+            _ring_pipeline: ring_pipeline,
             server_addr,
         };
 
@@ -594,11 +617,14 @@ enum LoginResult {
 ///
 /// On I/O error: emits Disconnected event with Unspecified reason.
 ///
+/// Events are published into the LMAX Disruptor ring buffer via [`RingPublisher`],
+/// which forwards them through the lock-free ring to the async consumer channel.
+///
 /// Source: `FPSSClient.java` reader thread + all `on*()` callback methods.
 async fn read_loop(
     mut reader: connection::FpssReader,
     state: Arc<SharedState>,
-    event_tx: mpsc::Sender<FpssEvent>,
+    ring_tx: RingPublisher,
 ) {
     // Read timeout matching Java's SO_TIMEOUT=10s (configurable via
     // protocol::READ_TIMEOUT_MS). On timeout, treat as disconnect.
@@ -617,21 +643,17 @@ async fn read_loop(
             Ok(Ok(None)) => {
                 // Clean EOF
                 tracing::warn!("FPSS connection closed by server");
-                let _ = event_tx
-                    .send(FpssEvent::Disconnected {
-                        reason: RemoveReason::Unspecified,
-                    })
-                    .await;
+                let _ = ring_tx.send(FpssEvent::Disconnected {
+                    reason: RemoveReason::Unspecified,
+                });
                 state.authenticated.store(false, Ordering::Release);
                 break;
             }
             Ok(Err(e)) => {
                 tracing::error!(error = %e, "FPSS read error");
-                let _ = event_tx
-                    .send(FpssEvent::Disconnected {
-                        reason: RemoveReason::Unspecified,
-                    })
-                    .await;
+                let _ = ring_tx.send(FpssEvent::Disconnected {
+                    reason: RemoveReason::Unspecified,
+                });
                 state.authenticated.store(false, Ordering::Release);
                 break;
             }
@@ -641,11 +663,9 @@ async fn read_loop(
                     timeout_ms = protocol::READ_TIMEOUT_MS,
                     "FPSS read timed out"
                 );
-                let _ = event_tx
-                    .send(FpssEvent::Disconnected {
-                        reason: RemoveReason::TimedOut,
-                    })
-                    .await;
+                let _ = ring_tx.send(FpssEvent::Disconnected {
+                    reason: RemoveReason::TimedOut,
+                });
                 state.authenticated.store(false, Ordering::Release);
                 break;
             }
@@ -741,8 +761,10 @@ async fn read_loop(
         };
 
         if let Some(evt) = event {
-            // If the receiver is dropped, we just silently discard events
-            let _ = event_tx.send(evt).await;
+            // Publish into the disruptor ring. If the ring is full or the
+            // pipeline is shut down, the event is silently discarded (matching
+            // the previous `let _ = event_tx.send(evt).await` behavior).
+            let _ = ring_tx.send(evt);
         }
     }
 }

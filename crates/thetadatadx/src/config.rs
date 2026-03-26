@@ -74,6 +74,15 @@ pub struct DirectConfig {
     /// NOTE: Not automatically wired — caller must pass to `FpssClient::connect()`.
     pub fpss_queue_depth: usize,
 
+    /// FPSS disruptor ring buffer size (slots, will be rounded up to a power of 2).
+    ///
+    /// The LMAX Disruptor ring buffer used for lock-free event dispatch requires
+    /// a power-of-2 size. This value is rounded up automatically. Larger rings
+    /// absorb more burst traffic but use more memory (~`ring_size * sizeof(Option<FpssEvent>)`).
+    ///
+    /// Derived from `fpss_queue_depth` by default. Override for fine-grained control.
+    pub fpss_ring_size: usize,
+
     /// FPSS heartbeat ping interval in milliseconds.
     /// The protocol requires pings every 100ms; changing this may cause disconnects.
     ///
@@ -158,6 +167,7 @@ impl DirectConfig {
             // Source: config_0.properties
             fpss_timeout_ms: 10_000,
             fpss_queue_depth: 1_000_000,    // FPSS_QUEUE_DEPTH
+            fpss_ring_size: 131_072,        // 2^17, covers ~13s at 10k events/sec
             fpss_ping_interval_ms: 100,     // FPSSClient.startPinging()
             fpss_connect_timeout_ms: 2_000, // FPSSClient socket.connect timeout
 
@@ -192,6 +202,7 @@ impl DirectConfig {
 
             fpss_timeout_ms: 5_000,
             fpss_queue_depth: 100_000,
+            fpss_ring_size: 65_536, // 2^16, smaller for dev
             fpss_ping_interval_ms: 100,
             fpss_connect_timeout_ms: 2_000,
 

@@ -61,12 +61,8 @@ fn generate_endpoint_registry() -> Result<(), Box<dyn std::error::Error>> {
             .map(|f| ProtoField {
                 name: f[3].to_string(),
                 proto_type: f[2].to_string(),
-                is_optional: f
-                    .get(1)
-                    .map_or(false, |m| m.as_str().starts_with("optional")),
-                is_repeated: f
-                    .get(1)
-                    .map_or(false, |m| m.as_str().starts_with("repeated")),
+                is_optional: f.get(1).is_some_and(|m| m.as_str().starts_with("optional")),
+                is_repeated: f.get(1).is_some_and(|m| m.as_str().starts_with("repeated")),
             })
             .collect();
         query_messages.insert(msg_name, fields);
@@ -280,15 +276,15 @@ fn map_field(name: &str, proto_type: &str, is_repeated: bool) -> (String, String
         ("string", "end_time") => ("Str".into(), "End time filter".into()),
         ("string", "rate_type") => ("Str".into(), "Rate type".into()),
         ("string", "version") => ("Str".into(), "Greeks model version".into()),
-        ("double", _) => ("Float".into(), format!("{}", humanize_name(name))),
+        ("double", _) => ("Float".into(), humanize_name(name).to_string()),
         ("int32", "max_dte") => ("Int".into(), "Maximum days to expiration".into()),
         ("int32", "strike_range") => ("Int".into(), "Strike range filter".into()),
-        ("int32", _) => ("Int".into(), format!("{}", humanize_name(name))),
+        ("int32", _) => ("Int".into(), humanize_name(name).to_string()),
         ("bool", "exclusive") => ("Bool".into(), "Exclusive time boundary".into()),
         ("bool", "use_market_value") => ("Bool".into(), "Use market value for Greeks".into()),
         ("bool", "underlyer_use_nbbo") => ("Bool".into(), "Use NBBO for underlyer price".into()),
-        ("bool", _) => ("Bool".into(), format!("{}", humanize_name(name))),
-        _ => ("Str".into(), format!("{}", humanize_name(name))),
+        ("bool", _) => ("Bool".into(), humanize_name(name).to_string()),
+        _ => ("Str".into(), humanize_name(name).to_string()),
     }
 }
 

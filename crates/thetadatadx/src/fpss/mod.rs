@@ -308,7 +308,11 @@ impl FpssClient {
     /// `FpssData::Ohlcvc` events after each trade. You still receive
     /// server-sent OHLCVC frames. This reduces throughput overhead by
     /// eliminating one extra event per trade.
-    pub fn connect_no_ohlcvc<F>(creds: &Credentials, ring_size: usize, handler: F) -> Result<Self, Error>
+    pub fn connect_no_ohlcvc<F>(
+        creds: &Credentials,
+        ring_size: usize,
+        handler: F,
+    ) -> Result<Self, Error>
     where
         F: FnMut(&FpssEvent) + Send + 'static,
     {

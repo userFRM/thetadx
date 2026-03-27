@@ -18,21 +18,51 @@
 //!
 //! ## Quick Start
 //!
+//! The recommended entry point is [`ThetaDataDx`], which authenticates once and
+//! provides both historical and streaming through a single object:
+//!
 //! ```rust,ignore
-//! use thetadatadx::{DirectClient, Credentials, DirectConfig};
+//! use thetadatadx::{ThetaDataDx, Credentials, DirectConfig};
+//! use thetadatadx::fpss::{FpssData, FpssControl, FpssEvent};
+//! use thetadatadx::fpss::protocol::Contract;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), thetadatadx::Error> {
 //!     let creds = Credentials::from_file("creds.txt")?;
-//!     let client = DirectClient::connect(&creds, DirectConfig::production()).await?;
 //!
-//!     // Historical data (MDDS/gRPC)
-//!     let ticks = client.stock_history_eod("AAPL", "20240101", "20240301").await?;
+//!     // Connect -- authenticates once, historical ready immediately
+//!     let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
 //!
-//!     // Real-time streaming (FPSS/TCP)
-//!     // let stream = client.subscribe_quotes("AAPL").await?;
+//!     // Historical (MDDS gRPC) -- all 61 methods via Deref
+//!     let ticks = tdx.stock_history_eod("AAPL", "20240101", "20240301").await?;
+//!
+//!     // Streaming (FPSS TCP) -- connects lazily on first call
+//!     tdx.start_streaming(|event: &FpssEvent| {
+//!         match event {
+//!             FpssEvent::Data(FpssData::Trade { contract_id, price, size, .. }) => {
+//!                 println!("Trade: {contract_id} @ {price} x {size}");
+//!             }
+//!             _ => {}
+//!         }
+//!     })?;
+//!
+//!     tdx.subscribe_quotes(&Contract::stock("AAPL"))?;
+//!
+//!     // ... when done:
+//!     tdx.stop_streaming();
 //!     Ok(())
 //! }
+//! ```
+//!
+//! For historical-only usage, just skip `start_streaming()` -- all 61 historical
+//! methods are available directly on `ThetaDataDx` via `Deref<Target = DirectClient>`:
+//!
+//! ```rust,ignore
+//! use thetadatadx::{ThetaDataDx, Credentials, DirectConfig};
+//!
+//! let creds = Credentials::from_file("creds.txt")?;
+//! let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
+//! let ticks = tdx.stock_history_eod("AAPL", "20240101", "20240301").await?;
 //! ```
 //!
 //! ## Reverse-Engineering Notes
@@ -73,6 +103,7 @@ pub mod fpss;
 pub mod greeks;
 pub mod registry;
 pub mod types;
+pub mod unified;
 
 /// Generated protobuf types from `endpoints.proto` (shared types).
 ///
@@ -97,6 +128,6 @@ pub mod proto_v3 {
 
 pub use auth::Credentials;
 pub use config::DirectConfig;
-pub use direct::DirectClient;
 pub use error::Error;
 pub use registry::{EndpointMeta, ParamMeta, ParamType, ReturnType, ENDPOINTS};
+pub use unified::ThetaDataDx;

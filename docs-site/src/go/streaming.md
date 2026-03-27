@@ -8,34 +8,28 @@ Real-time market data via ThetaData's FPSS servers. The Go SDK uses a polling mo
 creds, _ := thetadatadx.CredentialsFromFile("creds.txt")
 defer creds.Close()
 
-fpss, err := thetadatadx.FpssConnect(creds, 1024)
-if err != nil {
-    log.Fatal(err)
-}
-defer fpss.Shutdown()
+config := thetadatadx.ProductionConfig()
+defer config.Close()
+
+fpss, _ := thetadatadx.NewFpssClient(creds, config)
+defer fpss.Close()
 ```
 
 ## Subscribe
 
 ```go
 // Stock quotes
-reqID, _ := fpss.SubscribeQuotes("AAPL", thetadatadx.SecTypeStock)
+reqID, _ := fpss.SubscribeQuotes("AAPL")
 fmt.Printf("Subscribed (req_id=%d)\n", reqID)
 
 // Stock trades
-fpss.SubscribeTrades("MSFT", thetadatadx.SecTypeStock)
+fpss.SubscribeTrades("MSFT")
 
 // Open interest
-fpss.SubscribeOpenInterest("AAPL", thetadatadx.SecTypeStock)
-```
+fpss.SubscribeOpenInterest("AAPL")
 
-### Security Type Constants
-
-```go
-thetadatadx.SecTypeStock   // 0
-thetadatadx.SecTypeOption  // 1
-thetadatadx.SecTypeIndex   // 2
-thetadatadx.SecTypeRate    // 3
+// All trades for a security type
+fpss.SubscribeFullTrades("STOCK")
 ```
 
 ## Receive Events
@@ -52,26 +46,32 @@ for {
     if event == nil {
         continue // timeout
     }
-    fmt.Printf("Event: %+v\n", event)
+    fmt.Printf("Event: %s\n", string(event))
 }
 ```
 
-## Shutdown
+## Stop Streaming
 
 ```go
 fpss.Shutdown()
 ```
 
-## FpssClient Methods
+## Streaming Methods (on FpssClient)
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `FpssConnect` | `(creds, bufSize) (*FpssClient, error)` | Connect and authenticate |
-| `SubscribeQuotes` | `(root, secType) (int32, error)` | Subscribe to quotes |
-| `SubscribeTrades` | `(root, secType) (int32, error)` | Subscribe to trades |
-| `SubscribeOpenInterest` | `(root, secType) (int32, error)` | Subscribe to OI |
-| `NextEvent` | `(timeoutMs) (*FpssEvent, error)` | Poll next event |
-| `Shutdown` | `() error` | Graceful shutdown |
+| `SubscribeQuotes` | `(symbol string) (int, error)` | Subscribe to quotes |
+| `SubscribeTrades` | `(symbol string) (int, error)` | Subscribe to trades |
+| `SubscribeOpenInterest` | `(symbol string) (int, error)` | Subscribe to OI |
+| `SubscribeFullTrades` | `(secType string) (int, error)` | Subscribe to all trades for a security type |
+| `UnsubscribeQuotes` | `(symbol string) (int, error)` | Unsubscribe from quotes |
+| `UnsubscribeTrades` | `(symbol string) (int, error)` | Unsubscribe from trades |
+| `UnsubscribeOpenInterest` | `(symbol string) (int, error)` | Unsubscribe from OI |
+| `NextEvent` | `(timeoutMs uint64) (json.RawMessage, error)` | Poll next event |
+| `IsAuthenticated` | `() bool` | Check FPSS auth status |
+| `ContractLookup` | `(id int) (string, error)` | Look up contract by server-assigned ID |
+| `ActiveSubscriptions` | `() (json.RawMessage, error)` | Get active subscriptions |
+| `Shutdown` | `()` | Graceful shutdown |
 
 ## Complete Example
 
@@ -89,15 +89,26 @@ func main() {
     creds, _ := thetadatadx.CredentialsFromFile("creds.txt")
     defer creds.Close()
 
-    fpss, err := thetadatadx.FpssConnect(creds, 1024)
+    config := thetadatadx.ProductionConfig()
+    defer config.Close()
+
+    // Historical client
+    client, err := thetadatadx.Connect(creds, config)
     if err != nil {
         log.Fatal(err)
     }
-    defer fpss.Shutdown()
+    defer client.Close()
 
-    // Subscribe to quotes and trades
-    fpss.SubscribeQuotes("AAPL", thetadatadx.SecTypeStock)
-    fpss.SubscribeTrades("AAPL", thetadatadx.SecTypeStock)
+    // Streaming client (separate connection, same credentials)
+    fpss, err := thetadatadx.NewFpssClient(creds, config)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer fpss.Close()
+
+    // Subscribe to real-time data
+    fpss.SubscribeQuotes("AAPL")
+    fpss.SubscribeTrades("AAPL")
 
     // Process events
     for {
@@ -109,7 +120,9 @@ func main() {
         if event == nil {
             continue
         }
-        fmt.Printf("Event: %+v\n", event)
+        fmt.Printf("Event: %s\n", string(event))
     }
+
+    fpss.Shutdown()
 }
 ```

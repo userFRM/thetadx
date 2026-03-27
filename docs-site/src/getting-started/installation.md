@@ -8,7 +8,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-thetadatadx = "1.2"
+thetadatadx = "2.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 

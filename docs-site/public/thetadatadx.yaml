@@ -2050,7 +2050,7 @@ paths:
             auto greeks = client.option_history_greeks_eod("SPY", "20240419", "500000", "C", "20240101", "20240301");
 
   /option/history/greeks/all:
-    x-min-subscription: value
+    x-min-subscription: professional
     get:
       operationId: optionHistoryGreeksAll
       summary: Option all Greeks history (intraday)
@@ -2105,7 +2105,7 @@ paths:
             auto greeks = client.option_history_greeks_all("SPY", "20240419", "500000", "C", "20240315", "60000");
 
   /option/history/greeks/first_order:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: optionHistoryGreeksFirstOrder
       summary: Option first-order Greeks history (intraday)
@@ -2160,7 +2160,7 @@ paths:
             auto g1 = client.option_history_greeks_first_order("SPY", "20240419", "500000", "C", "20240315", "60000");
 
   /option/history/greeks/second_order:
-    x-min-subscription: value
+    x-min-subscription: professional
     get:
       operationId: optionHistoryGreeksSecondOrder
       summary: Option second-order Greeks history (intraday)
@@ -2215,7 +2215,7 @@ paths:
             auto g2 = client.option_history_greeks_second_order("SPY", "20240419", "500000", "C", "20240315", "60000");
 
   /option/history/greeks/third_order:
-    x-min-subscription: value
+    x-min-subscription: professional
     get:
       operationId: optionHistoryGreeksThirdOrder
       summary: Option third-order Greeks history (intraday)
@@ -2270,7 +2270,7 @@ paths:
             auto g3 = client.option_history_greeks_third_order("SPY", "20240419", "500000", "C", "20240315", "60000");
 
   /option/history/greeks/implied_volatility:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: optionHistoryGreeksImpliedVolatility
       summary: Option implied volatility history (intraday)
@@ -2329,7 +2329,7 @@ paths:
   # =========================================================================
 
   /option/history/trade_greeks/all:
-    x-min-subscription: pro
+    x-min-subscription: professional
     get:
       operationId: optionHistoryTradeGreeksAll
       summary: Option all Greeks on each trade
@@ -2384,7 +2384,7 @@ paths:
             auto tg = client.option_history_trade_greeks_all("SPY", "20240419", "500000", "C", "20240315");
 
   /option/history/trade_greeks/first_order:
-    x-min-subscription: pro
+    x-min-subscription: professional
     get:
       operationId: optionHistoryTradeGreeksFirstOrder
       summary: Option first-order Greeks on each trade
@@ -2439,7 +2439,7 @@ paths:
             auto tg1 = client.option_history_trade_greeks_first_order("SPY", "20240419", "500000", "C", "20240315");
 
   /option/history/trade_greeks/second_order:
-    x-min-subscription: pro
+    x-min-subscription: professional
     get:
       operationId: optionHistoryTradeGreeksSecondOrder
       summary: Option second-order Greeks on each trade
@@ -2494,7 +2494,7 @@ paths:
             auto tg2 = client.option_history_trade_greeks_second_order("SPY", "20240419", "500000", "C", "20240315");
 
   /option/history/trade_greeks/third_order:
-    x-min-subscription: pro
+    x-min-subscription: professional
     get:
       operationId: optionHistoryTradeGreeksThirdOrder
       summary: Option third-order Greeks on each trade
@@ -2549,7 +2549,7 @@ paths:
             auto tg3 = client.option_history_trade_greeks_third_order("SPY", "20240419", "500000", "C", "20240315");
 
   /option/history/trade_greeks/implied_volatility:
-    x-min-subscription: pro
+    x-min-subscription: professional
     get:
       operationId: optionHistoryTradeGreeksImpliedVolatility
       summary: Option implied volatility on each trade
@@ -2608,7 +2608,7 @@ paths:
   # =========================================================================
 
   /option/at_time/trade:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: optionAtTimeTrade
       summary: Option trade at specific time
@@ -2755,7 +2755,7 @@ paths:
   # =========================================================================
 
   /index/snapshot/ohlc:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: indexSnapshotOhlc
       summary: Index OHLC snapshot
@@ -2787,7 +2787,7 @@ paths:
             auto ohlc = client.index_snapshot_ohlc({"SPX"});
 
   /index/snapshot/price:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: indexSnapshotPrice
       summary: Index price snapshot
@@ -2855,7 +2855,7 @@ paths:
   # =========================================================================
 
   /index/history/eod:
-    x-min-subscription: value
+    x-min-subscription: free
     get:
       operationId: indexHistoryEod
       summary: Index end-of-day history
@@ -2888,7 +2888,7 @@ paths:
             auto eod = client.index_history_eod("SPX", "20240101", "20240301");
 
   /index/history/ohlc:
-    x-min-subscription: value
+    x-min-subscription: standard
     get:
       operationId: indexHistoryOhlc
       summary: Index intraday OHLC bars

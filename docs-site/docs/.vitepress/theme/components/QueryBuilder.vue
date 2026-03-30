@@ -511,6 +511,17 @@ onMounted(() => {
 // ─── Syntax highlighting (regex-based) ───────────────────────────────────────
 
 function highlight(code: string, lang: 'python' | 'rust'): string {
+  // Placeholder-based highlighting to prevent regex cross-contamination.
+  // 1. Extract tokens into a list, replace with \x00N\x00 placeholders
+  // 2. Apply remaining highlights on the placeholder'd text
+  // 3. Re-inject extracted tokens at the end
+  const tokens: string[] = []
+  function stash(cls: string, text: string): string {
+    const i = tokens.length
+    tokens.push(`<span class="hl-${cls}">${text}</span>`)
+    return `\x00${i}\x00`
+  }
+
   // Escape HTML first
   let s = code
     .replace(/&/g, '&amp;')
@@ -518,44 +529,38 @@ function highlight(code: string, lang: 'python' | 'rust'): string {
     .replace(/>/g, '&gt;')
 
   if (lang === 'python') {
-    // Strings (double and single quoted) — process before keywords
-    s = s.replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g,
-      '<span class="hl-string">$1</span>')
+    // Strings - stash first to protect from later regexes
+    s = s.replace(/("""[\s\S]*?"""|'''[\s\S]*?'''|f?"(?:[^"\\]|\\.)*"|f?'(?:[^'\\]|\\.)*')/g,
+      (m) => stash('string', m))
     // Comments
-    s = s.replace(/(#[^\n]*)/g, '<span class="hl-comment">$1</span>')
+    s = s.replace(/(#[^\n]*)/g, (m) => stash('comment', m))
     // Keywords
     s = s.replace(/\b(from|import|def|class|return|for|in|if|else|elif|while|True|False|None|and|or|not|with|as|try|except|finally|lambda|yield|pass|break|continue|async|await|raise|del|global|nonlocal|assert)\b/g,
       '<span class="hl-keyword">$1</span>')
-    // Built-ins / types
-    s = s.replace(/\b(print|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sorted|reversed|sum|min|max|abs|round|open|super)\b/g,
+    // Built-ins
+    s = s.replace(/\b(print|len|range|str|int|float|list|dict|set|tuple|bool|type|isinstance|enumerate|zip|map|filter|sorted|reversed|sum|min|max|abs|round|open|super|divmod)\b/g,
       '<span class="hl-builtin">$1</span>')
     // Decorators
     s = s.replace(/(@\w+)/g, '<span class="hl-decorator">$1</span>')
-    // Numbers
-    s = s.replace(/\b(\d+\.?\d*)\b/g, '<span class="hl-number">$1</span>')
-    // Function calls
-    s = s.replace(/\b([a-zA-Z_]\w*)(?=\()/g, '<span class="hl-func">$1</span>')
   } else {
-    // Rust
-    // Strings
-    s = s.replace(/(r?"(?:[^"\\]|\\.)*")/g, '<span class="hl-string">$1</span>')
+    // Rust - strings first
+    s = s.replace(/(r?"(?:[^"\\]|\\.)*")/g, (m) => stash('string', m))
     // Comments
-    s = s.replace(/(\/\/[^\n]*)/g, '<span class="hl-comment">$1</span>')
+    s = s.replace(/(\/\/[^\n]*)/g, (m) => stash('comment', m))
+    // Attributes
+    s = s.replace(/(#\[.*?\])/g, (m) => stash('decorator', m))
     // Keywords
-    s = s.replace(/\b(use|fn|let|mut|pub|struct|enum|impl|trait|for|in|if|else|while|loop|match|return|async|await|move|ref|type|where|const|static|mod|crate|self|Self|super|as|break|continue|unsafe|extern|dyn|box|true|false)\b/g,
+    s = s.replace(/\b(use|fn|let|mut|pub|struct|enum|impl|trait|for|in|if|else|while|loop|match|return|async|await|move|ref|type|where|const|static|mod|crate|self|Self|super|as|break|continue|unsafe|extern|dyn|true|false)\b/g,
       '<span class="hl-keyword">$1</span>')
     // Types
     s = s.replace(/\b(String|Vec|HashMap|Option|Result|Box|Arc|Mutex|i8|i16|i32|i64|i128|u8|u16|u32|u64|u128|f32|f64|bool|usize|isize|str)\b/g,
       '<span class="hl-type">$1</span>')
     // Macros
     s = s.replace(/\b(\w+!)/g, '<span class="hl-macro">$1</span>')
-    // Numbers
-    s = s.replace(/\b(\d+\.?\d*(?:_\d+)*(?:u\d+|i\d+|f\d+)?)\b/g, '<span class="hl-number">$1</span>')
-    // Attributes
-    s = s.replace(/(#\[.*?\])/g, '<span class="hl-decorator">$1</span>')
-    // Function calls
-    s = s.replace(/\b([a-zA-Z_]\w*)(?=\()/g, '<span class="hl-func">$1</span>')
   }
+
+  // Re-inject stashed tokens
+  s = s.replace(/\x00(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
 
   return s
 }

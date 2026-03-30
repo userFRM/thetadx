@@ -25,6 +25,10 @@ export default defineConfig({
       { text: 'Tools', link: '/tools/cli' },
       { text: 'Changelog', link: '/changelog' },
       {
+        text: 'ThetaData Docs',
+        link: 'https://docs.thetadata.us/',
+      },
+      {
         text: 'GitHub',
         link: 'https://github.com/userFRM/thetadatadx',
       },
@@ -36,6 +40,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Overview', link: '/getting-started/' },
+          { text: 'Subscription Tiers', link: '/getting-started/subscriptions' },
           { text: 'Installation', link: '/getting-started/installation' },
           { text: 'Authentication', link: '/getting-started/authentication' },
           { text: 'Quick Start', link: '/getting-started/quickstart' },

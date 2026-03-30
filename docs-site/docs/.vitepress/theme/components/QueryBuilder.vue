@@ -66,30 +66,62 @@ const SYMBOL_SUGGESTIONS: SymbolSuggestion[] = [
   { symbol: 'META',  name: 'Meta Platforms Inc.',      category: 'Mega Cap' },
   { symbol: 'TSLA',  name: 'Tesla Inc.',               category: 'Mega Cap' },
   { symbol: 'BRK.B', name: 'Berkshire Hathaway B',    category: 'Mega Cap' },
+  { symbol: 'NFLX',  name: 'Netflix Inc.',             category: 'Mega Cap' },
+  { symbol: 'JPM',   name: 'JPMorgan Chase & Co.',    category: 'Mega Cap' },
+  { symbol: 'V',     name: 'Visa Inc.',                category: 'Mega Cap' },
+  { symbol: 'AVGO',  name: 'Broadcom Inc.',            category: 'Mega Cap' },
   // Popular ETFs
-  { symbol: 'SPY',  name: 'SPDR S&P 500 ETF',         category: 'ETF' },
-  { symbol: 'QQQ',  name: 'Invesco QQQ Trust',         category: 'ETF' },
-  { symbol: 'IWM',  name: 'iShares Russell 2000 ETF',  category: 'ETF' },
-  { symbol: 'DIA',  name: 'SPDR Dow Jones ETF',        category: 'ETF' },
-  { symbol: 'XLF',  name: 'Financial Select SPDR',     category: 'ETF' },
-  { symbol: 'XLE',  name: 'Energy Select SPDR',        category: 'ETF' },
-  { symbol: 'GLD',  name: 'SPDR Gold Shares',          category: 'ETF' },
-  { symbol: 'TLT',  name: 'iShares 20+ Year Treasury', category: 'ETF' },
-  { symbol: 'VIX',  name: 'CBOE Volatility Index',     category: 'ETF' },
+  { symbol: 'SPY',   name: 'SPDR S&P 500 ETF',         category: 'ETF' },
+  { symbol: 'QQQ',   name: 'Invesco QQQ Trust',         category: 'ETF' },
+  { symbol: 'IWM',   name: 'iShares Russell 2000 ETF',  category: 'ETF' },
+  { symbol: 'DIA',   name: 'SPDR Dow Jones ETF',        category: 'ETF' },
+  { symbol: 'XLF',   name: 'Financial Select SPDR',     category: 'ETF' },
+  { symbol: 'XLE',   name: 'Energy Select SPDR',        category: 'ETF' },
+  { symbol: 'GLD',   name: 'SPDR Gold Shares',          category: 'ETF' },
+  { symbol: 'TLT',   name: 'iShares 20+ Year Treasury', category: 'ETF' },
+  { symbol: 'TQQQ',  name: 'ProShares UltraPro QQQ',    category: 'ETF' },
+  { symbol: 'SQQQ',  name: 'ProShares UltraPro Short',  category: 'ETF' },
+  { symbol: 'ARKK',  name: 'ARK Innovation ETF',        category: 'ETF' },
+  { symbol: 'VXX',   name: 'iPath Series B S&P 500 VIX', category: 'ETF' },
+  { symbol: 'XLK',   name: 'Technology Select SPDR',    category: 'ETF' },
+  // Index
+  { symbol: 'VIX',   name: 'CBOE Volatility Index',     category: 'Index' },
   // Meme / Active
-  { symbol: 'GME',  name: 'GameStop Corp.',            category: 'Active' },
-  { symbol: 'AMC',  name: 'AMC Entertainment',         category: 'Active' },
-  { symbol: 'PLTR', name: 'Palantir Technologies',     category: 'Active' },
-  { symbol: 'SOFI', name: 'SoFi Technologies',         category: 'Active' },
-  { symbol: 'RIVN', name: 'Rivian Automotive',         category: 'Active' },
-  { symbol: 'LCID', name: 'Lucid Group Inc.',          category: 'Active' },
+  { symbol: 'GME',   name: 'GameStop Corp.',            category: 'Active' },
+  { symbol: 'AMC',   name: 'AMC Entertainment',         category: 'Active' },
+  { symbol: 'PLTR',  name: 'Palantir Technologies',     category: 'Active' },
+  { symbol: 'SOFI',  name: 'SoFi Technologies',         category: 'Active' },
+  { symbol: 'RIVN',  name: 'Rivian Automotive',         category: 'Active' },
+  { symbol: 'LCID',  name: 'Lucid Group Inc.',          category: 'Active' },
+  { symbol: 'SMCI',  name: 'Super Micro Computer',      category: 'Active' },
+  { symbol: 'ARM',   name: 'Arm Holdings plc',          category: 'Active' },
+  { symbol: 'COIN',  name: 'Coinbase Global Inc.',      category: 'Active' },
+  { symbol: 'MSTR',  name: 'MicroStrategy Inc.',        category: 'Active' },
 ]
+
+// Inline SVG icons (24x24, stroke-based, currentColor)
+const SVG_ICONS = {
+  lineChart: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  chainLink: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  lightning: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+  sineWave: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c2-4 4-8 6-8s4 8 6 8 4-8 6-8"/></svg>',
+  magnifier: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  scale: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 8l7-5 7 5"/><path d="M3 13l4 5h-4z"/><path d="M17 13l4 5h-4z"/><circle cx="5" cy="16" r="3"/><circle cx="19" cy="16" r="3"/></svg>',
+  delta: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4L4 20h16L12 4z"/></svg>',
+  barChart: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/><line x1="4" y1="18" x2="18" y2="18"/></svg>',
+  calendar: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  radioTower: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.4"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.4"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>',
+  tickerTape: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/><polyline points="6 11 9 14 13 10 18 15"/></svg>',
+  flowArrows: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M15 6l6 6-6 6"/><path d="M5 6v12"/></svg>',
+  gear: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  tool: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+} as const
 
 const RECIPES: Recipe[] = [
   // Historical
   {
     id: 'stock_price_history',
-    icon: '📈',
+    icon: SVG_ICONS.lineChart,
     title: 'Stock Price History',
     description: 'OHLC bars, EOD data, or trade ticks for any symbol',
     category: 'historical',
@@ -97,7 +129,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'option_chain_snapshot',
-    icon: '🔗',
+    icon: SVG_ICONS.chainLink,
     title: 'Option Chain Snapshot',
     description: 'Full chain with Greeks for a given expiration',
     category: 'historical',
@@ -105,7 +137,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'gamma_exposure',
-    icon: '⚡',
+    icon: SVG_ICONS.lightning,
     title: 'Gamma Exposure (GEX)',
     description: 'Net gamma exposure across all strikes — dealer positioning',
     category: 'historical',
@@ -113,7 +145,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'vol_surface',
-    icon: '🌊',
+    icon: SVG_ICONS.sineWave,
     title: 'Volatility Surface',
     description: 'IV across strikes and expirations for a 3D surface',
     category: 'historical',
@@ -121,7 +153,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'unusual_activity',
-    icon: '🔎',
+    icon: SVG_ICONS.magnifier,
     title: 'Unusual Options Activity',
     description: 'High volume/OI ratio contracts signaling smart money',
     category: 'historical',
@@ -129,7 +161,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'put_call_ratio',
-    icon: '⚖️',
+    icon: SVG_ICONS.scale,
     title: 'Put/Call Ratio',
     description: 'Aggregate put vs call volume and open interest',
     category: 'historical',
@@ -137,15 +169,15 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'historical_greeks',
-    icon: '🧮',
+    icon: SVG_ICONS.delta,
     title: 'Historical Greeks',
     description: 'Track how Greeks evolved over time for a contract',
     category: 'historical',
-    params: ['symbol', 'expiration', 'strike', 'right', 'date_range', 'interval'],
+    params: ['symbol', 'expiration', 'strike', 'right', 'single_date', 'interval'],
   },
   {
     id: 'volume_profile',
-    icon: '📊',
+    icon: SVG_ICONS.barChart,
     title: 'Volume Profile',
     description: 'Trade distribution by price level across a date range',
     category: 'historical',
@@ -153,7 +185,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'market_calendar',
-    icon: '📅',
+    icon: SVG_ICONS.calendar,
     title: 'Market Calendar',
     description: 'Trading days, holidays, and early closes for a year',
     category: 'historical',
@@ -162,7 +194,7 @@ const RECIPES: Recipe[] = [
   // Real-Time
   {
     id: 'live_quote_monitor',
-    icon: '📡',
+    icon: SVG_ICONS.radioTower,
     title: 'Live Quote Monitor',
     description: 'Real-time bid/ask stream for one or more stocks',
     category: 'realtime',
@@ -170,7 +202,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'trade_tape',
-    icon: '🎞️',
+    icon: SVG_ICONS.tickerTape,
     title: 'Trade Tape',
     description: 'Real-time trade stream with symbol filtering',
     category: 'realtime',
@@ -178,7 +210,7 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'option_flow_scanner',
-    icon: '🌊',
+    icon: SVG_ICONS.flowArrows,
     title: 'Option Flow Scanner',
     description: 'Full option trade firehose — flag unusual premium',
     category: 'realtime',
@@ -186,9 +218,9 @@ const RECIPES: Recipe[] = [
   },
   {
     id: 'live_option_chain',
-    icon: '⚙️',
+    icon: SVG_ICONS.gear,
     title: 'Live Option Chain',
-    description: 'Streaming Greeks for an entire chain in real time',
+    description: 'Streaming quotes for an entire chain in real time',
     category: 'realtime',
     params: ['symbol', 'expiration'],
   },
@@ -588,7 +620,7 @@ for tick in eod:
     print(f"{tick['date']}: open={tick['open']} high={tick['high']} low={tick['low']} close={tick['close']} vol={tick['volume']}")
 
 # Intraday OHLC (interval: ${interval()} ms)
-ohlc = tdx.stock_history_ohlc(symbol, "${endDate()}", ${interval()})
+ohlc = tdx.stock_history_ohlc(symbol, "${endDate()}", "${interval()}")
 for tick in ohlc:
     print(f"{tick['date']} ms={tick['ms_of_day']}: open={tick['open']} close={tick['close']} vol={tick['volume']}")`
 
@@ -730,9 +762,9 @@ for strike in strikes:
 
         if snap:
             if right == "C":
-                total_call_vol += snap[0].get("volume", 0)
+                total_call_vol += snap[0].get("size", 0)
             else:
-                total_put_vol  += snap[0].get("volume", 0)
+                total_put_vol  += snap[0].get("size", 0)
 
         if oi:
             if right == "C":
@@ -760,7 +792,7 @@ strike = "${strike()}"
 right  = "${right()}"  # "C" for call, "P" for put
 
 # Fetch historical Greeks at ${interval()} ms interval
-ticks = tdx.option_history_greeks_all(symbol, exp, strike, right, "${singleDate()}", ${interval()})
+ticks = tdx.option_history_greeks_all(symbol, exp, strike, right, "${singleDate()}", "${interval()}")
 for tick in ticks:
     print(
         f"{tick['date']} ms={tick['ms_of_day']:>8}: "
@@ -818,11 +850,12 @@ for price, vol in sorted_profile:
     case 'market_calendar': return `${h}
 
 # Get all trading days, holidays, and early closes for ${yearVal()}
-days = tdx.calendar_year(${yearVal()})
+days = tdx.calendar_year("${yearVal()}")
 
 trading_days = [d for d in days if d["is_open"]]
 holidays     = [d for d in days if not d["is_open"]]
-early_closes = [d for d in trading_days if d.get("early_close")]
+# Early close = close_time before 57600000 ms (4:00 PM ET)
+early_closes = [d for d in trading_days if d["close_time"] < 57600000]
 
 print(f"Year ${yearVal()} Summary:")
 print(f"  Trading days : {len(trading_days)}")
@@ -835,7 +868,7 @@ for d in holidays:
 print()
 print("Early Closes:")
 for d in early_closes:
-    print(f"  {d['date']}  closes={d.get('close_time', '?')}")`
+    print(f"  {d['date']}  closes={d['close_time']}")`
 
     case 'live_quote_monitor': return `${h}
 
@@ -903,8 +936,8 @@ tdx.start_streaming()
 tdx.subscribe_full_trades("OPTION")
 
 print(f"Option Flow Scanner — alerting on size >= ${minSize()}")
-print(f"{'Contract':<35}  {'Size':>6}  {'Price':>8}  {'Premium':>12}  {'Side'}")
-print("-" * 80)
+print(f"{'Contract':<35}  {'Size':>6}  {'Price':>8}  {'Premium':>12}")
+print("-" * 70)
 
 contracts = {}
 while True:
@@ -919,14 +952,8 @@ while True:
         price    = event["price"]
 
         if size >= ${minSize()}:
-            premium   = price * size * 100
-            # Classify aggressor side by bid/ask proximity
-            bid = event.get("bid", 0)
-            ask = event.get("ask", 0)
-            mid = (bid + ask) / 2 if bid and ask else price
-            side = "BUY" if price >= mid else "SELL"
-
-            print(f"{contract:<35}  {size:>6,}  {price:>8.2f}  \${premium:>11,.0f}  {side}")`
+            premium = price * size * 100
+            print(f"{contract:<35}  {size:>6,}  {price:>8.2f}  \${premium:>11,.0f}")`
 
     case 'live_option_chain': return `${h}
 
@@ -935,15 +962,15 @@ tdx.start_streaming()
 symbol = "${sym()}"
 exp    = "${exp()}"
 
-# Get all strikes, then subscribe to each contract
+# Get all strikes, then subscribe to option quotes for each contract
 strikes = tdx.option_list_strikes(symbol, exp)
 for strike in strikes:
     for right in ["C", "P"]:
-        tdx.subscribe_greeks(symbol, exp, strike, right)
+        tdx.subscribe_option_quotes(symbol, exp, strike, right)
 
 print(f"Live chain: {symbol} {exp}  ({len(strikes) * 2} contracts)")
-print(f"{'Contract':<30}  {'IV':>7}  {'Delta':>7}  {'Gamma':>9}  {'Theta':>7}  {'Vega':>7}")
-print("-" * 80)
+print(f"{'Contract':<30}  {'Bid':>8}  {'Ask':>8}  {'Spread':>8}  {'Mid':>8}")
+print("-" * 75)
 
 chain_state: dict = {}
 contracts = {}
@@ -953,16 +980,19 @@ while True:
         continue
     if event["kind"] == "contract_assigned":
         contracts[event["id"]] = event["detail"]
-    elif event["kind"] == "greeks":
+    elif event["kind"] == "quote":
         name = contracts.get(event.get("contract_id"), "?")
-        chain_state[name] = event
-        # Reprint sorted by strike
+        bid  = event["bid"]
+        ask  = event["ask"]
+        chain_state[name] = {"bid": bid, "ask": ask}
+        # Reprint sorted by contract name
         print("\\033[H\\033[J", end="")  # clear screen
         for k, v in sorted(chain_state.items()):
+            spread = v["ask"] - v["bid"]
+            mid    = (v["bid"] + v["ask"]) / 2
             print(
-                f"{k:<30}  {v['implied_volatility']:>7.4f}  "
-                f"{v['delta']:>+7.4f}  {v['gamma']:>9.6f}  "
-                f"{v['theta']:>+7.4f}  {v['vega']:>7.4f}"
+                f"{k:<30}  {v['bid']:>8.2f}  {v['ask']:>8.2f}  "
+                f"{spread:>8.4f}  {mid:>8.2f}"
             )`
 
     default:
@@ -987,7 +1017,7 @@ function genRust(): string {
     }
 
     // Intraday OHLC (interval: ${interval()} ms)
-    let ohlc = tdx.stock_history_ohlc(symbol, "${endDate()}", ${interval()}).await?;
+    let ohlc = tdx.stock_history_ohlc(symbol, "${endDate()}", "${interval()}").await?;
     for tick in &ohlc {
         println!("{} ms={}: open={} close={} vol={}",
             tick.date, tick.ms_of_day, tick.open_price(), tick.close_price(), tick.volume);
@@ -1002,13 +1032,13 @@ function genRust(): string {
 
     // Fetch Greeks for each strike (calls + puts)
     for strike in &strikes {
-        for &is_call in &[true, false] {
-            let right = if is_call { "C" } else { "P" };
-            if let Ok(greeks) = tdx.option_snapshot_greeks_all(symbol, exp, *strike, is_call).await {
+        for right in &["C", "P"] {
+            if let Ok(greeks) = tdx.option_snapshot_greeks_all(symbol, exp, strike, right).await {
                 if let Some(g) = greeks.first() {
                     // Strike is a scaled integer: divide by 1000 for dollar price
-                    println!("{} {} \${:.2}: iv={:.4} delta={:+.4} gamma={:.6} theta={:+.4} vega={:.4}",
-                        right, strike / 1000, *strike as f64 / 1000.0,
+                    let strike_f = strike.parse::<f64>().unwrap_or(0.0) / 1000.0;
+                    println!("{} \${:.2}: iv={:.4} delta={:+.4} gamma={:.6} theta={:+.4} vega={:.4}",
+                        right, strike_f,
                         g.implied_volatility, g.delta, g.gamma, g.theta, g.vega);
                 }
             }
@@ -1022,21 +1052,20 @@ function genRust(): string {
 
     let mut net_gex: f64 = 0.0;
     for strike in &strikes {
-        for &is_call in &[true, false] {
-            let greeks_res = tdx.option_snapshot_greeks_all(symbol, exp, *strike, is_call).await;
-            let oi_res     = tdx.option_snapshot_open_interest(symbol, exp, *strike, is_call).await;
+        for right in &["C", "P"] {
+            let greeks_res = tdx.option_snapshot_greeks_all(symbol, exp, strike, right).await;
+            let oi_res     = tdx.option_snapshot_open_interest(symbol, exp, strike, right).await;
 
             if let (Ok(greeks), Ok(oi)) = (greeks_res, oi_res) {
                 if let (Some(g), Some(o)) = (greeks.first(), oi.first()) {
                     // GEX = gamma * OI * 100 (calls +, puts -)
-                    let sign = if is_call { 1.0_f64 } else { -1.0_f64 };
+                    let sign = if *right == "C" { 1.0_f64 } else { -1.0_f64 };
                     let gex  = sign * g.gamma * o.open_interest as f64 * 100.0;
                     net_gex += gex;
                     // Strike is scaled: 500000 = $500
+                    let strike_f = strike.parse::<f64>().unwrap_or(0.0) / 1000.0;
                     println!("\${:.2} {}: gamma={:.6} oi={} gex={:.2}",
-                        *strike as f64 / 1000.0,
-                        if is_call { "C" } else { "P" },
-                        g.gamma, o.open_interest, gex);
+                        strike_f, right, g.gamma, o.open_interest, gex);
                 }
             }
         }
@@ -1053,12 +1082,13 @@ function genRust(): string {
     for exp in exps.iter().take(8) {
         let strikes = tdx.option_list_strikes(symbol, exp).await?;
         for strike in &strikes {
-            if let Ok(iv_data) = tdx.option_snapshot_greeks_implied_volatility(symbol, exp, *strike, true).await {
+            if let Ok(iv_data) = tdx.option_snapshot_greeks_implied_volatility(symbol, exp, strike, "C").await {
                 if let Some(iv) = iv_data.first() {
                     if iv.implied_volatility > 0.0 {
                         // Strike is scaled: divide by 1000 for dollar price
+                        let strike_f = strike.parse::<f64>().unwrap_or(0.0) / 1000.0;
                         println!("exp={} strike=\${:.2} iv={:.4}",
-                            exp, *strike as f64 / 1000.0, iv.implied_volatility);
+                            exp, strike_f, iv.implied_volatility);
                     }
                 }
             }
@@ -1074,10 +1104,11 @@ function genRust(): string {
 
     let mut unusual = Vec::new();
     for c in &contracts {
+        let right_str = if c.right == 0 { "C" } else { "P" };
         let oi_res = tdx.option_history_open_interest(
-            symbol, &c.expiration.to_string(), &c.strike.to_string(), &c.right, date).await;
+            symbol, &c.expiration.to_string(), &c.strike.to_string(), right_str, date).await;
         let trades_res = tdx.option_history_trade(
-            symbol, &c.expiration.to_string(), &c.strike.to_string(), &c.right, date).await;
+            symbol, &c.expiration.to_string(), &c.strike.to_string(), right_str, date).await;
 
         if let (Ok(oi), Ok(trades)) = (oi_res, trades_res) {
             let volume   = trades.len() as f64;
@@ -1085,18 +1116,18 @@ function genRust(): string {
             let vol_oi   = volume / oi_count;
 
             if vol_oi > 2.0 {
-                unusual.push((c.clone(), volume as usize, oi_count as usize, vol_oi));
+                unusual.push((c.clone(), right_str, volume as usize, oi_count as usize, vol_oi));
             }
         }
     }
 
-    unusual.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap());
+    unusual.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap());
     println!("\\n{:<35}  {:>8}  {:>8}  {:>10}", "Contract", "Volume", "OI", "Vol/OI");
     println!("{}", "-".repeat(70));
-    for (c, vol, oi, ratio) in unusual.iter().take(20) {
+    for (c, right_str, vol, oi, ratio) in unusual.iter().take(20) {
         // Strike is scaled: divide by 1000 for dollar price
         println!("{} {} {} \${:.2}  {:>8}  {:>8}  {:>10.2}",
-            symbol, c.expiration, c.right, c.strike as f64 / 1000.0, vol, oi, ratio);
+            symbol, c.expiration, right_str, c.strike as f64 / 1000.0, vol, oi, ratio);
     }`)
 
     case 'put_call_ratio': return rustMain(`    let symbol = "${sym()}";
@@ -1107,13 +1138,14 @@ function genRust(): string {
     let (mut call_vol, mut put_vol, mut call_oi, mut put_oi) = (0u64, 0u64, 0u64, 0u64);
 
     for strike in &strikes {
-        for &is_call in &[true, false] {
-            if let Ok(snap) = tdx.option_snapshot_trade(symbol, exp, *strike, is_call).await {
+        for right in &["C", "P"] {
+            let is_call = *right == "C";
+            if let Ok(snap) = tdx.option_snapshot_trade(symbol, exp, strike, right).await {
                 if let Some(s) = snap.first() {
-                    if is_call { call_vol += s.volume as u64; } else { put_vol += s.volume as u64; }
+                    if is_call { call_vol += s.size as u64; } else { put_vol += s.size as u64; }
                 }
             }
-            if let Ok(oi_data) = tdx.option_snapshot_open_interest(symbol, exp, *strike, is_call).await {
+            if let Ok(oi_data) = tdx.option_snapshot_open_interest(symbol, exp, strike, right).await {
                 if let Some(o) = oi_data.first() {
                     if is_call { call_oi += o.open_interest as u64; } else { put_oi += o.open_interest as u64; }
                 }
@@ -1134,11 +1166,11 @@ function genRust(): string {
     case 'historical_greeks': return rustMain(`    let symbol = "${sym()}";
     let exp    = "${exp()}";
     // Strike uses scaled integers: 500000 = $500.00
-    let strike = ${strike()}_u64;
-    let is_call = ${right() === 'C' ? 'true' : 'false'};  // ${right() === 'C' ? 'call' : 'put'}
+    let strike = "${strike()}";
+    let right  = "${right()}";  // "C" for call, "P" for put
 
     let ticks = tdx.option_history_greeks_all(
-        symbol, exp, strike, is_call, "${singleDate()}", ${interval()}).await?;
+        symbol, exp, strike, right, "${singleDate()}", "${interval()}").await?;
 
     println!("Historical Greeks: {} ticks", ticks.len());
     println!("{:>12}  {:>7}  {:>7}  {:>9}  {:>7}  {:>7}",
@@ -1161,10 +1193,11 @@ function genRust(): string {
     println!("Fetching trades for {} trading days...", eod.len());
 
     for day in &eod {
-        if let Ok(trades) = tdx.stock_history_trade(symbol, &day.date).await {
+        if let Ok(trades) = tdx.stock_history_trade(symbol, &day.date.to_string()).await {
             for t in &trades {
-                // Bucket to nearest $0.25 (price is in cents, bucket = round to 25 cents)
-                let bucket = (t.price as f64 / 0.25).round() as u64;
+                // Bucket to nearest $0.25 — use get_price() to convert raw int to f64
+                let price_f = t.get_price().to_f64();
+                let bucket = (price_f / 0.25).round() as u64;
                 *price_buckets.entry(bucket).or_insert(0) += t.size as u64;
             }
         }
@@ -1181,11 +1214,12 @@ function genRust(): string {
     }`)
 
     case 'market_calendar': return rustMain(`    // Get all trading days, holidays, and early closes for ${yearVal()}
-    let days = tdx.calendar_year(${yearVal()}).await?;
+    let days = tdx.calendar_year("${yearVal()}").await?;
 
     let trading: Vec<_> = days.iter().filter(|d| d.is_open).collect();
     let holidays: Vec<_> = days.iter().filter(|d| !d.is_open).collect();
-    let early: Vec<_> = trading.iter().filter(|d| d.early_close).collect();
+    // Early close = close_time before 57600000 ms (4:00 PM ET)
+    let early: Vec<_> = trading.iter().filter(|d| d.close_time < 57600000).collect();
 
     println!("Year ${yearVal()} Summary:");
     println!("  Trading days : {}", trading.len());
@@ -1198,182 +1232,183 @@ function genRust(): string {
     println!("Early Closes:");
     for d in &early { println!("  {}  closes={}", d.date, d.close_time); }`)
 
-    case 'live_quote_monitor': return `${h}
+    case 'live_quote_monitor': return `${rustHeader()}
+use thetadatadx::fpss::{FpssEvent, FpssData, FpssControl};
+use thetadatadx::fpss::protocol::Contract;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> Result<(), thetadatadx::Error> {
     let creds = Credentials::from_file("creds.txt")?;
-    let tdx   = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
+    let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
 
-    tdx.start_streaming().await?;
+    let contracts: Arc<Mutex<HashMap<i32, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let contracts_clone = contracts.clone();
 
-    let symbols = vec![${symsListRust()}];
-    for sym in &symbols {
-        tdx.subscribe_quotes(sym).await?;
-    }
-
-    println!("Monitoring quotes for: {:?}", symbols);
+    println!("Monitoring quotes for: [${symsListRust()}]");
     println!("{:<8}  {:>8}  {:>8}  {:>8}  {:>8}", "Symbol", "Bid", "Ask", "Spread", "Mid");
     println!("{}", "-".repeat(50));
 
-    let mut contracts: HashMap<u64, String> = HashMap::new();
-    loop {
-        match tdx.next_event(5000).await? {
-            None => continue,
-            Some(event) => match event.kind.as_str() {
-                "contract_assigned" => {
-                    contracts.insert(event.id, event.detail);
-                }
-                "quote" => {
-                    let name   = contracts.get(&event.contract_id).map(|s| s.as_str()).unwrap_or("?");
-                    let bid    = event.bid;
-                    let ask    = event.ask;
-                    let spread = ask - bid;
-                    let mid    = (bid + ask) / 2.0;
-                    println!("{:<8}  {:>8.2}  {:>8.2}  {:>8.4}  {:>8.2}", name, bid, ask, spread, mid);
-                }
-                _ => {}
+    tdx.start_streaming(move |event: &FpssEvent| {
+        match event {
+            FpssEvent::Control(FpssControl::ContractAssigned { id, contract }) => {
+                contracts_clone.lock().unwrap().insert(*id, format!("{contract}"));
             }
+            FpssEvent::Data(FpssData::Quote { contract_id, bid, ask, price_type, .. }) => {
+                let name = contracts_clone.lock().unwrap().get(contract_id).cloned().unwrap_or_default();
+                let bid_f = thetadatadx::types::price::Price::new(*bid, *price_type).to_f64();
+                let ask_f = thetadatadx::types::price::Price::new(*ask, *price_type).to_f64();
+                let spread = ask_f - bid_f;
+                let mid = (bid_f + ask_f) / 2.0;
+                println!("{:<8}  {:>8.2}  {:>8.2}  {:>8.4}  {:>8.2}", name, bid_f, ask_f, spread, mid);
+            }
+            _ => {}
         }
-    }
-}`
-
-    case 'trade_tape': return `${h}
-use std::collections::HashMap;
-
-#[tokio::main]
-async fn main() -> Result<(), thetadatadx::Error> {
-    let creds = Credentials::from_file("creds.txt")?;
-    let tdx   = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
-
-    tdx.start_streaming().await?;
+    })?;
 
     let symbols = vec![${symsListRust()}];
     for sym in &symbols {
-        tdx.subscribe_trades(sym).await?;
+        tdx.subscribe_quotes(&Contract::stock(sym))?;
     }
 
-    println!("Trade tape for: {:?}", symbols);
+    std::thread::park();
+    Ok(())
+}`
+
+    case 'trade_tape': return `${rustHeader()}
+use thetadatadx::fpss::{FpssEvent, FpssData, FpssControl};
+use thetadatadx::fpss::protocol::Contract;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+#[tokio::main]
+async fn main() -> Result<(), thetadatadx::Error> {
+    let creds = Credentials::from_file("creds.txt")?;
+    let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
+
+    let contracts: Arc<Mutex<HashMap<i32, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let contracts_clone = contracts.clone();
+
+    println!("Trade tape for: [${symsListRust()}]");
     println!("{:>12}  {:<8}  {:>8}  {:>8}", "Time", "Symbol", "Price", "Size");
     println!("{}", "-".repeat(45));
 
-    let mut contracts: HashMap<u64, String> = HashMap::new();
-    loop {
-        match tdx.next_event(5000).await? {
-            None => continue,
-            Some(event) => match event.kind.as_str() {
-                "contract_assigned" => {
-                    contracts.insert(event.id, event.detail);
-                }
-                "trade" => {
-                    let name = contracts.get(&event.contract_id).map(|s| s.as_str()).unwrap_or("?");
-                    let ms   = event.ms_of_day;
-                    let h    = ms / 3_600_000;
-                    let m    = (ms % 3_600_000) / 60_000;
-                    let s    = (ms % 60_000) / 1_000;
-                    println!("{:02}:{:02}:{:02}       {:<8}  {:>8.2}  {:>8}",
-                        h, m, s, name, event.price, event.size);
-                }
-                _ => {}
+    tdx.start_streaming(move |event: &FpssEvent| {
+        match event {
+            FpssEvent::Control(FpssControl::ContractAssigned { id, contract }) => {
+                contracts_clone.lock().unwrap().insert(*id, format!("{contract}"));
             }
+            FpssEvent::Data(FpssData::Trade { contract_id, price, size, ms_of_day, price_type, .. }) => {
+                let name = contracts_clone.lock().unwrap().get(contract_id).cloned().unwrap_or_default();
+                let price_f = thetadatadx::types::price::Price::new(*price, *price_type).to_f64();
+                let h = ms_of_day / 3_600_000;
+                let m = (ms_of_day % 3_600_000) / 60_000;
+                let s = (ms_of_day % 60_000) / 1_000;
+                println!("{:02}:{:02}:{:02}       {:<8}  {:>8.2}  {:>8}",
+                    h, m, s, name, price_f, size);
+            }
+            _ => {}
         }
+    })?;
+
+    let symbols = vec![${symsListRust()}];
+    for sym in &symbols {
+        tdx.subscribe_quotes(&Contract::stock(sym))?;
     }
+
+    std::thread::park();
+    Ok(())
 }`
 
-    case 'option_flow_scanner': return `${h}
+    case 'option_flow_scanner': return `${rustHeader()}
+use thetadatadx::fpss::{FpssEvent, FpssData, FpssControl};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> Result<(), thetadatadx::Error> {
     let creds = Credentials::from_file("creds.txt")?;
-    let tdx   = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
-
-    tdx.start_streaming().await?;
-    tdx.subscribe_full_trades("OPTION").await?;
+    let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
 
     let min_size: u32 = ${minSize()};
-    println!("Option Flow Scanner — alerting on size >= {}", min_size);
-    println!("{:<35}  {:>6}  {:>8}  {:>12}  {}", "Contract", "Size", "Price", "Premium", "Side");
-    println!("{}", "-".repeat(80));
+    let contracts: Arc<Mutex<HashMap<i32, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let contracts_clone = contracts.clone();
 
-    let mut contracts: HashMap<u64, String> = HashMap::new();
-    loop {
-        match tdx.next_event(5000).await? {
-            None => continue,
-            Some(event) => match event.kind.as_str() {
-                "contract_assigned" => {
-                    contracts.insert(event.id, event.detail);
-                }
-                "trade" if event.size >= min_size => {
-                    let contract = contracts.get(&event.contract_id).map(|s| s.as_str()).unwrap_or("?");
-                    let premium  = event.price * event.size as f64 * 100.0;
-                    let mid      = (event.bid + event.ask) / 2.0;
-                    let side     = if event.price >= mid { "BUY" } else { "SELL" };
-                    println!("{:<35}  {:>6}  {:>8.2}  \${:>11,.0}  {}",
-                        contract, event.size, event.price, premium, side);
-                }
-                _ => {}
+    println!("Option Flow Scanner — alerting on size >= {}", min_size);
+    println!("{:<35}  {:>6}  {:>8}  {:>12}", "Contract", "Size", "Price", "Premium");
+    println!("{}", "-".repeat(70));
+
+    tdx.start_streaming(move |event: &FpssEvent| {
+        match event {
+            FpssEvent::Control(FpssControl::ContractAssigned { id, contract }) => {
+                contracts_clone.lock().unwrap().insert(*id, format!("{contract}"));
             }
+            FpssEvent::Data(FpssData::Trade { contract_id, price, size, price_type, .. }) => {
+                if *size >= min_size {
+                    let name = contracts_clone.lock().unwrap().get(contract_id).cloned().unwrap_or_default();
+                    let price_f = thetadatadx::types::price::Price::new(*price, *price_type).to_f64();
+                    let premium = price_f * *size as f64 * 100.0;
+                    println!("{:<35}  {:>6}  {:>8.2}  \${:>11,.0}",
+                        name, size, price_f, premium);
+                }
+            }
+            _ => {}
         }
-    }
+    })?;
+
+    tdx.subscribe_full_trades(thetadatadx::types::enums::SecType::Option)?;
+
+    std::thread::park();
+    Ok(())
 }`
 
-    case 'live_option_chain': return `${h}
+    case 'live_option_chain': return `${rustHeader()}
+use thetadatadx::fpss::{FpssEvent, FpssData, FpssControl};
+use thetadatadx::fpss::protocol::Contract;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> Result<(), thetadatadx::Error> {
     let creds = Credentials::from_file("creds.txt")?;
-    let tdx   = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
-
-    tdx.start_streaming().await?;
+    let tdx = ThetaDataDx::connect(&creds, DirectConfig::production()).await?;
 
     let symbol = "${sym()}";
     let exp    = "${exp()}";
 
-    // Get all strikes, subscribe to each contract
+    let contracts: Arc<Mutex<HashMap<i32, String>>> = Arc::new(Mutex::new(HashMap::new()));
+    let contracts_clone = contracts.clone();
+
+    tdx.start_streaming(move |event: &FpssEvent| {
+        match event {
+            FpssEvent::Control(FpssControl::ContractAssigned { id, contract }) => {
+                contracts_clone.lock().unwrap().insert(*id, format!("{contract}"));
+            }
+            FpssEvent::Data(FpssData::Quote { contract_id, bid, ask, price_type, .. }) => {
+                let name = contracts_clone.lock().unwrap().get(contract_id).cloned().unwrap_or_default();
+                let bid_f = thetadatadx::types::price::Price::new(*bid, *price_type).to_f64();
+                let ask_f = thetadatadx::types::price::Price::new(*ask, *price_type).to_f64();
+                let spread = ask_f - bid_f;
+                let mid = (bid_f + ask_f) / 2.0;
+                println!("{:<30}  {:>8.2}  {:>8.2}  {:>8.4}  {:>8.2}",
+                    name, bid_f, ask_f, spread, mid);
+            }
+            _ => {}
+        }
+    })?;
+
+    // Get all strikes, subscribe to option quotes for each contract
     let strikes = tdx.option_list_strikes(symbol, exp).await?;
     for strike in &strikes {
-        for &is_call in &[true, false] {
-            tdx.subscribe_greeks(symbol, exp, *strike, is_call).await?;
-        }
+        // Subscribe to both calls and puts
+        tdx.subscribe_quotes(&Contract::option(symbol, exp.parse().unwrap_or(0), true, strike.parse().unwrap_or(0)))?;
+        tdx.subscribe_quotes(&Contract::option(symbol, exp.parse().unwrap_or(0), false, strike.parse().unwrap_or(0)))?;
     }
     println!("Live chain: {} {}  ({} contracts)", symbol, exp, strikes.len() * 2);
 
-    let mut contracts: HashMap<u64, String> = HashMap::new();
-    let mut chain_state: HashMap<String, (f64, f64, f64, f64, f64)> = HashMap::new();
-
-    loop {
-        match tdx.next_event(5000).await? {
-            None => continue,
-            Some(event) => match event.kind.as_str() {
-                "contract_assigned" => {
-                    contracts.insert(event.id, event.detail);
-                }
-                "greeks" => {
-                    let name = contracts.get(&event.contract_id)
-                        .cloned().unwrap_or_else(|| "?".to_string());
-                    chain_state.insert(name, (
-                        event.implied_volatility, event.delta,
-                        event.gamma, event.theta, event.vega,
-                    ));
-                    // Reprint sorted chain
-                    print!("\\x1b[H\\x1b[J");  // clear terminal
-                    println!("{:<30}  {:>7}  {:>7}  {:>9}  {:>7}  {:>7}",
-                        "Contract", "IV", "Delta", "Gamma", "Theta", "Vega");
-                    println!("{}", "-".repeat(75));
-                    let mut sorted: Vec<_> = chain_state.iter().collect();
-                    sorted.sort_by_key(|(k, _)| k.clone());
-                    for (name, (iv, delta, gamma, theta, vega)) in &sorted {
-                        println!("{:<30}  {:>7.4}  {:>+7.4}  {:>9.6}  {:>+7.4}  {:>7.4}",
-                            name, iv, delta, gamma, theta, vega);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
+    std::thread::park();
+    Ok(())
 }`
 
     default:
@@ -1387,7 +1422,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
     <!-- ── Header ───────────────────────────────────────────────────── -->
     <div class="qb-header">
       <div class="qb-header-title">
-        <span class="qb-header-icon">🛠️</span>
+        <span class="qb-header-icon" v-html="SVG_ICONS.tool"></span>
         <div>
           <h2>Code Recipe Builder</h2>
           <p>Pick a use case and get working code in seconds.</p>
@@ -1423,7 +1458,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
           class="qb-recipe-card"
           @click="pickRecipe(recipe)"
         >
-          <span class="qb-recipe-icon">{{ recipe.icon }}</span>
+          <span class="qb-recipe-icon" v-html="recipe.icon"></span>
           <span class="qb-recipe-title">{{ recipe.title }}</span>
           <span class="qb-recipe-desc">{{ recipe.description }}</span>
         </button>
@@ -1437,7 +1472,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
           class="qb-recipe-card qb-recipe-card--rt"
           @click="pickRecipe(recipe)"
         >
-          <span class="qb-recipe-icon">{{ recipe.icon }}</span>
+          <span class="qb-recipe-icon" v-html="recipe.icon"></span>
           <span class="qb-recipe-title">{{ recipe.title }}</span>
           <span class="qb-recipe-desc">{{ recipe.description }}</span>
         </button>
@@ -1447,7 +1482,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
     <!-- ── Step 2: Parameters ────────────────────────────────────────── -->
     <div v-if="step === 2" class="qb-section">
       <div class="qb-recipe-badge">
-        <span>{{ currentRecipe?.icon }}</span>
+        <span v-html="currentRecipe?.icon"></span>
         <strong>{{ currentRecipe?.title }}</strong>
       </div>
 
@@ -1608,7 +1643,7 @@ async fn main() -> Result<(), thetadatadx::Error> {
     <!-- ── Step 3: Language ───────────────────────────────────────────── -->
     <div v-if="step === 3" class="qb-section">
       <div class="qb-recipe-badge">
-        <span>{{ currentRecipe?.icon }}</span>
+        <span v-html="currentRecipe?.icon"></span>
         <strong>{{ currentRecipe?.title }}</strong>
       </div>
 
@@ -1619,18 +1654,16 @@ async fn main() -> Result<(), thetadatadx::Error> {
           :class="{ 'qb-lang-card--selected': language === 'python' }"
           @click="toStep4('python')"
         >
-          <span class="qb-lang-icon">🐍</span>
           <span class="qb-lang-name">Python</span>
-          <span class="qb-lang-desc">thetadatadx · pandas-friendly</span>
+          <span class="qb-lang-desc">thetadatadx -- pandas-friendly</span>
         </button>
         <button
           class="qb-lang-card"
           :class="{ 'qb-lang-card--selected': language === 'rust' }"
           @click="toStep4('rust')"
         >
-          <span class="qb-lang-icon">🦀</span>
           <span class="qb-lang-name">Rust</span>
-          <span class="qb-lang-desc">thetadatadx · tokio async</span>
+          <span class="qb-lang-desc">thetadatadx -- tokio async</span>
         </button>
       </div>
 
@@ -1643,10 +1676,10 @@ async fn main() -> Result<(), thetadatadx::Error> {
     <div v-if="step === 4" class="qb-section">
       <div class="qb-code-header">
         <div class="qb-recipe-badge">
-          <span>{{ currentRecipe?.icon }}</span>
+          <span v-html="currentRecipe?.icon"></span>
           <strong>{{ currentRecipe?.title }}</strong>
           <span class="qb-lang-pill" :class="`qb-lang-pill--${language}`">
-            {{ language === 'python' ? '🐍 Python' : '🦀 Rust' }}
+            {{ language === 'python' ? 'Python' : 'Rust' }}
           </span>
         </div>
         <button class="qb-copy-btn" :class="{ 'qb-copy-btn--done': copied }" @click="copyCode">
@@ -1698,8 +1731,16 @@ async fn main() -> Result<(), thetadatadx::Error> {
 }
 
 .qb-header-icon {
-  font-size: 28px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--vp-c-brand-1);
+}
+
+.qb-header-icon :deep(svg) {
+  width: 28px;
+  height: 28px;
 }
 
 .qb-header-title h2 {
@@ -1840,10 +1881,18 @@ async fn main() -> Result<(), thetadatadx::Error> {
 }
 
 .qb-recipe-icon {
-  font-size: 22px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  width: 24px;
+  height: 24px;
   position: relative;
   z-index: 1;
+  color: var(--vp-c-brand-1);
+}
+
+.qb-recipe-icon :deep(svg) {
+  width: 22px;
+  height: 22px;
 }
 
 .qb-recipe-title {
@@ -2106,7 +2155,6 @@ async fn main() -> Result<(), thetadatadx::Error> {
   background: var(--vp-c-brand-soft);
 }
 
-.qb-lang-icon { font-size: 36px; line-height: 1; }
 .qb-lang-name { font-size: 18px; font-weight: 700; }
 .qb-lang-desc { font-size: 12px; color: var(--vp-c-text-2); text-align: center; }
 

@@ -25,7 +25,7 @@ cargo install thetadatadx-mcp --git https://github.com/userFRM/ThetaDataDx
 Or build from source:
 
 ```bash
-cd crates/thetadatadx-mcp
+cd tools/mcp
 cargo build --release
 # Binary at ../../target/release/thetadatadx-mcp
 ```

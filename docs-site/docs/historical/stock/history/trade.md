@@ -7,7 +7,7 @@ description: All trades for a stock on a given date.
 
 Retrieve every trade execution for a stock on a given date. Returns tick-level data with price, size, exchange, and condition codes.
 
-**Tier:** Standard+
+<TierBadge tier="standard" />
 
 ## Code Example
 

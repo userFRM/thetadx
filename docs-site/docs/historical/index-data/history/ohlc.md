@@ -5,6 +5,8 @@ description: Intraday OHLC bars for an index across a date range.
 
 # index_history_ohlc
 
+<TierBadge tier="standard" />
+
 Retrieve intraday OHLC bars for an index across a date range at a specified interval.
 
 ## Code Example
@@ -69,9 +71,7 @@ Returns a list of `OhlcTick` with the following fields:
 | `ms_of_day` | u32 | Milliseconds from midnight ET |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Standard -- requires Standard plan or higher.
+ -- requires Standard plan or higher.
 
 ## Notes
 

@@ -5,6 +5,8 @@ description: Index price at a specific time of day across a date range.
 
 # index_at_time_price
 
+<TierBadge tier="standard" />
+
 Retrieve the index price at a specific time of day for every trading day in a date range. Returns one data point per date, useful for consistent daily sampling.
 
 ## Code Example
@@ -48,9 +50,7 @@ Returns a `DataTable` with one entry per trading day:
 | `ms_of_day` | u32 | Actual milliseconds from midnight ET |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Standard -- requires Standard plan or higher.
+ -- requires Standard plan or higher.
 
 ## Time Reference
 

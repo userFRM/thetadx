@@ -5,6 +5,8 @@ description: Latest OHLC snapshot for one or more indices.
 
 # index_snapshot_ohlc
 
+<TierBadge tier="value" />
+
 Get the latest OHLC (open, high, low, close) snapshot for one or more index symbols. Returns the most recent bar data.
 
 ## Code Example
@@ -61,9 +63,7 @@ Returns a list of `OhlcTick` with the following fields:
 | `ms_of_day` | u32 | Milliseconds from midnight ET |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Value -- requires Value plan or higher.
+ -- requires Value plan or higher.
 
 ## Notes
 

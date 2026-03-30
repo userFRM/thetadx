@@ -5,6 +5,8 @@ description: Get the trading schedule for a specific date.
 
 # calendar_on_date
 
+<TierBadge tier="free" />
+
 Retrieve the trading schedule for a specific date, including whether it is a regular trading day, early close, or holiday.
 
 ## Code Example
@@ -45,9 +47,7 @@ Returns a `DataTable` with calendar information:
 | `early_close` | bool | Whether this is an early close day |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

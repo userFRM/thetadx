@@ -7,7 +7,7 @@ description: Latest OHLC bar snapshot for one or more stocks.
 
 Latest OHLC (open-high-low-close) snapshot for one or more stocks. Returns the current or most recent trading session's aggregated bar.
 
-**Tier:** Value+
+<TierBadge tier="value" />
 
 ## Code Example
 

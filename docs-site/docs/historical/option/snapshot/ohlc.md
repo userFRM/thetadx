@@ -5,6 +5,8 @@ description: Latest OHLC snapshot for an option contract.
 
 # option_snapshot_ohlc
 
+<TierBadge tier="free" />
+
 Get the latest OHLC (open, high, low, close) snapshot for an option contract.
 
 ## Code Example
@@ -48,6 +50,3 @@ auto bars = client.option_snapshot_ohlc("SPY", "20241220", "500000", "C");
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Free

@@ -5,6 +5,8 @@ description: Get the full trading calendar for a year.
 
 # calendar_year
 
+<TierBadge tier="free" />
+
 Retrieve the complete trading calendar for an entire year, including every trading day, holiday, and early close day.
 
 ## Code Example
@@ -45,9 +47,7 @@ Returns a `DataTable` with calendar info for every trading day in the year:
 | `early_close` | bool | Whether this is an early close day |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

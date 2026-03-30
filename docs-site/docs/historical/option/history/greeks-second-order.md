@@ -5,6 +5,8 @@ description: Second-order Greeks history at a given interval.
 
 # option_history_greeks_second_order
 
+<TierBadge tier="professional" />
+
 Retrieve second-order Greeks (gamma, vanna, charm, vomma, veta) sampled at a given interval throughout a trading day.
 
 ## Code Example
@@ -61,6 +63,3 @@ Parameters are identical to [option_history_greeks_all](./greeks-all#parameters)
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

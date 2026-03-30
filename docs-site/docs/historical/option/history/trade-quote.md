@@ -5,6 +5,8 @@ description: Combined trade and quote ticks for an option contract.
 
 # option_history_trade_quote
 
+<TierBadge tier="professional" />
+
 Retrieve combined trade + quote ticks for an option contract on a given date. Each row contains both the trade data and the prevailing quote at the time of the trade.
 
 ## Code Example
@@ -56,9 +58,6 @@ auto tq = client.option_history_trade_quote("SPY", "20241220", "500000", "C", "2
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

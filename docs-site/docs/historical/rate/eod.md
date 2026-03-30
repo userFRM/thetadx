@@ -5,6 +5,8 @@ description: End-of-day interest rate history for SOFR and Treasury yields.
 
 # interest_rate_history_eod
 
+<TierBadge tier="free" />
+
 Retrieve end-of-day interest rate data across a date range. Supports SOFR and all standard Treasury maturities.
 
 ## Code Example
@@ -60,9 +62,7 @@ Returns a `DataTable` with rate data per trading day:
 | `rate` | f64 | Interest rate value (annualized, as decimal) |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Available Rate Symbols
 

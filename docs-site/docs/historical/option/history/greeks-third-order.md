@@ -5,6 +5,8 @@ description: Third-order Greeks history at a given interval.
 
 # option_history_greeks_third_order
 
+<TierBadge tier="professional" />
+
 Retrieve third-order Greeks (speed, zomma, color, ultima) sampled at a given interval throughout a trading day.
 
 ## Code Example
@@ -60,6 +62,3 @@ Parameters are identical to [option_history_greeks_all](./greeks-all#parameters)
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

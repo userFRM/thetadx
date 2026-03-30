@@ -5,6 +5,8 @@ description: Intraday OHLC bars for an option contract.
 
 # option_history_ohlc
 
+<TierBadge tier="free" />
+
 Retrieve intraday OHLC bars for an option contract on a given date at a specified interval.
 
 ## Code Example
@@ -56,9 +58,6 @@ auto bars = client.option_history_ohlc("SPY", "20241220", "500000", "C",
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

@@ -5,6 +5,8 @@ description: List all available index symbols.
 
 # index_list_symbols
 
+<TierBadge tier="free" />
+
 List all available index ticker symbols from ThetaData.
 
 ## Code Example
@@ -45,9 +47,7 @@ None.
 |-------|------|-------------|
 | symbols | string[] | List of index ticker symbols (e.g. `"SPX"`, `"NDX"`, `"DJI"`) |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

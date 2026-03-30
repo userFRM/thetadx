@@ -5,6 +5,8 @@ description: Open interest history for an option contract.
 
 # option_history_open_interest
 
+<TierBadge tier="free" />
+
 Retrieve open interest history for an option contract.
 
 ## Code Example
@@ -45,9 +47,6 @@ auto oi = client.option_history_open_interest("SPY", "20241220", "500000", "C", 
 | `open_interest` | int | Open interest |
 | `date` | string | Date |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

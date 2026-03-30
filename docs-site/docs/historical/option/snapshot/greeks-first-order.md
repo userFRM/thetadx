@@ -5,6 +5,8 @@ description: First-order Greeks snapshot for an option contract.
 
 # option_snapshot_greeks_first_order
 
+<TierBadge tier="professional" />
+
 Get a snapshot of first-order Greeks for an option contract: delta, theta, vega, rho, epsilon, and lambda.
 
 ## Code Example
@@ -61,6 +63,3 @@ Parameters are identical to [option_snapshot_greeks_all](./greeks-all#parameters
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

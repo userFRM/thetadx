@@ -5,6 +5,8 @@ description: Intraday price history for an index.
 
 # index_history_price
 
+<TierBadge tier="standard" />
+
 Retrieve intraday price history for an index on a single date at a specified interval. Returns raw price data as a DataTable.
 
 ## Code Example
@@ -47,9 +49,7 @@ Returns a `DataTable` with price and time fields:
 | `ms_of_day` | u32 | Milliseconds from midnight ET |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Standard -- requires Standard plan or higher.
+ -- requires Standard plan or higher.
 
 ## Notes
 

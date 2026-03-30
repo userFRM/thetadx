@@ -5,6 +5,8 @@ description: List available dates for an index symbol.
 
 # index_list_dates
 
+<TierBadge tier="free" />
+
 List all dates for which data is available for a given index symbol.
 
 ## Code Example
@@ -43,9 +45,7 @@ std::cout << "Available from " << dates.front() << " to " << dates.back() << std
 |-------|------|-------------|
 | dates | string[] | List of date strings in `YYYYMMDD` format |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

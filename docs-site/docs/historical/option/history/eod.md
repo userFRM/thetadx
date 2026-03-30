@@ -5,6 +5,8 @@ description: End-of-day option data across a date range.
 
 # option_history_eod
 
+<TierBadge tier="free" />
+
 Retrieve end-of-day option data across a date range. Returns one row per trading day with OHLC, volume, and open interest.
 
 ## Code Example
@@ -58,6 +60,3 @@ auto eod = client.option_history_eod("SPY", "20241220", "500000", "C",
 | `volume` | int | Daily volume |
 | `open_interest` | int | Open interest |
 
-## Subscription Tier
-
-Free

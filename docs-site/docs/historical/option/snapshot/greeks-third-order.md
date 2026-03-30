@@ -5,6 +5,8 @@ description: Third-order Greeks snapshot for an option contract.
 
 # option_snapshot_greeks_third_order
 
+<TierBadge tier="professional" />
+
 Get a snapshot of third-order Greeks for an option contract: speed, zomma, color, and ultima.
 
 ## Code Example
@@ -59,9 +61,6 @@ Parameters are identical to [option_snapshot_greeks_all](./greeks-all#parameters
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

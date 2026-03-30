@@ -5,6 +5,8 @@ description: Latest price snapshot for one or more indices.
 
 # index_snapshot_price
 
+<TierBadge tier="value" />
+
 Get the latest price snapshot for one or more index symbols. Returns the most recent price data as a raw DataTable.
 
 ## Code Example
@@ -44,9 +46,7 @@ Returns a `DataTable` with price fields:
 | `ms_of_day` | u32 | Milliseconds from midnight ET |
 | `date` | u32 | Date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Value -- requires Value plan or higher.
+ -- requires Value plan or higher.
 
 ## Notes
 

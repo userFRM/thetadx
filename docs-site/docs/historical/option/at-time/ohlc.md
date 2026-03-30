@@ -5,6 +5,8 @@ description: Quote at a specific time of day across a date range for an option c
 
 # option_at_time_ohlc
 
+<TierBadge tier="free" />
+
 Retrieve the NBBO quote at a specific time of day across a date range for an option contract. Returns one quote per date, the prevailing quote at the specified time.
 
 ## Code Example
@@ -57,9 +59,6 @@ auto quotes = client.option_at_time_quote("SPY", "20241220", "500000", "C",
 | `bid_exchange` | int | Bid exchange code |
 | `ask_exchange` | int | Ask exchange code |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

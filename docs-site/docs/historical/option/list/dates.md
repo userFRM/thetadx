@@ -5,6 +5,8 @@ description: List available dates for an option contract by request type.
 
 # option_list_dates
 
+<TierBadge tier="free" />
+
 List available dates for a specific option contract, filtered by data request type. This tells you which dates have data for a given contract.
 
 ## Code Example
@@ -42,9 +44,6 @@ auto dates = client.option_list_dates("EOD", "SPY", "20241220", "500000", "C");
 |-------|------|-------------|
 | (list) | string[] | Date strings in `YYYYMMDD` format |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

@@ -5,6 +5,8 @@ description: All Greeks computed on each individual trade.
 
 # option_history_trade_greeks_all
 
+<TierBadge tier="professional" />
+
 Retrieve all Greeks (first, second, and third order) computed on each individual trade for an option contract. Unlike interval-sampled Greeks, these are calculated at the exact moment of each trade.
 
 ## Code Example
@@ -72,9 +74,6 @@ auto g = client.option_history_trade_greeks_all("SPY", "20241220", "500000", "C"
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

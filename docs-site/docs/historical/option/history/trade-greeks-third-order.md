@@ -5,6 +5,8 @@ description: Third-order Greeks computed on each individual trade.
 
 # option_history_trade_greeks_third_order
 
+<TierBadge tier="professional" />
+
 Retrieve third-order Greeks computed on each individual trade for an option contract.
 
 ## Code Example
@@ -64,6 +66,3 @@ Parameters are identical to [option_history_trade_greeks_all](./trade-greeks-all
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

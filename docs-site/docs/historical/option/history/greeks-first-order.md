@@ -5,6 +5,8 @@ description: First-order Greeks history at a given interval.
 
 # option_history_greeks_first_order
 
+<TierBadge tier="professional" />
+
 Retrieve first-order Greeks (delta, theta, vega, rho, epsilon, lambda) sampled at a given interval throughout a trading day.
 
 ## Code Example
@@ -62,6 +64,3 @@ Parameters are identical to [option_history_greeks_all](./greeks-all#parameters)
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

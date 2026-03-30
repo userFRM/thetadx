@@ -5,6 +5,8 @@ description: Trade at a specific time of day across a date range for an option c
 
 # option_at_time_trade
 
+<TierBadge tier="free" />
+
 Retrieve the trade at a specific time of day across a date range for an option contract. Returns one trade per date, the most recent trade at or before the specified time.
 
 ## Code Example
@@ -55,9 +57,6 @@ auto trades = client.option_at_time_trade("SPY", "20241220", "500000", "C",
 | `condition` | int | Trade condition code |
 | `exchange` | int | Exchange code |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

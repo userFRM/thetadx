@@ -9,7 +9,7 @@ Retrieve the trade at a specific time of day across a date range. Returns one tr
 
 The `time_of_day` parameter is milliseconds from midnight ET (e.g., `34200000` = 9:30 AM).
 
-**Tier:** Value+
+<TierBadge tier="value" />
 
 ## Code Example
 

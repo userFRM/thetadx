@@ -5,6 +5,8 @@ description: Implied volatility snapshot for an option contract.
 
 # option_snapshot_greeks_iv
 
+<TierBadge tier="professional" />
+
 Get the latest implied volatility (IV) snapshot for an option contract.
 
 ## Code Example
@@ -56,9 +58,6 @@ auto iv = client.option_snapshot_greeks_implied_volatility("SPY", "20241220", "5
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

@@ -5,6 +5,8 @@ description: End-of-day index data across a date range.
 
 # index_history_eod
 
+<TierBadge tier="free" />
+
 Retrieve end-of-day data for an index across a date range. Returns one row per trading day with open, high, low, close, and volume.
 
 ## Code Example
@@ -66,9 +68,7 @@ Returns a list of `EodTick` with the following fields:
 | `close` | f64 | Closing price/level |
 | `volume` | u64 | Volume |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

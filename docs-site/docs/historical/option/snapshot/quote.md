@@ -5,6 +5,8 @@ description: Latest NBBO quote snapshot for an option contract.
 
 # option_snapshot_quote
 
+<TierBadge tier="free" />
+
 Get the latest NBBO (National Best Bid and Offer) quote snapshot for an option contract.
 
 ## Code Example
@@ -49,6 +51,3 @@ auto quotes = client.option_snapshot_quote("SPY", "20241220", "500000", "C");
 | `bid_exchange` | int | Bid exchange code |
 | `ask_exchange` | int | Ask exchange code |
 
-## Subscription Tier
-
-Free

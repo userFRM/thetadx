@@ -5,6 +5,8 @@ description: All Greeks history at a given interval (intraday).
 
 # option_history_greeks_all
 
+<TierBadge tier="professional" />
+
 Retrieve all Greeks (first, second, and third order) sampled at a given interval throughout a trading day.
 
 ## Code Example
@@ -69,9 +71,6 @@ auto g = client.option_history_greeks_all("SPY", "20241220", "500000", "C",
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

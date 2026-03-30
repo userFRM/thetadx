@@ -7,7 +7,7 @@ description: Latest NBBO quote snapshot for one or more stocks.
 
 Latest NBBO (National Best Bid and Offer) quote snapshot for one or more stocks.
 
-**Tier:** Value+
+<TierBadge tier="value" />
 
 ## Code Example
 

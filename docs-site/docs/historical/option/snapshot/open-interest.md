@@ -5,6 +5,8 @@ description: Latest open interest snapshot for an option contract.
 
 # option_snapshot_open_interest
 
+<TierBadge tier="free" />
+
 Get the latest open interest snapshot for an option contract.
 
 ## Code Example
@@ -43,9 +45,6 @@ auto oi = client.option_snapshot_open_interest("SPY", "20241220", "500000", "C")
 | `open_interest` | int | Current open interest |
 | `date` | string | Date |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

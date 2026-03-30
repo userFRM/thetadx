@@ -5,6 +5,8 @@ description: Snapshot of all Greeks for an option contract.
 
 # option_snapshot_greeks_all
 
+<TierBadge tier="professional" />
+
 Get a snapshot of all Greeks (first, second, and third order) for an option contract in a single call.
 
 ## Code Example
@@ -66,9 +68,6 @@ auto greeks = client.option_snapshot_greeks_all("SPY", "20241220", "500000", "C"
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

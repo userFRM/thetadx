@@ -5,6 +5,8 @@ description: List all expiration dates for an underlying symbol.
 
 # option_list_expirations
 
+<TierBadge tier="free" />
+
 List all available expiration dates for an underlying symbol. This is typically the first call in an option chain discovery workflow.
 
 ## Code Example
@@ -38,9 +40,6 @@ auto exps = client.option_list_expirations("SPY");
 |-------|------|-------------|
 | (list) | string[] | Expiration date strings in `YYYYMMDD` format |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

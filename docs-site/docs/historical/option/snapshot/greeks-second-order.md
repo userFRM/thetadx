@@ -5,6 +5,8 @@ description: Second-order Greeks snapshot for an option contract.
 
 # option_snapshot_greeks_second_order
 
+<TierBadge tier="professional" />
+
 Get a snapshot of second-order Greeks for an option contract: gamma, vanna, charm, vomma, and veta.
 
 ## Code Example
@@ -60,6 +62,3 @@ Parameters are identical to [option_snapshot_greeks_all](./greeks-all#parameters
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro

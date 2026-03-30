@@ -5,6 +5,8 @@ description: Check whether the market is open today and get the trading schedule
 
 # calendar_open_today
 
+<TierBadge tier="free" />
+
 Check whether the market is open today and retrieve the current day's trading schedule, including open/close times and any early close indicators.
 
 ## Code Example
@@ -43,9 +45,7 @@ Returns a `DataTable` with market status fields:
 | `early_close` | bool | Whether today is an early close day |
 | `date` | u32 | Today's date as `YYYYMMDD` integer |
 
-## Subscription Tier
-
-Free -- available on all plans.
+ -- available on all plans.
 
 ## Notes
 

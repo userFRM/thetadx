@@ -5,6 +5,8 @@ description: List all available option underlying symbols.
 
 # option_list_roots
 
+<TierBadge tier="free" />
+
 List all available option underlying symbols (roots). Use this to discover which tickers have option chains available in ThetaData.
 
 ## Code Example
@@ -40,9 +42,6 @@ None.
 |-------|------|-------------|
 | (list) | string[] | Underlying ticker symbols with available option chains |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

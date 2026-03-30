@@ -5,6 +5,8 @@ description: NBBO quotes for an option contract at a given interval.
 
 # option_history_quote
 
+<TierBadge tier="standard" />
+
 Retrieve NBBO quotes for an option contract, sampled at a specified interval.
 
 ## Code Example
@@ -55,9 +57,6 @@ auto quotes = client.option_history_quote("SPY", "20241220", "500000", "C",
 | `bid_exchange` | int | Bid exchange code |
 | `ask_exchange` | int | Ask exchange code |
 
-## Subscription Tier
-
-Standard+
 
 ## Notes
 

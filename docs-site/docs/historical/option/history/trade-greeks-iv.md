@@ -5,6 +5,8 @@ description: Implied volatility computed on each individual trade.
 
 # option_history_trade_greeks_iv
 
+<TierBadge tier="professional" />
+
 Retrieve implied volatility computed on each individual trade for an option contract.
 
 ## Code Example
@@ -65,9 +67,6 @@ Parameters are identical to [option_history_trade_greeks_all](./trade-greeks-all
 | `date` | string | Date |
 | `ms_of_day` | int | Milliseconds from midnight |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

@@ -5,6 +5,8 @@ description: All trades for an option contract on a given date.
 
 # option_history_trade
 
+<TierBadge tier="standard" />
+
 Retrieve all individual trades for an option contract on a given date.
 
 ## Code Example
@@ -52,9 +54,6 @@ auto trades = client.option_history_trade("SPY", "20241220", "500000", "C", "202
 | `condition` | int | Trade condition code |
 | `exchange` | int | Exchange code |
 
-## Subscription Tier
-
-Standard+
 
 ## Notes
 

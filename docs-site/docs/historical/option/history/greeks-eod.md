@@ -5,6 +5,8 @@ description: End-of-day Greeks history for an option contract.
 
 # option_history_greeks_eod
 
+<TierBadge tier="professional" />
+
 Retrieve end-of-day Greeks history for an option contract across a date range.
 
 ## Code Example
@@ -60,9 +62,6 @@ auto g = client.option_history_greeks_eod("SPY", "20241220", "500000", "C",
 | `rho` | float | Rho |
 | `underlying_price` | float | Underlying close price |
 
-## Subscription Tier
-
-Pro
 
 ## Notes
 

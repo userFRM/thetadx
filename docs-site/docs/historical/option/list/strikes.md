@@ -5,6 +5,8 @@ description: List strike prices available for a given expiration.
 
 # option_list_strikes
 
+<TierBadge tier="free" />
+
 List all available strike prices for a given underlying symbol and expiration date.
 
 ## Code Example
@@ -39,9 +41,6 @@ auto strikes = client.option_list_strikes("SPY", "20241220");
 |-------|------|-------------|
 | (list) | string[] | Strike prices as scaled integer strings |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

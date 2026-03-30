@@ -5,6 +5,8 @@ description: List all option contracts for a symbol on a given date.
 
 # option_list_contracts
 
+<TierBadge tier="free" />
+
 List all option contracts available for a given underlying symbol on a specific date. Returns the full matrix of expirations, strikes, and sides.
 
 ## Code Example
@@ -42,9 +44,6 @@ auto contracts = client.option_list_contracts("EOD", "SPY", "20240315");
 | `strike` | string | Strike price (scaled integer) |
 | `right` | string | `"C"` or `"P"` |
 
-## Subscription Tier
-
-Free
 
 ## Notes
 

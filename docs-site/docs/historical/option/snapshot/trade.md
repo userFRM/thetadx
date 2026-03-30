@@ -5,6 +5,8 @@ description: Latest trade snapshot for an option contract.
 
 # option_snapshot_trade
 
+<TierBadge tier="free" />
+
 Get the latest trade snapshot for an option contract.
 
 ## Code Example
@@ -46,6 +48,3 @@ auto trades = client.option_snapshot_trade("SPY", "20241220", "500000", "C");
 | `condition` | int | Trade condition code |
 | `exchange` | int | Exchange code |
 
-## Subscription Tier
-
-Free

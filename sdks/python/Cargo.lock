@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "thetadatadx"
-version = "3.2.0"
+version = "3.2.1"
 dependencies = [
  "disruptor",
  "prost",
@@ -1587,7 +1587,7 @@ dependencies = [
 
 [[package]]
 name = "thetadatadx-py"
-version = "3.2.0"
+version = "3.2.1"
 dependencies = [
  "pyo3",
  "thetadatadx",

@@ -1,6 +1,6 @@
 # SDKs
 
-Multi-language SDKs for ThetaDataDx. All powered by the Rust core via FFI -- these are **not** reimplementations. Every SDK call goes through compiled Rust: gRPC communication, protobuf parsing, zstd decompression, FIT tick decoding, and TCP streaming all happen at native speed. The language binding is just the interface.
+Multi-language SDKs for ThetaDataDx. All powered by the Rust core via FFI - these are **not** reimplementations. Every SDK call goes through compiled Rust: gRPC communication, protobuf parsing, zstd decompression, FIT tick decoding, and TCP streaming all happen at native speed. The language binding is just the interface.
 
 ## Overview
 
@@ -170,6 +170,6 @@ cd sdks/python && maturin develop --release && cd ../..
 # 3. Build the C++ SDK
 cd sdks/cpp && mkdir -p build && cd build && cmake .. && make && cd ../../..
 
-# 4. Go SDK -- no separate build step; CGo links at compile time
+# 4. Go SDK - no separate build step; CGo links at compile time
 cd sdks/go/examples && go build . && cd ../../..
 ```

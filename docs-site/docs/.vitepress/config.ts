@@ -20,9 +20,9 @@ export default defineConfig({
     siteTitle: 'ThetaDataDx',
 
     nav: [
-      { text: 'Guide', link: '/getting-started/' },
-      { text: 'API Reference', link: '/api-reference/' },
-      { text: 'Tools', link: '/tools/' },
+      { text: 'Guide', link: '/getting-started' },
+      { text: 'API Reference', link: '/api-reference' },
+      { text: 'Tools', link: '/tools/cli' },
       { text: 'Changelog', link: '/changelog' },
       {
         text: 'GitHub',
@@ -32,66 +32,27 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: 'Getting Started',
+        text: 'Guide',
         collapsed: false,
         items: [
-          { text: 'Introduction', link: '/getting-started/' },
-          { text: 'Installation', link: '/getting-started/installation' },
-          { text: 'Quick Start', link: '/getting-started/quickstart' },
-          { text: 'Authentication', link: '/getting-started/authentication' },
-          { text: 'Configuration', link: '/configuration' },
-        ],
-      },
-      {
-        text: 'Historical Data',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/historical/' },
-          { text: 'End-of-Day', link: '/historical/eod' },
-          { text: 'Intraday Bars', link: '/historical/intraday' },
-          { text: 'Tick-Level', link: '/historical/tick-level' },
-          { text: 'Bulk Snapshots', link: '/historical/bulk-snapshots' },
-        ],
-      },
-      {
-        text: 'Real-Time Streaming',
-        collapsed: false,
-        items: [
-          { text: 'Overview', link: '/streaming/' },
-          { text: 'WebSocket Connection', link: '/streaming/websocket' },
-          { text: 'Subscribing to Feeds', link: '/streaming/subscribing' },
-          { text: 'Handling Messages', link: '/streaming/messages' },
-          { text: 'Reconnection', link: '/streaming/reconnection' },
-        ],
-      },
-      {
-        text: 'Options & Greeks',
-        collapsed: false,
-        items: [
+          { text: 'Getting Started', link: '/getting-started' },
+          { text: 'Historical Data', link: '/historical' },
+          { text: 'Real-Time Streaming', link: '/streaming' },
           { text: 'Options & Greeks', link: '/options' },
-        ],
-      },
-      {
-        text: 'API Reference',
-        collapsed: true,
-        items: [
-          { text: 'Overview', link: '/api-reference/' },
-          { text: 'Client', link: '/api-reference/client' },
-          { text: 'Request Types', link: '/api-reference/requests' },
-          { text: 'Response Types', link: '/api-reference/responses' },
-          { text: 'Error Handling', link: '/api-reference/errors' },
-        ],
-      },
-      {
-        text: 'Guides',
-        collapsed: true,
-        items: [
+          { text: 'Configuration', link: '/configuration' },
           { text: 'Jupyter Notebooks', link: '/notebooks' },
         ],
       },
       {
+        text: 'Reference',
+        collapsed: false,
+        items: [
+          { text: 'API Reference', link: '/api-reference' },
+        ],
+      },
+      {
         text: 'Tools',
-        collapsed: true,
+        collapsed: false,
         items: [
           { text: 'CLI', link: '/tools/cli' },
           { text: 'MCP Server', link: '/tools/mcp' },
@@ -99,9 +60,10 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Changelog',
+        text: 'Project',
+        collapsed: true,
         items: [
-          { text: 'Release Notes', link: '/changelog' },
+          { text: 'Changelog', link: '/changelog' },
         ],
       },
     ],
@@ -120,7 +82,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: 'https://github.com/userFRM/thetadatadx/edit/main/docs-site-v2/docs/:path',
+      pattern: 'https://github.com/userFRM/thetadatadx/edit/main/docs-site/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

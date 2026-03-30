@@ -4,14 +4,13 @@ import { ref, onMounted, watch } from 'vue'
 interface Language {
   id: string
   name: string
-  icon: string
 }
 
 const languages: Language[] = [
-  { id: 'rust', name: 'Rust', icon: '🦀' },
-  { id: 'python', name: 'Python', icon: '🐍' },
-  { id: 'go', name: 'Go', icon: '🔷' },
-  { id: 'cpp', name: 'C++', icon: '⚡' },
+  { id: 'rust', name: 'Rust' },
+  { id: 'python', name: 'Python' },
+  { id: 'go', name: 'Go' },
+  { id: 'cpp', name: 'C++' },
 ]
 
 const STORAGE_KEY = 'thetadatadx-preferred-lang'
@@ -59,7 +58,11 @@ function selectLanguage(id: string) {
         :aria-pressed="activeLanguage === lang.id"
         :title="`Show ${lang.name} examples`"
       >
-        <span class="language-icon">{{ lang.icon }}</span>
+        <img
+          class="language-icon"
+          :src="`/ThetaDataDx/icons/${lang.id === 'cpp' ? 'cplusplus' : lang.id}.svg`"
+          :alt="lang.name"
+        />
         <span class="language-name">{{ lang.name }}</span>
       </button>
     </div>
@@ -122,8 +125,9 @@ function selectLanguage(id: string) {
 }
 
 .language-icon {
-  font-size: 14px;
-  line-height: 1;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .language-name {

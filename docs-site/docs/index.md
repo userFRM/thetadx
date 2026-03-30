@@ -14,16 +14,20 @@ hero:
       link: https://github.com/userFRM/thetadatadx
 
 features:
-  - icon: "🌐"
+  - icon:
+      src: /icons/globe.svg
     title: "Multi-Language SDKs"
     details: "Native clients for Rust, Python, Go, and C++. Each SDK is idiomatic to its language with full type safety and zero-copy where possible."
-  - icon: "⚡"
+  - icon:
+      src: /icons/bolt.svg
     title: "Real-Time Streaming"
     details: "Sub-millisecond WebSocket streaming for quotes, trades, and OHLC bars. Automatic reconnection and backpressure handling built in."
-  - icon: "📊"
+  - icon:
+      src: /icons/chart.svg
     title: "Options & Greeks"
     details: "Full option chain retrieval with Greeks, implied volatility, open interest, and volatility surface construction out of the box."
-  - icon: "🛠️"
+  - icon:
+      src: /icons/terminal.svg
     title: "CLI & Server Tools"
     details: "Standalone CLI for quick queries, an MCP server for AI-assisted workflows, and a REST proxy for language-agnostic access."
 ---

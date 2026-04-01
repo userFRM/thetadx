@@ -57,6 +57,7 @@ macro_rules! list_endpoint {
         request: $req:ident;
         query: $query:ident { $($field:ident : $val:expr),* $(,)? };
     ) => {
+        #[allow(clippy::too_many_arguments)]
         $(#[$meta])*
         pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<Vec<String>, Error> {
             tracing::debug!(endpoint = stringify!($name), "gRPC request");
@@ -92,6 +93,7 @@ macro_rules! parsed_endpoint {
         parse: $parser:expr;
         $(dates: $($date_arg:ident),+ ;)?
     ) => {
+        #[allow(clippy::too_many_arguments)]
         $(#[$meta])*
         pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<$ret, Error> {
             $($(validate_date($date_arg)?;)+)?
@@ -126,6 +128,7 @@ macro_rules! streaming_endpoint {
         parse: $parser:expr;
         $(dates: $($date_arg:ident),+ ;)?
     ) => {
+        #[allow(clippy::too_many_arguments)]
         $(#[$meta])*
         pub async fn $name<F>(&self, $($arg : $arg_ty,)* mut handler: F) -> Result<(), Error>
         where

@@ -55,7 +55,7 @@ struct ColumnDef {
 }
 
 fn generate_tick_types() -> Result<(), Box<dyn std::error::Error>> {
-    let schema_path = "endpoint_schema.toml";
+    let schema_path = "../../endpoint_schema.toml";
     let schema_str = std::fs::read_to_string(schema_path)?;
     let schema: Schema = toml::from_str(&schema_str)?;
 

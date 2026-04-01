@@ -11,7 +11,7 @@ repository = "https://github.com/userFRM/ThetaDataDx"
 license = "GPL-3.0-or-later"
 keywords = ["thetadata", "encoding", "fit", "codec", "market-data"]
 categories = ["encoding", "finance"]
-include = ["src/**/*", "build.rs", "endpoint_schema.toml", "Cargo.toml"]
+include = ["src/**/*", "build.rs", "Cargo.toml"]
 
 [dependencies]
 thiserror = "2.0.18"

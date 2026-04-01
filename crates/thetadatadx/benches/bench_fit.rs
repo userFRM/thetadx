@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use tdx_encoding::codec::fit::{apply_deltas, FitReader};
+use thetadatadx::codec::fit::{apply_deltas, FitReader};
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Helpers

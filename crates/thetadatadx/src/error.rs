@@ -47,12 +47,3 @@ impl From<tonic::Status> for Error {
         Self::Status(Box::new(s))
     }
 }
-
-impl From<tdx_encoding::Error> for Error {
-    fn from(e: tdx_encoding::Error) -> Self {
-        match e {
-            tdx_encoding::Error::FpssProtocol(msg) => Self::FpssProtocol(msg),
-            tdx_encoding::Error::Io(io_err) => Self::Io(io_err),
-        }
-    }
-}

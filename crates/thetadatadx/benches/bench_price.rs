@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
-use tdx_encoding::types::price::Price;
+use thetadatadx::types::price::Price;
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Price benchmarks

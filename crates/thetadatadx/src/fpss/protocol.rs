@@ -4,7 +4,7 @@
 //!
 //! ## Message codes (`StreamMsgType` in Java)
 //!
-//! Source: `StreamMsgType.java` -- enum with byte codes for each message direction.
+//! Source: `StreamMsgType.java` — enum with byte codes for each message direction.
 //! See [`crate::types::enums::StreamMsgType`] for the Rust enum.
 //!
 //! ## Contract serialization (`Contract.java`)
@@ -37,8 +37,6 @@
 //!
 //! Source: `PacketStream.addQuote()`, `PacketStream.removeQuote()`,
 //!         `FPSSClient.onReqResponse()` in decompiled terminal.
-
-pub mod framing;
 
 use crate::types::enums::{RemoveReason, SecType, StreamMsgType, StreamResponseType};
 

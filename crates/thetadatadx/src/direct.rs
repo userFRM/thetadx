@@ -541,15 +541,15 @@ impl DirectClient {
         /// gRPC: `BetaThetaTerminal/GetStockHistoryOhlc`
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
-        fn stock_history_ohlc(symbol: &str, date: &str, interval: &str) -> Vec<OhlcTick>;
+        fn stock_history_ohlc(symbol: &str, date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>) -> Vec<OhlcTick>;
         grpc: get_stock_history_ohlc;
         request: StockHistoryOhlcRequest;
         query: StockHistoryOhlcRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: None,
             end_date: None,
@@ -568,7 +568,7 @@ impl DirectClient {
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn stock_history_ohlc_range(
-            symbol: &str, start_date: &str, end_date: &str, interval: &str
+            symbol: &str, start_date: &str, end_date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<OhlcTick>;
         grpc: get_stock_history_ohlc;
         request: StockHistoryOhlcRequest;
@@ -576,8 +576,8 @@ impl DirectClient {
             symbol: symbol.to_string(),
             date: None,
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: Some(start_date.to_string()),
             end_date: Some(end_date.to_string()),
@@ -591,14 +591,14 @@ impl DirectClient {
         /// Fetch all trades for a stock on a given date.
         ///
         /// gRPC: `BetaThetaTerminal/GetStockHistoryTrade`
-        fn stock_history_trade(symbol: &str, date: &str) -> Vec<TradeTick>;
+        fn stock_history_trade(symbol: &str, date: &str, start_time: Option<&str>, end_time: Option<&str>) -> Vec<TradeTick>;
         grpc: get_stock_history_trade;
         request: StockHistoryTradeRequest;
         query: StockHistoryTradeRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: None,
             end_date: None,
@@ -614,15 +614,15 @@ impl DirectClient {
         /// gRPC: `BetaThetaTerminal/GetStockHistoryQuote`
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
-        fn stock_history_quote(symbol: &str, date: &str, interval: &str) -> Vec<QuoteTick>;
+        fn stock_history_quote(symbol: &str, date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>) -> Vec<QuoteTick>;
         grpc: get_stock_history_quote;
         request: StockHistoryQuoteRequest;
         query: StockHistoryQuoteRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: None,
             end_date: None,
@@ -645,14 +645,14 @@ impl DirectClient {
         /// than the full day (~millions).
         ///
         /// gRPC: `BetaThetaTerminal/GetStockHistoryTrade`
-        fn stock_history_trade_stream(symbol: &str, date: &str; handler: F) -> TradeTick;
+        fn stock_history_trade_stream(symbol: &str, date: &str, start_time: Option<&str>, end_time: Option<&str>; handler: F) -> TradeTick;
         grpc: get_stock_history_trade;
         request: StockHistoryTradeRequest;
         query: StockHistoryTradeRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: None,
             end_date: None,
@@ -668,15 +668,15 @@ impl DirectClient {
         /// gRPC: `BetaThetaTerminal/GetStockHistoryQuote`
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
-        fn stock_history_quote_stream(symbol: &str, date: &str, interval: &str; handler: F) -> QuoteTick;
+        fn stock_history_quote_stream(symbol: &str, date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>; handler: F) -> QuoteTick;
         grpc: get_stock_history_quote;
         request: StockHistoryQuoteRequest;
         query: StockHistoryQuoteRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             venue: Some("nqb".to_string()),
             start_date: None,
             end_date: None,
@@ -690,14 +690,14 @@ impl DirectClient {
         /// Fetch combined trade + quote ticks for a stock on a given date.
         ///
         /// gRPC: `BetaThetaTerminal/GetStockHistoryTradeQuote`
-        fn stock_history_trade_quote(symbol: &str, date: &str) -> Vec<TradeQuoteTick>;
+        fn stock_history_trade_quote(symbol: &str, date: &str, start_time: Option<&str>, end_time: Option<&str>) -> Vec<TradeQuoteTick>;
         grpc: get_stock_history_trade_quote;
         request: StockHistoryTradeQuoteRequest;
         query: StockHistoryTradeQuoteRequestQuery {
             symbol: symbol.to_string(),
             date: Some(date.to_string()),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             exclusive: None,
             venue: Some("nqb".to_string()),
             start_date: None,
@@ -1107,7 +1107,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_ohlc(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<OhlcTick>;
         grpc: get_option_history_ohlc;
         request: OptionHistoryOhlcRequest;
@@ -1116,8 +1116,8 @@ impl DirectClient {
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             strike_range: None,
             start_date: None,
             end_date: None,
@@ -1132,7 +1132,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTrade`
         fn option_history_trade(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<TradeTick>;
         grpc: get_option_history_trade;
         request: OptionHistoryTradeRequest;
@@ -1140,8 +1141,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             max_dte: None,
             strike_range: None,
             start_date: None,
@@ -1160,7 +1161,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_quote(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<QuoteTick>;
         grpc: get_option_history_quote;
         request: OptionHistoryQuoteRequest;
@@ -1168,8 +1169,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             max_dte: None,
             strike_range: None,
@@ -1190,7 +1191,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTrade`
         fn option_history_trade_stream(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str;
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>;
             handler: F
         ) -> TradeTick;
         grpc: get_option_history_trade;
@@ -1199,8 +1201,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             max_dte: None,
             strike_range: None,
             start_date: None,
@@ -1219,7 +1221,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_quote_stream(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str;
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>;
             handler: F
         ) -> QuoteTick;
         grpc: get_option_history_quote;
@@ -1228,8 +1230,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             max_dte: None,
             strike_range: None,
@@ -1246,7 +1248,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeQuote`
         fn option_history_trade_quote(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<TradeQuoteTick>;
         grpc: get_option_history_trade_quote;
         request: OptionHistoryTradeQuoteRequest;
@@ -1254,8 +1257,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             exclusive: None,
             max_dte: None,
             strike_range: None,
@@ -1330,7 +1333,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_greeks_all(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_greeks_all;
         request: OptionHistoryGreeksAllRequest;
@@ -1338,8 +1341,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             annual_dividend: None,
             rate_type: None,
@@ -1359,7 +1362,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksAll`
         fn option_history_trade_greeks_all(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_trade_greeks_all;
         request: OptionHistoryTradeGreeksAllRequest;
@@ -1367,8 +1371,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             annual_dividend: None,
             rate_type: None,
             rate_value: None,
@@ -1391,7 +1395,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_greeks_first_order(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_greeks_first_order;
         request: OptionHistoryGreeksFirstOrderRequest;
@@ -1399,8 +1403,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             annual_dividend: None,
             rate_type: None,
@@ -1420,7 +1424,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksFirstOrder`
         fn option_history_trade_greeks_first_order(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_trade_greeks_first_order;
         request: OptionHistoryTradeGreeksFirstOrderRequest;
@@ -1428,8 +1433,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             annual_dividend: None,
             rate_type: None,
             rate_value: None,
@@ -1452,7 +1457,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_greeks_second_order(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_greeks_second_order;
         request: OptionHistoryGreeksSecondOrderRequest;
@@ -1460,8 +1465,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             annual_dividend: None,
             rate_type: None,
@@ -1481,7 +1486,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksSecondOrder`
         fn option_history_trade_greeks_second_order(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_trade_greeks_second_order;
         request: OptionHistoryTradeGreeksSecondOrderRequest;
@@ -1489,8 +1495,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             annual_dividend: None,
             rate_type: None,
             rate_value: None,
@@ -1513,7 +1519,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_greeks_third_order(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_greeks_third_order;
         request: OptionHistoryGreeksThirdOrderRequest;
@@ -1521,8 +1527,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             annual_dividend: None,
             rate_type: None,
@@ -1542,7 +1548,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksThirdOrder`
         fn option_history_trade_greeks_third_order(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<GreeksTick>;
         grpc: get_option_history_trade_greeks_third_order;
         request: OptionHistoryTradeGreeksThirdOrderRequest;
@@ -1550,8 +1557,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             annual_dividend: None,
             rate_type: None,
             rate_value: None,
@@ -1574,7 +1581,7 @@ impl DirectClient {
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn option_history_greeks_implied_volatility(
             symbol: &str, expiration: &str, strike: &str, right: &str,
-            date: &str, interval: &str
+            date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<IvTick>;
         grpc: get_option_history_greeks_implied_volatility;
         request: OptionHistoryGreeksImpliedVolatilityRequest;
@@ -1582,8 +1589,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             annual_dividend: None,
             rate_type: None,
@@ -1603,7 +1610,8 @@ impl DirectClient {
         ///
         /// gRPC: `BetaThetaTerminal/GetOptionHistoryTradeGreeksImpliedVolatility`
         fn option_history_trade_greeks_implied_volatility(
-            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str
+            symbol: &str, expiration: &str, strike: &str, right: &str, date: &str,
+            start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<IvTick>;
         grpc: get_option_history_trade_greeks_implied_volatility;
         request: OptionHistoryTradeGreeksImpliedVolatilityRequest;
@@ -1611,8 +1619,8 @@ impl DirectClient {
             contract_spec: contract_spec!(symbol, expiration, strike, right),
             date: Some(date.to_string()),
             expiration: expiration.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             annual_dividend: None,
             rate_type: None,
             rate_value: None,
@@ -1784,7 +1792,7 @@ impl DirectClient {
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn index_history_ohlc(
-            symbol: &str, start_date: &str, end_date: &str, interval: &str
+            symbol: &str, start_date: &str, end_date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<OhlcTick>;
         grpc: get_index_history_ohlc;
         request: IndexHistoryOhlcRequest;
@@ -1793,8 +1801,8 @@ impl DirectClient {
             start_date: start_date.to_string(),
             end_date: end_date.to_string(),
             interval: normalize_interval(interval),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
         };
         parse: decode::parse_ohlc_ticks;
         dates: start_date, end_date;
@@ -1808,15 +1816,15 @@ impl DirectClient {
         ///
         /// `interval` accepts milliseconds (`"60000"`) or shorthand (`"1m"`). Valid presets: `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
         fn index_history_price(
-            symbol: &str, date: &str, interval: &str
+            symbol: &str, date: &str, interval: &str, start_time: Option<&str>, end_time: Option<&str>
         ) -> Vec<PriceTick>;
         grpc: get_index_history_price;
         request: IndexHistoryPriceRequest;
         query: IndexHistoryPriceRequestQuery {
             date: Some(date.to_string()),
             symbol: symbol.to_string(),
-            start_time: Some("09:30:00".to_string()),
-            end_time: Some("16:00:00".to_string()),
+            start_time: start_time.map(|s| s.to_string()).or_else(|| Some("09:30:00".to_string())),
+            end_time: end_time.map(|s| s.to_string()).or_else(|| Some("16:00:00".to_string())),
             interval: normalize_interval(interval),
             start_date: None,
             end_date: None,

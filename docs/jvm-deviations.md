@@ -203,6 +203,14 @@ As of v1.2.0:
 | **Source** | Decompiled request builders in `providers/` handlers | `direct.rs` gRPC query construction |
 | **Rationale** | The Java terminal always sends regular-trading-hours defaults when the user omits time bounds. Previous Rust versions sent no time bounds, causing the server to return pre-market and after-hours data by default. As of v4.2.0, the Rust implementation matches the Java terminal's defaults exactly. |
 
+### Default Venue `"nqb"` on Stock Endpoints
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | Sends `venue: "nqb"` (NASDAQ Basic) on stock snapshot and stock history requests that accept a venue parameter | Matches Java: all stock snapshot and intraday history endpoints default to `venue: "nqb"` | Identical behavior |
+| **Source** | Decompiled request builders in `providers/` handlers | `direct.rs` gRPC query construction |
+| **Rationale** | The Java terminal always sends `"nqb"` as the default venue for stock endpoints (snapshots, OHLC, trades, quotes, trade-quotes). This selects NASDAQ Basic (UTP SIP) data, which is the standard consolidated tape for US equities. Previous Rust versions did not set a venue, which caused the server to return data from a different default source. As of v4.2.0, the Rust implementation matches the Java terminal's venue default exactly on all applicable stock endpoints. |
+
 ### FPSS TLS Certificate Verification Skip
 
 | | Java | Rust | Impact |

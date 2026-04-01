@@ -786,6 +786,45 @@ macro_rules! ffi_snapshot_endpoint {
 
 /// FFI wrapper for parsed tick endpoints with C string params.
 macro_rules! ffi_parsed_endpoint {
+    // Variant with trailing extra args (e.g. None, None for optional time params)
+    (
+        $(#[$meta:meta])*
+        $ffi_name:ident => $method:ident, $tick_to_json:ident ( $($param:ident),+ ) [ $($trailing:expr),* ]
+    ) => {
+        $(#[$meta])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $ffi_name(
+            client: *const TdxClient,
+            $($param: *const c_char),+
+        ) -> *mut c_char {
+            if client.is_null() {
+                set_error("client handle is null");
+                return ptr::null_mut();
+            }
+            let client = unsafe { &*client };
+            $(
+                let $param = match unsafe { cstr_to_str($param) } {
+                    Some(s) => s,
+                    None => {
+                        set_error(concat!(stringify!($param), " is null or invalid UTF-8"));
+                        return ptr::null_mut();
+                    }
+                };
+            )+
+            match runtime().block_on(client.inner.$method($($param,)+ $($trailing),*)) {
+                Ok(ticks) => {
+                    let json =
+                        serde_json::Value::Array(ticks.iter().map($tick_to_json).collect());
+                    json_to_cstring(&json)
+                }
+                Err(e) => {
+                    set_error(&e.to_string());
+                    ptr::null_mut()
+                }
+            }
+        }
+    };
+    // Original variant without trailing args (for endpoints that don't need them)
     (
         $(#[$meta:meta])*
         $ffi_name:ident => $method:ident, $tick_to_json:ident ( $($param:ident),+ )
@@ -911,31 +950,31 @@ ffi_parsed_endpoint! {
 // 8. stock_history_ohlc
 ffi_parsed_endpoint! {
     /// Fetch stock intraday OHLC bars. Returns JSON array of OHLC ticks.
-    tdx_stock_history_ohlc => stock_history_ohlc, ohlc_tick_to_json(symbol, date, interval)
+    tdx_stock_history_ohlc => stock_history_ohlc, ohlc_tick_to_json(symbol, date, interval) [None, None]
 }
 
 // 8b. stock_history_ohlc_range
 ffi_parsed_endpoint! {
     /// Fetch stock intraday OHLC bars across a date range. Returns JSON array.
-    tdx_stock_history_ohlc_range => stock_history_ohlc_range, ohlc_tick_to_json(symbol, start_date, end_date, interval)
+    tdx_stock_history_ohlc_range => stock_history_ohlc_range, ohlc_tick_to_json(symbol, start_date, end_date, interval) [None, None]
 }
 
 // 9. stock_history_trade
 ffi_parsed_endpoint! {
     /// Fetch all trades on a date. Returns JSON array of trade ticks.
-    tdx_stock_history_trade => stock_history_trade, trade_tick_to_json(symbol, date)
+    tdx_stock_history_trade => stock_history_trade, trade_tick_to_json(symbol, date) [None, None]
 }
 
 // 10. stock_history_quote
 ffi_parsed_endpoint! {
     /// Fetch NBBO quotes. Returns JSON array of quote ticks.
-    tdx_stock_history_quote => stock_history_quote, quote_tick_to_json(symbol, date, interval)
+    tdx_stock_history_quote => stock_history_quote, quote_tick_to_json(symbol, date, interval) [None, None]
 }
 
 // 11. stock_history_trade_quote
 ffi_parsed_endpoint! {
     /// Fetch combined trade + quote ticks. Returns JSON array.
-    tdx_stock_history_trade_quote => stock_history_trade_quote, trade_quote_tick_to_json(symbol, date)
+    tdx_stock_history_trade_quote => stock_history_trade_quote, trade_quote_tick_to_json(symbol, date) [None, None]
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1065,25 +1104,25 @@ ffi_parsed_endpoint! {
 // 30. option_history_ohlc
 ffi_parsed_endpoint! {
     /// Fetch intraday OHLC bars for an option contract. Returns JSON array.
-    tdx_option_history_ohlc => option_history_ohlc, ohlc_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_ohlc => option_history_ohlc, ohlc_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 31. option_history_trade
 ffi_parsed_endpoint! {
     /// Fetch all trades for an option contract on a date. Returns JSON array.
-    tdx_option_history_trade => option_history_trade, trade_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade => option_history_trade, trade_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 32. option_history_quote
 ffi_parsed_endpoint! {
     /// Fetch NBBO quotes for an option contract on a date. Returns JSON array.
-    tdx_option_history_quote => option_history_quote, quote_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_quote => option_history_quote, quote_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 33. option_history_trade_quote
 ffi_parsed_endpoint! {
     /// Fetch combined trade + quote ticks for an option contract. Returns JSON array.
-    tdx_option_history_trade_quote => option_history_trade_quote, trade_quote_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_quote => option_history_trade_quote, trade_quote_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 34. option_history_open_interest
@@ -1105,61 +1144,61 @@ ffi_parsed_endpoint! {
 // 36. option_history_greeks_all
 ffi_parsed_endpoint! {
     /// Fetch all Greeks history (intraday). Returns JSON array.
-    tdx_option_history_greeks_all => option_history_greeks_all, greeks_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_greeks_all => option_history_greeks_all, greeks_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 37. option_history_trade_greeks_all
 ffi_parsed_endpoint! {
     /// Fetch all Greeks on each trade. Returns JSON array.
-    tdx_option_history_trade_greeks_all => option_history_trade_greeks_all, greeks_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_greeks_all => option_history_trade_greeks_all, greeks_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 38. option_history_greeks_first_order
 ffi_parsed_endpoint! {
     /// Fetch first-order Greeks history. Returns JSON array.
-    tdx_option_history_greeks_first_order => option_history_greeks_first_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_greeks_first_order => option_history_greeks_first_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 39. option_history_trade_greeks_first_order
 ffi_parsed_endpoint! {
     /// Fetch first-order Greeks on each trade. Returns JSON array.
-    tdx_option_history_trade_greeks_first_order => option_history_trade_greeks_first_order, greeks_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_greeks_first_order => option_history_trade_greeks_first_order, greeks_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 40. option_history_greeks_second_order
 ffi_parsed_endpoint! {
     /// Fetch second-order Greeks history. Returns JSON array.
-    tdx_option_history_greeks_second_order => option_history_greeks_second_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_greeks_second_order => option_history_greeks_second_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 41. option_history_trade_greeks_second_order
 ffi_parsed_endpoint! {
     /// Fetch second-order Greeks on each trade. Returns JSON array.
-    tdx_option_history_trade_greeks_second_order => option_history_trade_greeks_second_order, greeks_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_greeks_second_order => option_history_trade_greeks_second_order, greeks_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 42. option_history_greeks_third_order
 ffi_parsed_endpoint! {
     /// Fetch third-order Greeks history. Returns JSON array.
-    tdx_option_history_greeks_third_order => option_history_greeks_third_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_greeks_third_order => option_history_greeks_third_order, greeks_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 43. option_history_trade_greeks_third_order
 ffi_parsed_endpoint! {
     /// Fetch third-order Greeks on each trade. Returns JSON array.
-    tdx_option_history_trade_greeks_third_order => option_history_trade_greeks_third_order, greeks_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_greeks_third_order => option_history_trade_greeks_third_order, greeks_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // 44. option_history_greeks_implied_volatility
 ffi_parsed_endpoint! {
     /// Fetch IV history (intraday). Returns JSON array.
-    tdx_option_history_greeks_implied_volatility => option_history_greeks_implied_volatility, iv_tick_to_json(symbol, expiration, strike, right, date, interval)
+    tdx_option_history_greeks_implied_volatility => option_history_greeks_implied_volatility, iv_tick_to_json(symbol, expiration, strike, right, date, interval) [None, None]
 }
 
 // 45. option_history_trade_greeks_implied_volatility
 ffi_parsed_endpoint! {
     /// Fetch IV on each trade. Returns JSON array.
-    tdx_option_history_trade_greeks_implied_volatility => option_history_trade_greeks_implied_volatility, iv_tick_to_json(symbol, expiration, strike, right, date)
+    tdx_option_history_trade_greeks_implied_volatility => option_history_trade_greeks_implied_volatility, iv_tick_to_json(symbol, expiration, strike, right, date) [None, None]
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1229,13 +1268,13 @@ ffi_parsed_endpoint! {
 // 54. index_history_ohlc
 ffi_parsed_endpoint! {
     /// Fetch intraday OHLC bars for an index. Returns JSON array.
-    tdx_index_history_ohlc => index_history_ohlc, ohlc_tick_to_json(symbol, start_date, end_date, interval)
+    tdx_index_history_ohlc => index_history_ohlc, ohlc_tick_to_json(symbol, start_date, end_date, interval) [None, None]
 }
 
 // 55. index_history_price
 ffi_parsed_endpoint! {
     /// Fetch intraday price history for an index. Returns JSON array.
-    tdx_index_history_price => index_history_price, price_tick_to_json(symbol, date, interval)
+    tdx_index_history_price => index_history_price, price_tick_to_json(symbol, date, interval) [None, None]
 }
 
 // ═══════════════════════════════════════════════════════════════════════

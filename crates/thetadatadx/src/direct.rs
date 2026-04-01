@@ -1980,31 +1980,13 @@ impl DirectClient {
 //  Private helpers
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Normalize an interval string to the `HH:MM:SS.mmm` format the MDDS server expects.
+/// Pass the interval string through to the MDDS server as-is.
 ///
-/// Users pass milliseconds as a string (e.g. `"60000"` for 1-minute bars).
-/// The server expects `HH:MM:SS.mmm`. If the input is already in that format
-/// (contains `:`), it's passed through unchanged.
-///
-/// Examples: `"60000"` -> `"00:01:00.000"`, `"900000"` -> `"00:15:00.000"`, `"0"` -> `"00:00:00.000"`
+/// ThetaData accepts interval as milliseconds (e.g. `"60000"` for 1-minute bars).
+/// The exact format accepted varies by endpoint -- this matches the Java terminal
+/// behavior of forwarding the user's value without transformation.
 fn normalize_interval(interval: &str) -> String {
-    // If it already contains `:`, assume it's in HH:MM:SS format -- pass through.
-    if interval.contains(':') {
-        return interval.to_string();
-    }
-    // Try parsing as milliseconds.
-    match interval.parse::<u32>() {
-        Ok(ms) => {
-            let total_secs = ms / 1000;
-            let millis = ms % 1000;
-            let h = total_secs / 3600;
-            let m = (total_secs % 3600) / 60;
-            let s = total_secs % 60;
-            format!("{h:02}:{m:02}:{s:02}.{millis:03}")
-        }
-        // Not a number and not HH:MM:SS -- pass through and let the server reject it.
-        Err(_) => interval.to_string(),
-    }
+    interval.to_string()
 }
 
 /// Validate that a date string is in YYYYMMDD format (exactly 8 ASCII digits).

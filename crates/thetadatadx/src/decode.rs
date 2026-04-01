@@ -127,6 +127,10 @@ pub fn extract_text_column(table: &proto::DataTable, header: &str) -> Vec<Option
                 .and_then(|dv| dv.data_type.as_ref())
                 .and_then(|dt| match dt {
                     proto::data_value::DataType::Text(s) => Some(s.clone()),
+                    proto::data_value::DataType::Number(n) => Some(n.to_string()),
+                    proto::data_value::DataType::Price(p) => {
+                        Some(format!("{}", tdbe::Price::new(p.value, p.r#type).to_f64()))
+                    }
                     _ => None,
                 })
         })

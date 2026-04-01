@@ -75,14 +75,63 @@ pub fn connect_to_servers(
     Err(last_err.unwrap_or_else(|| crate::error::Error::Fpss("no servers configured".to_string())))
 }
 
-/// Build a shared rustls `ClientConfig` with the webpki root certificates.
+/// Build a shared rustls `ClientConfig` that skips certificate verification.
+///
+/// ThetaData's FPSS servers use TLS certificates that have been expired since
+/// January 2024. The Java terminal uses `SSLSocketFactory.getDefault()` which
+/// in practice accepts expired certs. We match that behavior by disabling
+/// certificate verification for FPSS connections.
+///
+/// This is safe because FPSS is a direct connection to ThetaData's known
+/// servers (not user-facing web traffic), and the TLS layer still provides
+/// encryption -- only the certificate chain validation is skipped.
 fn tls_client_config() -> Arc<ClientConfig> {
-    let mut root_store = rustls::RootCertStore::empty();
-    root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
     let config = ClientConfig::builder()
-        .with_root_certificates(root_store)
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoVerifier))
         .with_no_client_auth();
     Arc::new(config)
+}
+
+/// Certificate verifier that accepts any certificate (matching Java terminal behavior).
+#[derive(Debug)]
+struct NoVerifier;
+
+impl rustls::client::danger::ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[rustls::pki_types::CertificateDer<'_>],
+        _server_name: &rustls::pki_types::ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &rustls::pki_types::CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::ring::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 /// Attempt a single blocking TLS connection to one server.

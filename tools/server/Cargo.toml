@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 thetadatadx = { path = "../../crates/thetadatadx" }
-tdbe = { path = "../../crates/tdbe" }
+tdbe = { version = "0.1.0", path = "../../crates/tdbe" }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
 sonic-rs = "0.3"

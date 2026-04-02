@@ -350,6 +350,15 @@ pub(crate) fn row_price_value(row: &proto::DataValueList, idx: usize) -> i32 {
 
 /// Helper to get price type from a row at a given column index.
 ///
+/// # Known limitation: per-row price type variation
+///
+/// A single row may contain multiple Price-typed columns (e.g., bid, ask, last)
+/// with *different* `price_type` values. However, tick structs store only one
+/// `price_type` field, extracted from a designated "source" column (typically the
+/// primary price column, e.g., `price` for trades). If the other Price columns
+/// in the same row use a different price type, that information is lost. This is
+/// an inherent limitation of the flat tick struct design.
+///
 /// See [`row_number`] for null/missing cell handling rationale.
 pub(crate) fn row_price_type(row: &proto::DataValueList, idx: usize) -> i32 {
     row.values

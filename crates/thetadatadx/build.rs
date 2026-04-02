@@ -120,21 +120,10 @@ fn generate_parser(out: &mut String, type_name: &str, def: &TickTypeDef) {
 
     out.push_str("    let h: Vec<&str> = table.headers.iter().map(|s| s.as_str()).collect();\n");
 
-    // For eod_style, use a simple closure. For others, use find_header.
+    // For eod_style, use the shared find_header() from decode.rs (avoids a
+    // duplicate alias table that can diverge -- see Codex audit item 3).
     if def.eod_style {
-        out.push_str("    let find = |name: &str| {\n");
-        out.push_str(
-            "        if let Some(pos) = h.iter().position(|&s| s == name) { return Some(pos); }\n",
-        );
-        out.push_str("        // Alias: v3 MDDS uses different column names.\n");
-        out.push_str("        match name {\n");
-        out.push_str("            \"ms_of_day\" | \"date\" => h.iter().position(|&s| s == \"timestamp\" || s == \"created\"),\n");
-        out.push_str(
-            "            \"ms_of_day2\" => h.iter().position(|&s| s == \"last_trade\"),\n",
-        );
-        out.push_str("            _ => None,\n");
-        out.push_str("        }\n");
-        out.push_str("    };\n\n");
+        out.push_str("    let find = |name: &str| find_header(&h, name);\n\n");
     }
 
     // Determine which columns need the opt_number helper

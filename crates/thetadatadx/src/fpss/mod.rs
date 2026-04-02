@@ -707,6 +707,20 @@ impl FpssClient {
         // Send shutdown command to I/O thread (which will send STOP to server).
         let _ = self.cmd_tx.send(IoCommand::Shutdown);
 
+        // Clear active subscriptions on explicit shutdown. Involuntary disconnects
+        // preserve the lists so `reconnect()` can re-subscribe automatically.
+        {
+            let mut subs = self.active_subs.lock().unwrap_or_else(|e| e.into_inner());
+            subs.clear();
+        }
+        {
+            let mut subs = self
+                .active_full_subs
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            subs.clear();
+        }
+
         self.authenticated.store(false, Ordering::Release);
         tracing::debug!("FPSS shutdown signal sent");
     }

@@ -139,6 +139,14 @@ As of v1.2.0:
 | **Source** | `Greeks.java` via Apache Commons Math 3.x | `crates/tdbe/src/greeks.rs:norm_cdf()` |
 | **Rationale** | Apache Commons Math uses a continued-fraction expansion (Abramowitz & Stegun 26.2.17). The Horner-form evaluation achieves ~1e-7 accuracy with fewer multiplications and no external dependency. Both are accurate to well beyond the precision needed for Greeks computation. The Horner form is also branch-free in the core polynomial, improving throughput on modern pipelines. |
 
+### Price Type: Single Value Per Tick (Known Limitation)
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | Each `Price` cell carries its own `price_type`; Java accesses it per-column | Tick structs store a single `price_type` extracted from the designated source column | Lossy for multi-price rows |
+| **Source** | `DataValue.Price` protobuf cells | `decode.rs:row_price_type()` + `build.rs` generated parsers |
+| **Rationale** | A DataTable row may contain multiple Price-typed columns (bid, ask, last) with different `price_type` values. The flat tick struct stores only one `price_type`, extracted from the column specified by `price_source` in `endpoint_schema.toml` (typically the primary `price` column). If other Price columns in the same row use a different price type, that information is lost. In practice, all price columns in a given row use the same price type (the server uses a uniform encoding per dataset), so this limitation does not affect real-world data. |
+
 ### Streaming Response Processing
 
 | | Java | Rust | Impact |

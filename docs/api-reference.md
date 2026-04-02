@@ -758,6 +758,9 @@ tdx.start_streaming(|event: &FpssEvent| {
 | `subscribe_trades` | `(&self, &Contract) -> Result<i32, Error>` | Subscribe to trade data |
 | `subscribe_open_interest` | `(&self, &Contract) -> Result<i32, Error>` | Subscribe to open interest |
 | `subscribe_full_trades` | `(&self, SecType) -> Result<i32, Error>` | Subscribe to all trades for a security type |
+| `subscribe_full_open_interest` | `(&self, SecType) -> Result<i32, Error>` | Subscribe to all OI for a security type |
+| `unsubscribe_full_trades` | `(&self, SecType) -> Result<i32, Error>` | Unsubscribe from all trades for a security type |
+| `unsubscribe_full_open_interest` | `(&self, SecType) -> Result<i32, Error>` | Unsubscribe from all OI for a security type |
 | `unsubscribe_quotes` | `(&self, &Contract) -> Result<i32, Error>` | Unsubscribe quotes |
 | `unsubscribe_trades` | `(&self, &Contract) -> Result<i32, Error>` | Unsubscribe trades |
 | `unsubscribe_open_interest` | `(&self, &Contract) -> Result<i32, Error>` | Unsubscribe open interest |

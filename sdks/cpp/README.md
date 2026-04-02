@@ -291,6 +291,9 @@ int main() {
 | `subscribe_trades(symbol)` | `int` | Subscribe to trade data for a stock symbol |
 | `subscribe_open_interest(symbol)` | `int` | Subscribe to open interest data for a stock symbol |
 | `subscribe_full_trades(sec_type)` | `int` | Subscribe to all trades for a security type (`"STOCK"`, `"OPTION"`, `"INDEX"`) |
+| `subscribe_full_open_interest(sec_type)` | `int` | Subscribe to all OI for a security type |
+| `unsubscribe_full_trades(sec_type)` | `int` | Unsubscribe from all trades for a security type |
+| `unsubscribe_full_open_interest(sec_type)` | `int` | Unsubscribe from all OI for a security type |
 | `unsubscribe_quotes(symbol)` | `int` | Unsubscribe from quote data |
 | `unsubscribe_trades(symbol)` | `int` | Unsubscribe from trade data |
 | `unsubscribe_open_interest(symbol)` | `int` | Unsubscribe from open interest data |

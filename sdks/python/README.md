@@ -198,6 +198,9 @@ Real-time streaming is accessed through the same `ThetaDataDx` instance.
 | Method | Description |
 |--------|-------------|
 | `subscribe_full_trades(sec_type)` | Subscribe to ALL trades for a security type (`"STOCK"`, `"OPTION"`, `"INDEX"`) |
+| `subscribe_full_open_interest(sec_type)` | Subscribe to ALL OI for a security type |
+| `unsubscribe_full_trades(sec_type)` | Unsubscribe from ALL trades for a security type |
+| `unsubscribe_full_open_interest(sec_type)` | Unsubscribe from ALL OI for a security type |
 
 **Full trade stream behavior:** When subscribed via `subscribe_full_trades("OPTION")`, the ThetaData FPSS server sends a **bundle** for every trade across ALL option contracts:
 

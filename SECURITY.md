@@ -5,7 +5,7 @@
 If you discover a security vulnerability in thetadatadx, please report it responsibly:
 
 1. **Do NOT open a public GitHub issue** for security vulnerabilities
-2. Email: **security@thetadatadx.dev** (or open a private security advisory on GitHub)
+2. Open a **private security advisory** on GitHub: Repository > Security > Advisories > New
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -19,13 +19,13 @@ for critical issues.
 
 | Version | Supported          | Notes |
 | ------- | ------------------ | ----- |
-| 1.2.x   | :white_check_mark: | Current release |
-| 1.1.x   | :x:                | Contract wire format bug — upgrade to 1.2.x |
-| < 1.1   | :x:                | |
+| 4.5.x   | :white_check_mark: | Current release (`tdbe` + `#[repr(C)]` FFI) |
+| 4.0-4.4 | :x:                | Upgrade to 4.5.x (timezone bug in 4.0-4.3, FFI improvements in 4.5) |
+| 3.x     | :x:                | Pre-`tdbe` extraction, stale API |
+| < 3.0   | :x:                | Contract wire format bug, missing endpoints |
 
-> **Important:** Versions prior to 1.2.0 contain a contract wire format bug that could
-> produce incorrect wire bytes for option contracts, causing subscription failures or
-> wrong contract assignments. All users should upgrade to 1.2.x.
+> **Important:** Versions prior to 4.4.0 contain a timezone bug that shifts ms_of_day by +1 hour
+> for all historical data from November through March (EST period). All users should upgrade to 4.5.x.
 
 ## Security Design
 
@@ -66,7 +66,9 @@ All network connections use a **unified TLS stack** (`rustls` with ring backend)
 - **Nexus auth (HTTP)**: TLS via `reqwest` + `rustls`
 
 Root certificates come from `webpki-roots` (Mozilla's CA bundle). Certificate
-validation is enforced on all connections — there is no option to skip verification.
+validation is enforced on MDDS (gRPC) and Nexus (HTTP) connections. FPSS (streaming)
+skips certificate verification because ThetaData's FPSS servers have certificates
+expired since January 2024 -- this matches the Java terminal's behavior.
 
 ### Credential Handling (FPSS)
 

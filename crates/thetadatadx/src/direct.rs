@@ -233,7 +233,8 @@ impl DirectClient {
             .map_err(|e| Error::Config(format!("invalid MDDS URI '{mdds_uri}': {e}")))?
             .keep_alive_timeout(Duration::from_secs(config.mdds_keepalive_timeout_secs))
             .http2_keep_alive_interval(Duration::from_secs(config.mdds_keepalive_secs))
-            .initial_stream_window_size(65_536)
+            .initial_stream_window_size((config.mdds_window_size_kb * 1024) as u32)
+            .initial_connection_window_size((config.mdds_connection_window_size_kb * 1024) as u32)
             .connect_timeout(Duration::from_secs(10));
 
         let endpoint = if config.mdds_tls {

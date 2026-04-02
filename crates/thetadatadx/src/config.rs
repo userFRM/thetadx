@@ -123,10 +123,24 @@ pub struct DirectConfig {
     /// Source: `ChannelProvider` — `keepAliveTimeout(10, SECONDS)`.
     pub mdds_keepalive_timeout_secs: u64,
 
+    /// gRPC flow control: initial stream window size in KB.
+    ///
+    /// Maps to `tonic::transport::Endpoint::initial_stream_window_size`.
+    /// Default 64 KB matches HTTP/2 spec default.
+    pub mdds_window_size_kb: usize,
+
+    /// gRPC flow control: initial connection window size in KB.
+    ///
+    /// Maps to `tonic::transport::Endpoint::initial_connection_window_size`.
+    /// Default 64 KB. Increase for high-throughput bulk queries.
+    pub mdds_connection_window_size_kb: usize,
+
     // -- Reconnection --
     /// Delay before attempting reconnection after a disconnect, in milliseconds.
     ///
-    /// Source: `RECONNECT_WAIT=1000` in `config_0.properties`.
+    /// Source: `FPSSClient.RECONNECT_DELAY_MS = 2000` in decompiled terminal.
+    /// Note: `config_0.properties` has `RECONNECT_WAIT=1000` but the Java code
+    /// uses the constant `2000` at runtime.
     ///
     /// NOTE: Not automatically wired — caller should pass to `fpss::reconnect()`.
     pub reconnect_wait_ms: u64,
@@ -185,8 +199,12 @@ impl DirectConfig {
             mdds_keepalive_secs: 30,
             mdds_keepalive_timeout_secs: 10,
 
-            // Source: config_0.properties RECONNECT_WAIT
-            reconnect_wait_ms: 1_000,
+            // gRPC flow control (HTTP/2 spec defaults)
+            mdds_window_size_kb: 64,
+            mdds_connection_window_size_kb: 64,
+
+            // Source: FPSSClient.RECONNECT_DELAY_MS = 2000 in decompiled terminal
+            reconnect_wait_ms: 2_000,
             reconnect_wait_rate_limited_ms: 130_000, // FPSSClient: 130s for TooManyRequests
 
             // Default: use all CPU cores
@@ -221,6 +239,9 @@ impl DirectConfig {
             mdds_max_message_size: 4 * 1024 * 1024,
             mdds_keepalive_secs: 30,
             mdds_keepalive_timeout_secs: 10,
+
+            mdds_window_size_kb: 64,
+            mdds_connection_window_size_kb: 64,
 
             reconnect_wait_ms: 500,
             reconnect_wait_rate_limited_ms: 130_000,

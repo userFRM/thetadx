@@ -8,10 +8,10 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
+use tdbe::types::tick;
 use thetadatadx::auth;
 use thetadatadx::config;
 use thetadatadx::fpss;
-use tdbe::types::tick;
 
 /// Shared tokio runtime for running async Rust from sync Python.
 fn runtime() -> &'static tokio::runtime::Runtime {
@@ -339,8 +339,7 @@ fn all_greeks(
     option_price: f64,
     is_call: bool,
 ) -> Py<PyAny> {
-    let g =
-        tdbe::greeks::all_greeks(spot, strike, rate, div_yield, tte, option_price, is_call);
+    let g = tdbe::greeks::all_greeks(spot, strike, rate, div_yield, tte, option_price, is_call);
     let dict = PyDict::new(py);
     dict.set_item("value", g.value).unwrap();
     dict.set_item("delta", g.delta).unwrap();
@@ -382,15 +381,7 @@ fn implied_volatility(
     option_price: f64,
     is_call: bool,
 ) -> (f64, f64) {
-    tdbe::greeks::implied_volatility(
-        spot,
-        strike,
-        rate,
-        div_yield,
-        tte,
-        option_price,
-        is_call,
-    )
+    tdbe::greeks::implied_volatility(spot, strike, rate, div_yield, tte, option_price, is_call)
 }
 
 // ── FPSS streaming client ──
@@ -1081,7 +1072,7 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_snapshot_ohlc(&refs))
+                .block_on(self.tdx.stock_snapshot_ohlc(&refs, &Default::default()))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1094,7 +1085,7 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_snapshot_trade(&refs))
+                .block_on(self.tdx.stock_snapshot_trade(&refs, &Default::default()))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| trade_tick_to_dict(py, t)).collect())
@@ -1107,7 +1098,7 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_snapshot_quote(&refs))
+                .block_on(self.tdx.stock_snapshot_quote(&refs, &Default::default()))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| quote_tick_to_dict(py, t)).collect())
@@ -1120,7 +1111,10 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_snapshot_market_value(&refs))
+                .block_on(
+                    self.tdx
+                        .stock_snapshot_market_value(&refs, &Default::default()),
+                )
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1154,7 +1148,14 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_history_ohlc(symbol, date, interval, None, None))
+                .block_on(self.tdx.stock_history_ohlc(
+                    symbol,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1169,10 +1170,15 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .stock_history_ohlc_range(symbol, start_date, end_date, interval, None, None),
-                )
+                .block_on(self.tdx.stock_history_ohlc_range(
+                    symbol,
+                    start_date,
+                    end_date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1185,7 +1191,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_history_trade(symbol, date, None, None))
+                .block_on(self.tdx.stock_history_trade(
+                    symbol,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| trade_tick_to_dict(py, t)).collect())
@@ -1199,7 +1211,14 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_history_quote(symbol, date, interval, None, None))
+                .block_on(self.tdx.stock_history_quote(
+                    symbol,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| quote_tick_to_dict(py, t)).collect())
@@ -1212,7 +1231,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.stock_history_trade_quote(symbol, date, None, None))
+                .block_on(self.tdx.stock_history_trade_quote(
+                    symbol,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1233,10 +1258,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .stock_at_time_trade(symbol, start_date, end_date, time_of_day),
-                )
+                .block_on(self.tdx.stock_at_time_trade(
+                    symbol,
+                    start_date,
+                    end_date,
+                    time_of_day,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| trade_tick_to_dict(py, t)).collect())
@@ -1251,10 +1279,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .stock_at_time_quote(symbol, start_date, end_date, time_of_day),
-                )
+                .block_on(self.tdx.stock_at_time_quote(
+                    symbol,
+                    start_date,
+                    end_date,
+                    time_of_day,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| quote_tick_to_dict(py, t)).collect())
@@ -1318,7 +1349,12 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.option_list_contracts(request_type, symbol, date))
+                .block_on(self.tdx.option_list_contracts(
+                    request_type,
+                    symbol,
+                    date,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1339,10 +1375,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_ohlc(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_ohlc(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1357,10 +1396,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_trade(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_trade(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| trade_tick_to_dict(py, t)).collect())
@@ -1375,10 +1417,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_quote(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_quote(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| quote_tick_to_dict(py, t)).collect())
@@ -1393,10 +1438,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_open_interest(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_open_interest(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1414,10 +1462,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_market_value(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_market_value(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1433,14 +1484,17 @@ impl ThetaDataDx {
         strike: &str,
         right: &str,
     ) -> PyResult<Vec<Py<PyAny>>> {
-        let ticks =
-            py.detach(|| {
-                runtime()
-                    .block_on(self.tdx.option_snapshot_greeks_implied_volatility(
-                        symbol, expiration, strike, right,
-                    ))
-                    .map_err(to_py_err)
-            })?;
+        let ticks = py.detach(|| {
+            runtime()
+                .block_on(self.tdx.option_snapshot_greeks_implied_volatility(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
+                .map_err(to_py_err)
+        })?;
         Ok(ticks.iter().map(|t| iv_tick_to_dict(py, t)).collect())
     }
     fn option_snapshot_greeks_all(
@@ -1453,10 +1507,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_greeks_all(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_greeks_all(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
@@ -1471,10 +1528,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_greeks_first_order(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_greeks_first_order(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
@@ -1489,10 +1549,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_greeks_second_order(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_greeks_second_order(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
@@ -1507,10 +1570,13 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_snapshot_greeks_third_order(symbol, expiration, strike, right),
-                )
+                .block_on(self.tdx.option_snapshot_greeks_third_order(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
@@ -1550,10 +1616,17 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_ohlc(symbol, expiration, strike, right, date, interval, None, None),
-                )
+                .block_on(self.tdx.option_history_ohlc(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1569,10 +1642,16 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_trade(symbol, expiration, strike, right, date, None, None),
-                )
+                .block_on(self.tdx.option_history_trade(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| trade_tick_to_dict(py, t)).collect())
@@ -1589,10 +1668,17 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_quote(symbol, expiration, strike, right, date, interval, None, None),
-                )
+                .block_on(self.tdx.option_history_quote(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| quote_tick_to_dict(py, t)).collect())
@@ -1608,10 +1694,16 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_trade_quote(symbol, expiration, strike, right, date, None, None),
-                )
+                .block_on(self.tdx.option_history_trade_quote(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1630,10 +1722,14 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_open_interest(symbol, expiration, strike, right, date),
-                )
+                .block_on(self.tdx.option_history_open_interest(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -1657,7 +1753,13 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_greeks_eod(
-                    symbol, expiration, strike, right, start_date, end_date,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    start_date,
+                    end_date,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1673,14 +1775,21 @@ impl ThetaDataDx {
         date: &str,
         interval: &str,
     ) -> PyResult<Vec<Py<PyAny>>> {
-        let ticks =
-            py.detach(|| {
-                runtime()
-                    .block_on(self.tdx.option_history_greeks_all(
-                        symbol, expiration, strike, right, date, interval, None, None,
-                    ))
-                    .map_err(to_py_err)
-            })?;
+        let ticks = py.detach(|| {
+            runtime()
+                .block_on(self.tdx.option_history_greeks_all(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
+                .map_err(to_py_err)
+        })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
     }
     fn option_history_trade_greeks_all(
@@ -1694,10 +1803,16 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .option_history_trade_greeks_all(symbol, expiration, strike, right, date, None, None),
-                )
+                .block_on(self.tdx.option_history_trade_greeks_all(
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| greeks_tick_to_dict(py, t)).collect())
@@ -1715,7 +1830,15 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_greeks_first_order(
-                    symbol, expiration, strike, right, date, interval, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1733,7 +1856,14 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_trade_greeks_first_order(
-                    symbol, expiration, strike, right, date, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1752,7 +1882,15 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_greeks_second_order(
-                    symbol, expiration, strike, right, date, interval, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1770,7 +1908,14 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_trade_greeks_second_order(
-                    symbol, expiration, strike, right, date, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1789,7 +1934,15 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_greeks_third_order(
-                    symbol, expiration, strike, right, date, interval, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1807,7 +1960,14 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_trade_greeks_third_order(
-                    symbol, expiration, strike, right, date, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1826,7 +1986,15 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_greeks_implied_volatility(
-                    symbol, expiration, strike, right, date, interval, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1844,7 +2012,14 @@ impl ThetaDataDx {
         let ticks = py.detach(|| {
             runtime()
                 .block_on(self.tdx.option_history_trade_greeks_implied_volatility(
-                    symbol, expiration, strike, right, date, None, None,
+                    symbol,
+                    expiration,
+                    strike,
+                    right,
+                    date,
+                    None,
+                    None,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1875,6 +2050,7 @@ impl ThetaDataDx {
                     start_date,
                     end_date,
                     time_of_day,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1902,6 +2078,7 @@ impl ThetaDataDx {
                     start_date,
                     end_date,
                     time_of_day,
+                    &Default::default(),
                 ))
                 .map_err(to_py_err)
         })?;
@@ -1935,7 +2112,7 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.index_snapshot_ohlc(&refs))
+                .block_on(self.tdx.index_snapshot_ohlc(&refs, &Default::default()))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -1948,7 +2125,7 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.index_snapshot_price(&refs))
+                .block_on(self.tdx.index_snapshot_price(&refs, &Default::default()))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| price_tick_to_dict(py, t)).collect())
@@ -1961,7 +2138,10 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.index_snapshot_market_value(&refs))
+                .block_on(
+                    self.tdx
+                        .index_snapshot_market_value(&refs, &Default::default()),
+                )
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -2013,7 +2193,14 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(self.tdx.index_history_price(symbol, date, interval, None, None))
+                .block_on(self.tdx.index_history_price(
+                    symbol,
+                    date,
+                    interval,
+                    None,
+                    None,
+                    &Default::default(),
+                ))
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| price_tick_to_dict(py, t)).collect())

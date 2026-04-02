@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (desc, endpoint, interval) in tests {
         print!("{}: ", desc);
         let result = match endpoint {
-            "stock" => tdx.stock_history_ohlc("AAPL", "20260325", interval, None, None).await,
+            "stock" => tdx.stock_history_ohlc("AAPL", "20260325", interval, None, None, &Default::default()).await,
             "index" => tdx.index_history_ohlc("SPX", "20260325", "20260325", interval, None, None).await,
             _ => unreachable!(),
         };

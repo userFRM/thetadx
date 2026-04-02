@@ -843,25 +843,37 @@ async fn execute_tool(
         "stock_snapshot_ohlc" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.stock_snapshot_ohlc(&syms).await);
+            let ticks = api!(client.stock_snapshot_ohlc(&syms, &Default::default()).await);
             Ok(serialize_ohlc_ticks(&ticks))
         }
         "stock_snapshot_trade" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.stock_snapshot_trade(&syms).await);
+            let ticks = api!(
+                client
+                    .stock_snapshot_trade(&syms, &Default::default())
+                    .await
+            );
             Ok(serialize_trade_ticks(&ticks))
         }
         "stock_snapshot_quote" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.stock_snapshot_quote(&syms).await);
+            let ticks = api!(
+                client
+                    .stock_snapshot_quote(&syms, &Default::default())
+                    .await
+            );
             Ok(serialize_quote_ticks(&ticks))
         }
         "stock_snapshot_market_value" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.stock_snapshot_market_value(&syms).await);
+            let ticks = api!(
+                client
+                    .stock_snapshot_market_value(&syms, &Default::default())
+                    .await
+            );
             Ok(serialize_market_value_ticks(&ticks))
         }
 
@@ -877,7 +889,11 @@ async fn execute_tool(
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
             let interval = param!(arg_interval(args, "interval"));
-            let ticks = api!(client.stock_history_ohlc(sym, date, interval, None, None).await);
+            let ticks = api!(
+                client
+                    .stock_history_ohlc(sym, date, interval, None, None, &Default::default())
+                    .await
+            );
             Ok(serialize_ohlc_ticks(&ticks))
         }
         "stock_history_ohlc_range" => {
@@ -887,7 +903,15 @@ async fn execute_tool(
             let interval = param!(arg_interval(args, "interval"));
             let ticks = api!(
                 client
-                    .stock_history_ohlc_range(sym, start, end, interval, None, None)
+                    .stock_history_ohlc_range(
+                        sym,
+                        start,
+                        end,
+                        interval,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_ohlc_ticks(&ticks))
@@ -895,20 +919,32 @@ async fn execute_tool(
         "stock_history_trade" => {
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
-            let ticks = api!(client.stock_history_trade(sym, date, None, None).await);
+            let ticks = api!(
+                client
+                    .stock_history_trade(sym, date, None, None, &Default::default())
+                    .await
+            );
             Ok(serialize_trade_ticks(&ticks))
         }
         "stock_history_quote" => {
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
             let interval = param!(arg_interval(args, "interval"));
-            let ticks = api!(client.stock_history_quote(sym, date, interval, None, None).await);
+            let ticks = api!(
+                client
+                    .stock_history_quote(sym, date, interval, None, None, &Default::default())
+                    .await
+            );
             Ok(serialize_quote_ticks(&ticks))
         }
         "stock_history_trade_quote" => {
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
-            let ticks = api!(client.stock_history_trade_quote(sym, date, None, None).await);
+            let ticks = api!(
+                client
+                    .stock_history_trade_quote(sym, date, None, None, &Default::default())
+                    .await
+            );
             Ok(serialize_trade_quote_ticks(&ticks))
         }
 
@@ -918,7 +954,11 @@ async fn execute_tool(
             let start = param!(arg_date(args, "start_date"));
             let end = param!(arg_date(args, "end_date"));
             let tod = param!(arg_str(args, "time_of_day"));
-            let ticks = api!(client.stock_at_time_trade(sym, start, end, tod).await);
+            let ticks = api!(
+                client
+                    .stock_at_time_trade(sym, start, end, tod, &Default::default())
+                    .await
+            );
             Ok(serialize_trade_ticks(&ticks))
         }
         "stock_at_time_quote" => {
@@ -926,7 +966,11 @@ async fn execute_tool(
             let start = param!(arg_date(args, "start_date"));
             let end = param!(arg_date(args, "end_date"));
             let tod = param!(arg_str(args, "time_of_day"));
-            let ticks = api!(client.stock_at_time_quote(sym, start, end, tod).await);
+            let ticks = api!(
+                client
+                    .stock_at_time_quote(sym, start, end, tod, &Default::default())
+                    .await
+            );
             Ok(serialize_quote_ticks(&ticks))
         }
 
@@ -959,7 +1003,11 @@ async fn execute_tool(
             let rt = param!(arg_str(args, "request_type"));
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
-            let ticks = api!(client.option_list_contracts(rt, sym, date).await);
+            let ticks = api!(
+                client
+                    .option_list_contracts(rt, sym, date, &Default::default())
+                    .await
+            );
             Ok(serialize_option_contracts(&ticks))
         }
 
@@ -980,21 +1028,39 @@ async fn execute_tool(
             let right = param!(arg_right(args, "right"));
             match name {
                 "option_snapshot_ohlc" => {
-                    let ticks = api!(client.option_snapshot_ohlc(sym, exp, strike, right).await);
+                    let ticks = api!(
+                        client
+                            .option_snapshot_ohlc(sym, exp, strike, right, &Default::default())
+                            .await
+                    );
                     Ok(serialize_ohlc_ticks(&ticks))
                 }
                 "option_snapshot_trade" => {
-                    let ticks = api!(client.option_snapshot_trade(sym, exp, strike, right).await);
+                    let ticks = api!(
+                        client
+                            .option_snapshot_trade(sym, exp, strike, right, &Default::default())
+                            .await
+                    );
                     Ok(serialize_trade_ticks(&ticks))
                 }
                 "option_snapshot_quote" => {
-                    let ticks = api!(client.option_snapshot_quote(sym, exp, strike, right).await);
+                    let ticks = api!(
+                        client
+                            .option_snapshot_quote(sym, exp, strike, right, &Default::default())
+                            .await
+                    );
                     Ok(serialize_quote_ticks(&ticks))
                 }
                 "option_snapshot_open_interest" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_open_interest(sym, exp, strike, right)
+                            .option_snapshot_open_interest(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_open_interest_ticks(&ticks))
@@ -1002,7 +1068,13 @@ async fn execute_tool(
                 "option_snapshot_market_value" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_market_value(sym, exp, strike, right)
+                            .option_snapshot_market_value(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_market_value_ticks(&ticks))
@@ -1010,7 +1082,13 @@ async fn execute_tool(
                 "option_snapshot_greeks_implied_volatility" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_greeks_implied_volatility(sym, exp, strike, right)
+                            .option_snapshot_greeks_implied_volatility(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_iv_ticks(&ticks))
@@ -1018,7 +1096,13 @@ async fn execute_tool(
                 "option_snapshot_greeks_all" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_greeks_all(sym, exp, strike, right)
+                            .option_snapshot_greeks_all(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_greeks_ticks(&ticks))
@@ -1026,7 +1110,13 @@ async fn execute_tool(
                 "option_snapshot_greeks_first_order" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_greeks_first_order(sym, exp, strike, right)
+                            .option_snapshot_greeks_first_order(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_greeks_ticks(&ticks))
@@ -1034,7 +1124,13 @@ async fn execute_tool(
                 "option_snapshot_greeks_second_order" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_greeks_second_order(sym, exp, strike, right)
+                            .option_snapshot_greeks_second_order(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_greeks_ticks(&ticks))
@@ -1042,7 +1138,13 @@ async fn execute_tool(
                 "option_snapshot_greeks_third_order" => {
                     let ticks = api!(
                         client
-                            .option_snapshot_greeks_third_order(sym, exp, strike, right)
+                            .option_snapshot_greeks_third_order(
+                                sym,
+                                exp,
+                                strike,
+                                right,
+                                &Default::default()
+                            )
                             .await
                     );
                     Ok(serialize_greeks_ticks(&ticks))
@@ -1075,7 +1177,17 @@ async fn execute_tool(
             let interval = param!(arg_interval(args, "interval"));
             let ticks = api!(
                 client
-                    .option_history_ohlc(sym, exp, strike, right, date, interval, None, None)
+                    .option_history_ohlc(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        interval,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_ohlc_ticks(&ticks))
@@ -1088,7 +1200,16 @@ async fn execute_tool(
             let date = param!(arg_date(args, "date"));
             let ticks = api!(
                 client
-                    .option_history_trade(sym, exp, strike, right, date, None, None)
+                    .option_history_trade(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_trade_ticks(&ticks))
@@ -1102,7 +1223,17 @@ async fn execute_tool(
             let interval = param!(arg_interval(args, "interval"));
             let ticks = api!(
                 client
-                    .option_history_quote(sym, exp, strike, right, date, interval, None, None)
+                    .option_history_quote(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        interval,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_quote_ticks(&ticks))
@@ -1115,7 +1246,16 @@ async fn execute_tool(
             let date = param!(arg_date(args, "date"));
             let ticks = api!(
                 client
-                    .option_history_trade_quote(sym, exp, strike, right, date, None, None)
+                    .option_history_trade_quote(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_trade_quote_ticks(&ticks))
@@ -1128,7 +1268,14 @@ async fn execute_tool(
             let date = param!(arg_date(args, "date"));
             let ticks = api!(
                 client
-                    .option_history_open_interest(sym, exp, strike, right, date)
+                    .option_history_open_interest(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_open_interest_ticks(&ticks))
@@ -1144,7 +1291,15 @@ async fn execute_tool(
             let end = param!(arg_date(args, "end_date"));
             let ticks = api!(
                 client
-                    .option_history_greeks_eod(sym, exp, strike, right, start, end)
+                    .option_history_greeks_eod(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        start,
+                        end,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_greeks_ticks(&ticks))
@@ -1163,24 +1318,62 @@ async fn execute_tool(
             let ticks = match name {
                 "option_history_greeks_all" => api!(
                     client
-                        .option_history_greeks_all(sym, exp, strike, right, date, interval, None, None)
+                        .option_history_greeks_all(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            interval,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 "option_history_greeks_first_order" => api!(
                     client
-                        .option_history_greeks_first_order(sym, exp, strike, right, date, interval, None, None)
+                        .option_history_greeks_first_order(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            interval,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 "option_history_greeks_second_order" => api!(
                     client
                         .option_history_greeks_second_order(
-                            sym, exp, strike, right, date, interval, None, None,
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            interval,
+                            None,
+                            None,
+                            &Default::default(),
                         )
                         .await
                 ),
                 "option_history_greeks_third_order" => api!(
                     client
-                        .option_history_greeks_third_order(sym, exp, strike, right, date, interval, None, None)
+                        .option_history_greeks_third_order(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            interval,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 _ => unreachable!(),
@@ -1197,7 +1390,15 @@ async fn execute_tool(
             let ticks = api!(
                 client
                     .option_history_greeks_implied_volatility(
-                        sym, exp, strike, right, date, interval, None, None,
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        interval,
+                        None,
+                        None,
+                        &Default::default(),
                     )
                     .await
             );
@@ -1216,22 +1417,58 @@ async fn execute_tool(
             let ticks = match name {
                 "option_history_trade_greeks_all" => api!(
                     client
-                        .option_history_trade_greeks_all(sym, exp, strike, right, date, None, None)
+                        .option_history_trade_greeks_all(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 "option_history_trade_greeks_first_order" => api!(
                     client
-                        .option_history_trade_greeks_first_order(sym, exp, strike, right, date, None, None)
+                        .option_history_trade_greeks_first_order(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 "option_history_trade_greeks_second_order" => api!(
                     client
-                        .option_history_trade_greeks_second_order(sym, exp, strike, right, date, None, None)
+                        .option_history_trade_greeks_second_order(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 "option_history_trade_greeks_third_order" => api!(
                     client
-                        .option_history_trade_greeks_third_order(sym, exp, strike, right, date, None, None)
+                        .option_history_trade_greeks_third_order(
+                            sym,
+                            exp,
+                            strike,
+                            right,
+                            date,
+                            None,
+                            None,
+                            &Default::default()
+                        )
                         .await
                 ),
                 _ => unreachable!(),
@@ -1246,7 +1483,16 @@ async fn execute_tool(
             let date = param!(arg_date(args, "date"));
             let ticks = api!(
                 client
-                    .option_history_trade_greeks_implied_volatility(sym, exp, strike, right, date, None, None)
+                    .option_history_trade_greeks_implied_volatility(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        date,
+                        None,
+                        None,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_iv_ticks(&ticks))
@@ -1263,7 +1509,16 @@ async fn execute_tool(
             let tod = param!(arg_str(args, "time_of_day"));
             let ticks = api!(
                 client
-                    .option_at_time_trade(sym, exp, strike, right, start, end, tod)
+                    .option_at_time_trade(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        start,
+                        end,
+                        tod,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_trade_ticks(&ticks))
@@ -1278,7 +1533,16 @@ async fn execute_tool(
             let tod = param!(arg_str(args, "time_of_day"));
             let ticks = api!(
                 client
-                    .option_at_time_quote(sym, exp, strike, right, start, end, tod)
+                    .option_at_time_quote(
+                        sym,
+                        exp,
+                        strike,
+                        right,
+                        start,
+                        end,
+                        tod,
+                        &Default::default()
+                    )
                     .await
             );
             Ok(serialize_quote_ticks(&ticks))
@@ -1299,19 +1563,27 @@ async fn execute_tool(
         "index_snapshot_ohlc" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.index_snapshot_ohlc(&syms).await);
+            let ticks = api!(client.index_snapshot_ohlc(&syms, &Default::default()).await);
             Ok(serialize_ohlc_ticks(&ticks))
         }
         "index_snapshot_price" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.index_snapshot_price(&syms).await);
+            let ticks = api!(
+                client
+                    .index_snapshot_price(&syms, &Default::default())
+                    .await
+            );
             Ok(serialize_price_ticks(&ticks))
         }
         "index_snapshot_market_value" => {
             let syms_str = param!(arg_symbol(args, "symbols"));
             let syms = parse_symbols(syms_str);
-            let ticks = api!(client.index_snapshot_market_value(&syms).await);
+            let ticks = api!(
+                client
+                    .index_snapshot_market_value(&syms, &Default::default())
+                    .await
+            );
             Ok(serialize_market_value_ticks(&ticks))
         }
 
@@ -1328,14 +1600,22 @@ async fn execute_tool(
             let start = param!(arg_date(args, "start_date"));
             let end = param!(arg_date(args, "end_date"));
             let interval = param!(arg_interval(args, "interval"));
-            let ticks = api!(client.index_history_ohlc(sym, start, end, interval, None, None).await);
+            let ticks = api!(
+                client
+                    .index_history_ohlc(sym, start, end, interval, None, None)
+                    .await
+            );
             Ok(serialize_ohlc_ticks(&ticks))
         }
         "index_history_price" => {
             let sym = param!(arg_symbol(args, "symbol"));
             let date = param!(arg_date(args, "date"));
             let interval = param!(arg_interval(args, "interval"));
-            let ticks = api!(client.index_history_price(sym, date, interval, None, None).await);
+            let ticks = api!(
+                client
+                    .index_history_price(sym, date, interval, None, None, &Default::default())
+                    .await
+            );
             Ok(serialize_price_ticks(&ticks))
         }
 

@@ -108,6 +108,7 @@ pub mod decode;
 pub mod direct;
 pub mod error;
 pub mod fpss;
+pub mod options;
 pub mod registry;
 pub mod unified;
 
@@ -135,5 +136,10 @@ pub mod proto_v3 {
 pub use auth::Credentials;
 pub use config::{DirectConfig, FpssFlushMode};
 pub use error::Error;
+pub use options::{
+    IndexHistoryOptions, IndexSnapshotOptions, OptionGreeksHistoryOptions,
+    OptionGreeksSnapshotOptions, OptionHistoryOptions, OptionListOptions, OptionSnapshotOptions,
+    StockHistoryOptions, StockSnapshotOptions,
+};
 pub use registry::{EndpointMeta, ParamMeta, ParamType, ReturnType, ENDPOINTS};
 pub use unified::ThetaDataDx;

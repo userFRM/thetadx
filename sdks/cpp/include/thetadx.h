@@ -640,6 +640,15 @@ int tdx_fpss_subscribe_open_interest(const TdxFpssHandle* h, const char* symbol)
 /** Subscribe to all trades for a security type. sec_type: "STOCK", "OPTION", "INDEX". Returns request ID or -1. */
 int tdx_fpss_subscribe_full_trades(const TdxFpssHandle* h, const char* sec_type);
 
+/** Subscribe to all open interest for a security type. sec_type: "STOCK", "OPTION", "INDEX". Returns request ID or -1. */
+int tdx_fpss_subscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
+
+/** Unsubscribe from all trades for a security type. sec_type: "STOCK", "OPTION", "INDEX". Returns request ID or -1. */
+int tdx_fpss_unsubscribe_full_trades(const TdxFpssHandle* h, const char* sec_type);
+
+/** Unsubscribe from all open interest for a security type. sec_type: "STOCK", "OPTION", "INDEX". Returns request ID or -1. */
+int tdx_fpss_unsubscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
+
 /** Unsubscribe from quote data. Returns request ID or -1 on error. */
 int tdx_fpss_unsubscribe_quotes(const TdxFpssHandle* h, const char* symbol);
 

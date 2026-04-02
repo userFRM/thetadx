@@ -1697,6 +1697,117 @@ pub unsafe extern "C" fn tdx_unified_subscribe_full_trades(
     }
 }
 
+/// Subscribe to all open interest for a security type on the unified client.
+/// sec_type: "STOCK", "OPTION", or "INDEX".
+#[no_mangle]
+pub unsafe extern "C" fn tdx_unified_subscribe_full_open_interest(
+    handle: *const TdxUnified,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("unified handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        _ => {
+            set_error("invalid sec_type: expected STOCK, OPTION, or INDEX");
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    match handle.inner.subscribe_full_open_interest(st) {
+        Ok(id) => id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
+/// Unsubscribe from all trades for a security type on the unified client.
+/// sec_type: "STOCK", "OPTION", or "INDEX".
+#[no_mangle]
+pub unsafe extern "C" fn tdx_unified_unsubscribe_full_trades(
+    handle: *const TdxUnified,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("unified handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        _ => {
+            set_error("invalid sec_type: expected STOCK, OPTION, or INDEX");
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    match handle.inner.unsubscribe_full_trades(st) {
+        Ok(id) => id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
+/// Unsubscribe from all open interest for a security type on the unified client.
+/// sec_type: "STOCK", "OPTION", or "INDEX".
+#[no_mangle]
+pub unsafe extern "C" fn tdx_unified_unsubscribe_full_open_interest(
+    handle: *const TdxUnified,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("unified handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        _ => {
+            set_error("invalid sec_type: expected STOCK, OPTION, or INDEX");
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    match handle.inner.unsubscribe_full_open_interest(st) {
+        Ok(id) => id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
 /// Unsubscribe from open interest data on the unified client.
 #[no_mangle]
 pub unsafe extern "C" fn tdx_unified_unsubscribe_open_interest(
@@ -2197,6 +2308,156 @@ pub unsafe extern "C" fn tdx_fpss_subscribe_full_trades(
         }
     };
     match client.subscribe_full_trades(st) {
+        Ok(req_id) => req_id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
+/// Subscribe to all open interest for a security type (full OI stream).
+///
+/// `sec_type` must be one of: "STOCK", "OPTION", "INDEX".
+///
+/// Returns the request ID on success, or -1 on error (check `tdx_last_error()`).
+#[no_mangle]
+pub unsafe extern "C" fn tdx_fpss_subscribe_full_open_interest(
+    handle: *const TdxFpssHandle,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("FPSS handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null or invalid UTF-8");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        other => {
+            set_error(&format!(
+                "unknown sec_type: {other:?} (expected STOCK, OPTION, or INDEX)"
+            ));
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    let guard = handle.inner.lock().unwrap_or_else(|e| e.into_inner());
+    let client = match guard.as_ref() {
+        Some(c) => c,
+        None => {
+            set_error("FPSS client is shut down");
+            return -1;
+        }
+    };
+    match client.subscribe_full_open_interest(st) {
+        Ok(req_id) => req_id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
+/// Unsubscribe from all trades for a security type (full trade stream).
+///
+/// `sec_type` must be one of: "STOCK", "OPTION", "INDEX".
+///
+/// Returns the request ID on success, or -1 on error (check `tdx_last_error()`).
+#[no_mangle]
+pub unsafe extern "C" fn tdx_fpss_unsubscribe_full_trades(
+    handle: *const TdxFpssHandle,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("FPSS handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null or invalid UTF-8");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        other => {
+            set_error(&format!(
+                "unknown sec_type: {other:?} (expected STOCK, OPTION, or INDEX)"
+            ));
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    let guard = handle.inner.lock().unwrap_or_else(|e| e.into_inner());
+    let client = match guard.as_ref() {
+        Some(c) => c,
+        None => {
+            set_error("FPSS client is shut down");
+            return -1;
+        }
+    };
+    match client.unsubscribe_full_trades(st) {
+        Ok(req_id) => req_id,
+        Err(e) => {
+            set_error(&e.to_string());
+            -1
+        }
+    }
+}
+
+/// Unsubscribe from all open interest for a security type (full OI stream).
+///
+/// `sec_type` must be one of: "STOCK", "OPTION", "INDEX".
+///
+/// Returns the request ID on success, or -1 on error (check `tdx_last_error()`).
+#[no_mangle]
+pub unsafe extern "C" fn tdx_fpss_unsubscribe_full_open_interest(
+    handle: *const TdxFpssHandle,
+    sec_type: *const c_char,
+) -> i32 {
+    if handle.is_null() {
+        set_error("FPSS handle is null");
+        return -1;
+    }
+    let sec_type_str = match unsafe { cstr_to_str(sec_type) } {
+        Some(s) => s,
+        None => {
+            set_error("sec_type is null or invalid UTF-8");
+            return -1;
+        }
+    };
+    let st = match sec_type_str.to_uppercase().as_str() {
+        "STOCK" => tdbe::types::enums::SecType::Stock,
+        "OPTION" => tdbe::types::enums::SecType::Option,
+        "INDEX" => tdbe::types::enums::SecType::Index,
+        other => {
+            set_error(&format!(
+                "unknown sec_type: {other:?} (expected STOCK, OPTION, or INDEX)"
+            ));
+            return -1;
+        }
+    };
+    let handle = unsafe { &*handle };
+    let guard = handle.inner.lock().unwrap_or_else(|e| e.into_inner());
+    let client = match guard.as_ref() {
+        Some(c) => c,
+        None => {
+            set_error("FPSS client is shut down");
+            return -1;
+        }
+    };
+    match client.unsubscribe_full_open_interest(st) {
         Ok(req_id) => req_id,
         Err(e) => {
             set_error(&e.to_string());

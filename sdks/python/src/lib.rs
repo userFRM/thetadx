@@ -32,6 +32,17 @@ fn to_py_err(e: thetadatadx::Error) -> PyErr {
     }
 }
 
+fn parse_sec_type(sec_type: &str) -> PyResult<tdbe::types::enums::SecType> {
+    match sec_type.to_uppercase().as_str() {
+        "STOCK" => Ok(tdbe::types::enums::SecType::Stock),
+        "OPTION" => Ok(tdbe::types::enums::SecType::Option),
+        "INDEX" => Ok(tdbe::types::enums::SecType::Index),
+        other => Err(PyValueError::new_err(format!(
+            "unknown sec_type: {other:?} (expected STOCK, OPTION, or INDEX)"
+        ))),
+    }
+}
+
 // ── Credentials ──
 
 #[pyclass(from_py_object)]
@@ -905,17 +916,26 @@ impl ThetaDataDx {
 
     /// Subscribe to all trades for a security type (full trade stream).
     fn subscribe_full_trades(&self, sec_type: &str) -> PyResult<i32> {
-        let st = match sec_type.to_uppercase().as_str() {
-            "STOCK" => tdbe::types::enums::SecType::Stock,
-            "OPTION" => tdbe::types::enums::SecType::Option,
-            "INDEX" => tdbe::types::enums::SecType::Index,
-            other => {
-                return Err(PyValueError::new_err(format!(
-                    "unknown sec_type: {other:?} (expected STOCK, OPTION, or INDEX)"
-                )))
-            }
-        };
+        let st = parse_sec_type(sec_type)?;
         self.tdx.subscribe_full_trades(st).map_err(to_py_err)
+    }
+
+    /// Subscribe to all open interest for a security type (full OI stream).
+    fn subscribe_full_open_interest(&self, sec_type: &str) -> PyResult<i32> {
+        let st = parse_sec_type(sec_type)?;
+        self.tdx.subscribe_full_open_interest(st).map_err(to_py_err)
+    }
+
+    /// Unsubscribe from all trades for a security type (full trade stream).
+    fn unsubscribe_full_trades(&self, sec_type: &str) -> PyResult<i32> {
+        let st = parse_sec_type(sec_type)?;
+        self.tdx.unsubscribe_full_trades(st).map_err(to_py_err)
+    }
+
+    /// Unsubscribe from all open interest for a security type (full OI stream).
+    fn unsubscribe_full_open_interest(&self, sec_type: &str) -> PyResult<i32> {
+        let st = parse_sec_type(sec_type)?;
+        self.tdx.unsubscribe_full_open_interest(st).map_err(to_py_err)
     }
 
     /// Unsubscribe from quote data for a stock symbol.
@@ -1111,10 +1131,9 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .stock_snapshot_market_value(&refs),
-                )
+                .block_on(async {
+                    self.tdx.stock_snapshot_market_value(&refs).await
+                })
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -2064,10 +2083,9 @@ impl ThetaDataDx {
         let refs: Vec<&str> = symbols.iter().map(|s| s.as_str()).collect();
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .index_snapshot_market_value(&refs),
-                )
+                .block_on(async {
+                    self.tdx.index_snapshot_market_value(&refs).await
+                })
                 .map_err(to_py_err)
         })?;
         Ok(ticks
@@ -2102,10 +2120,9 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .index_history_ohlc(symbol, start_date, end_date, interval),
-                )
+                .block_on(async {
+                    self.tdx.index_history_ohlc(symbol, start_date, end_date, interval).await
+                })
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| ohlc_tick_to_dict(py, t)).collect())
@@ -2141,10 +2158,9 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .index_at_time_price(symbol, start_date, end_date, time_of_day),
-                )
+                .block_on(async {
+                    self.tdx.index_at_time_price(symbol, start_date, end_date, time_of_day).await
+                })
                 .map_err(to_py_err)
         })?;
         Ok(ticks.iter().map(|t| price_tick_to_dict(py, t)).collect())
@@ -2188,10 +2204,9 @@ impl ThetaDataDx {
     ) -> PyResult<Vec<Py<PyAny>>> {
         let ticks = py.detach(|| {
             runtime()
-                .block_on(
-                    self.tdx
-                        .interest_rate_history_eod(symbol, start_date, end_date),
-                )
+                .block_on(async {
+                    self.tdx.interest_rate_history_eod(symbol, start_date, end_date).await
+                })
                 .map_err(to_py_err)
         })?;
         Ok(ticks

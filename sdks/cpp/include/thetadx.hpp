@@ -461,9 +461,12 @@ public:
     int subscribe_trades(const std::string& symbol);
     int subscribe_open_interest(const std::string& symbol);
     int subscribe_full_trades(const std::string& sec_type);
+    int subscribe_full_open_interest(const std::string& sec_type);
     int unsubscribe_quotes(const std::string& symbol);
     int unsubscribe_open_interest(const std::string& symbol);
     int unsubscribe_trades(const std::string& symbol);
+    int unsubscribe_full_trades(const std::string& sec_type);
+    int unsubscribe_full_open_interest(const std::string& sec_type);
 
     bool is_authenticated() const;
     std::optional<std::string> contract_lookup(int id) const;

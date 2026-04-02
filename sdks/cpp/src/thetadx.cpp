@@ -445,9 +445,12 @@ int FpssClient::subscribe_quotes(const std::string& symbol) { return tdx_fpss_su
 int FpssClient::subscribe_trades(const std::string& symbol) { return tdx_fpss_subscribe_trades(handle_.get(), symbol.c_str()); }
 int FpssClient::subscribe_open_interest(const std::string& symbol) { return tdx_fpss_subscribe_open_interest(handle_.get(), symbol.c_str()); }
 int FpssClient::subscribe_full_trades(const std::string& sec_type) { return tdx_fpss_subscribe_full_trades(handle_.get(), sec_type.c_str()); }
+int FpssClient::subscribe_full_open_interest(const std::string& sec_type) { return tdx_fpss_subscribe_full_open_interest(handle_.get(), sec_type.c_str()); }
 int FpssClient::unsubscribe_quotes(const std::string& symbol) { return tdx_fpss_unsubscribe_quotes(handle_.get(), symbol.c_str()); }
 int FpssClient::unsubscribe_open_interest(const std::string& symbol) { return tdx_fpss_unsubscribe_open_interest(handle_.get(), symbol.c_str()); }
 int FpssClient::unsubscribe_trades(const std::string& symbol) { return tdx_fpss_unsubscribe_trades(handle_.get(), symbol.c_str()); }
+int FpssClient::unsubscribe_full_trades(const std::string& sec_type) { return tdx_fpss_unsubscribe_full_trades(handle_.get(), sec_type.c_str()); }
+int FpssClient::unsubscribe_full_open_interest(const std::string& sec_type) { return tdx_fpss_unsubscribe_full_open_interest(handle_.get(), sec_type.c_str()); }
 
 bool FpssClient::is_authenticated() const { return tdx_fpss_is_authenticated(handle_.get()) != 0; }
 

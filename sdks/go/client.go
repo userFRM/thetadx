@@ -106,9 +106,12 @@ extern int tdx_fpss_subscribe_quotes(const TdxFpssHandle* h, const char* symbol)
 extern int tdx_fpss_subscribe_trades(const TdxFpssHandle* h, const char* symbol);
 extern int tdx_fpss_subscribe_open_interest(const TdxFpssHandle* h, const char* symbol);
 extern int tdx_fpss_subscribe_full_trades(const TdxFpssHandle* h, const char* sec_type);
+extern int tdx_fpss_subscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
 extern int tdx_fpss_unsubscribe_quotes(const TdxFpssHandle* h, const char* symbol);
 extern int tdx_fpss_unsubscribe_trades(const TdxFpssHandle* h, const char* symbol);
 extern int tdx_fpss_unsubscribe_open_interest(const TdxFpssHandle* h, const char* symbol);
+extern int tdx_fpss_unsubscribe_full_trades(const TdxFpssHandle* h, const char* sec_type);
+extern int tdx_fpss_unsubscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
 extern int tdx_fpss_is_authenticated(const TdxFpssHandle* h);
 extern char* tdx_fpss_contract_lookup(const TdxFpssHandle* h, int id);
 extern char* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);

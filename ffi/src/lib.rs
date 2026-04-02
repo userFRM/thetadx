@@ -386,6 +386,22 @@ pub unsafe extern "C" fn tdx_config_free(config: *mut TdxConfig) {
     }
 }
 
+/// Set FPSS flush mode on a config handle.
+///
+/// - `mode = 0`: Batched (default) -- flush only on PING every 100ms
+/// - `mode = 1`: Immediate -- flush after every frame write (lowest latency)
+#[no_mangle]
+pub unsafe extern "C" fn tdx_config_set_flush_mode(config: *mut TdxConfig, mode: i32) {
+    if config.is_null() {
+        return;
+    }
+    let config = unsafe { &mut *config };
+    config.inner.fpss_flush_mode = match mode {
+        1 => thetadatadx::FpssFlushMode::Immediate,
+        _ => thetadatadx::FpssFlushMode::Batched,
+    };
+}
+
 // ── Client ──
 
 /// Connect to ThetaData servers (authenticates via Nexus API).

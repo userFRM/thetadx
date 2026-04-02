@@ -80,7 +80,7 @@ func main() {
 
 ### Client (Historical Data)
 
-All data methods return typed Go structs (deserialized from JSON over FFI).
+All data methods return typed Go structs (received as native `#[repr(C)]` struct arrays over FFI).
 
 ```go
 client, err := thetadatadx.Connect(creds, config)

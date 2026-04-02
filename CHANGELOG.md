@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-04-02
+
+### Breaking Changes
+
+- **FFI: `#[repr(C)]` typed struct arrays replace JSON** -- all 60 data endpoints now return native struct arrays across the FFI boundary. C++ and Go SDKs read fields directly, zero JSON serialization. FPSS streaming events remain JSON (variable schemas).
+- C++ `OptionContract` now uses `std::string root` (was `const char*`)
+- Go SDK gains 9 previously missing Greeks endpoints
+
+### Added
+
+- **DST-aware timezone conversion** -- `eastern_offset_ms()` correctly handles EST/EDT transitions using US Energy Policy Act 2005 rules. Historical data from November-March now has correct ms_of_day values. (#32)
+- **gRPC flow control config** -- `DirectConfig` gained `mdds_window_size_kb` and `mdds_connection_window_size_kb`, wired into tonic channel builder. (#36)
+- Go SDK: `OptionSnapshotGreeksFirstOrder`, `OptionSnapshotGreeksSecondOrder`, `OptionSnapshotGreeksThirdOrder`, `OptionHistoryGreeksFirstOrder/SecondOrder/ThirdOrder`, `OptionHistoryTradeGreeksFirstOrder/SecondOrder/ThirdOrder` (#39)
+- Go SDK: `SnapshotTradeTick` type and converter
+- Go SDK: `Vera` field on `GreeksTick`
+- FFI: 13 typed tick array types (`TdxEodTickArray`, `TdxOhlcTickArray`, etc.) with `from_vec`/`free`
+- FFI: `TdxStringArray` for list endpoints, `TdxOptionContractArray` for contracts
+- C++ header: `thetadx.h` with all `#[repr(C)]` struct definitions and function signatures
+
+### Fixed
+
+- **Timezone hardcoded UTC-4** -- was producing ms_of_day shifted +1 hour for all Nov-Mar historical data. Now DST-aware with 5 unit tests. (#32)
+- **EOD parser divergent alias system** -- unified to shared `find_header()`. (#34)
+- **reconnect_wait_ms** -- changed from 1000 to 2000 to match Java terminal. (#35)
+- **C++ OptionContract use-after-free** -- root string was dangling after array free. Now deep-copies to `std::string`. (#39)
+- **Active subscriptions not cleared on explicit shutdown** -- `shutdown()` clears, involuntary disconnect preserves for reconnect. (#38)
+- Mermaid diagram syntax in architecture.md (#30)
+
+### Documented
+
+- Price type per-row variation as known limitation in jvm-deviations.md (#37)
+- FPSS ring buffer capacity monitoring as known limitation
+
+## [4.4.0] - 2026-04-02
+
 ## [4.3.0] - 2026-04-02
 
 ### Added
@@ -470,7 +505,9 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 - FIT decoder uses i64 accumulator with i32 saturation (no silent overflow)
 - Price type range enforced with `assert!` in release builds
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v4.5.0...HEAD
+[4.5.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.4.0...v4.5.0
+[4.4.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/userFRM/ThetaDataDx/compare/v4.1.1...v4.1.2

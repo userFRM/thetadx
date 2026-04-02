@@ -29,7 +29,7 @@ Produces:
 
 ### Historical (via TdxClient or TdxUnified)
 
-All 61 endpoints are available as `tdx_stock_*`, `tdx_option_*`, `tdx_index_*`, `tdx_calendar_*`, `tdx_interest_rate_*` functions. Each takes a `*const TdxClient` handle and returns a `*mut c_char` (JSON string, caller must free with `tdx_string_free`).
+All 61 endpoints are available as `tdx_stock_*`, `tdx_option_*`, `tdx_index_*`, `tdx_calendar_*`, `tdx_interest_rate_*` functions. Each takes a `*const TdxClient` handle and returns a typed `#[repr(C)]` struct array (e.g. `TdxEodTickArray`, `TdxOhlcTickArray`). Callers must free with the corresponding `tdx_*_array_free` function. List endpoints return `TdxStringArray` (freed with `tdx_string_array_free`).
 
 `tdx_unified_historical()` returns a borrowed `*const TdxClient` from a unified handle - same session, no double auth.
 
@@ -50,7 +50,9 @@ All functions that can fail return null on error. Call `tdx_last_error()` to get
 ## Memory model
 
 - Opaque handles are heap-allocated via `Box::into_raw`, freed via `Box::from_raw` in the corresponding `*_free` function.
-- String results (`*mut c_char`) are owned by the caller - free with `tdx_string_free`.
+- Data endpoints return typed `#[repr(C)]` struct arrays (e.g. `TdxEodTickArray { data, len }`) - free with the corresponding `tdx_*_array_free` function.
+- List endpoints return `TdxStringArray` - free with `tdx_string_array_free`.
+- FPSS streaming functions (`tdx_fpss_next_event`, `tdx_fpss_active_subscriptions`) return `*mut c_char` (JSON string) - free with `tdx_string_free`.
 - `tdx_last_error()` returns a borrowed pointer - do NOT free it.
 - `tdx_unified_historical()` returns a borrowed pointer - do NOT free it.
 

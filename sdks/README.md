@@ -160,9 +160,9 @@ The library exposes opaque handle types and `extern "C"` functions:
 | **Client** | `tdx_client_connect`, `tdx_client_free` |
 | **Greeks** | `tdx_all_greeks`, `tdx_implied_volatility` |
 | **FPSS Streaming** | `tdx_fpss_connect`, `tdx_fpss_subscribe_quotes`, `tdx_fpss_subscribe_trades`, `tdx_fpss_unsubscribe_quotes`, `tdx_fpss_next_event`, `tdx_fpss_shutdown`, `tdx_fpss_free` |
-| **Memory** | `tdx_string_free`, `tdx_last_error` |
+| **Memory** | `tdx_*_array_free` (per tick type), `tdx_string_array_free`, `tdx_string_free`, `tdx_last_error` |
 
-All historical data endpoints (61 total) are accessed through `tdx_client_connect`. Results are returned as JSON strings (`*mut c_char`) that must be freed with `tdx_string_free`. See the [FFI source](../ffi/src/lib.rs) for the full API and safety contract.
+All historical data endpoints (61 total) are accessed through `tdx_client_connect`. Results are returned as typed `#[repr(C)]` struct arrays (e.g. `TdxEodTickArray`, `TdxOhlcTickArray`) that must be freed with the corresponding `tdx_*_array_free` function. List endpoints return `TdxStringArray`. See the [FFI source](../ffi/src/lib.rs) for the full API and safety contract.
 
 ## Building All SDKs
 

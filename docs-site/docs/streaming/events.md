@@ -198,6 +198,9 @@ while (true) {
 | `subscribe_trades(contract)` | Subscribe to trade data |
 | `subscribe_open_interest(contract)` | Subscribe to open interest |
 | `subscribe_full_trades(sec_type)` | Subscribe to all trades for a security type |
+| `subscribe_full_open_interest(sec_type)` | Subscribe to all OI for a security type |
+| `unsubscribe_full_trades(sec_type)` | Unsubscribe from all trades for a security type |
+| `unsubscribe_full_open_interest(sec_type)` | Unsubscribe from all OI for a security type |
 | `unsubscribe_quotes(contract)` | Unsubscribe from quotes |
 | `unsubscribe_trades(contract)` | Unsubscribe from trades |
 | `unsubscribe_open_interest(contract)` | Unsubscribe from OI |
@@ -240,6 +243,9 @@ while (true) {
 | `subscribe_trades` | `(symbol) -> int32_t` | Subscribe to trades |
 | `subscribe_open_interest` | `(symbol) -> int32_t` | Subscribe to OI |
 | `subscribe_full_trades` | `(sec_type) -> int32_t` | Subscribe to all trades for a security type |
+| `subscribe_full_open_interest` | `(sec_type) -> int32_t` | Subscribe to all OI for a security type |
+| `unsubscribe_full_trades` | `(sec_type) -> int32_t` | Unsubscribe from all trades for a security type |
+| `unsubscribe_full_open_interest` | `(sec_type) -> int32_t` | Unsubscribe from all OI for a security type |
 | `unsubscribe_quotes` | `(symbol) -> int32_t` | Unsubscribe from quotes |
 | `unsubscribe_trades` | `(symbol) -> int32_t` | Unsubscribe from trades |
 | `unsubscribe_open_interest` | `(symbol) -> int32_t` | Unsubscribe from OI |

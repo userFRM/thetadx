@@ -2171,6 +2171,9 @@ int req_id = fpss.subscribe_full_trades("STOCK");
 | `subscribe_trades` | Subscribe to real-time trade updates |
 | `subscribe_open_interest` | Subscribe to open interest updates |
 | `subscribe_full_trades` | Subscribe to all trades for a security type |
+| `subscribe_full_open_interest` | Subscribe to all OI for a security type |
+| `unsubscribe_full_trades` | Unsubscribe from all trades for a security type |
+| `unsubscribe_full_open_interest` | Unsubscribe from all OI for a security type |
 
 All subscription methods return a request ID. The server confirms via a `ReqResponse` control event.
 

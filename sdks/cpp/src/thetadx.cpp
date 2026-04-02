@@ -184,11 +184,17 @@ std::vector<std::string> Client::option_list_strikes(const std::string& symbol, 
 
 std::vector<OptionContract> Client::option_list_contracts(const std::string& request_type, const std::string& symbol, const std::string& date) const {
     TdxOptionContractArray arr = tdx_option_list_contracts(handle_.get(), request_type.c_str(), symbol.c_str(), date.c_str());
-    auto result = detail::to_vector(arr.data, arr.len);
-    // NOTE: We copy the data but do NOT free the strings inside — they are still
-    // owned by the Rust FFI array. The caller's OptionContract.root pointers
-    // will be invalidated when we free the array. For safe use, copy root strings
-    // before freeing. This is a known limitation of the zero-copy approach.
+    std::vector<OptionContract> result;
+    result.reserve(arr.len);
+    for (size_t i = 0; i < arr.len; ++i) {
+        OptionContract c;
+        c.root = arr.data[i].root ? std::string(arr.data[i].root) : "";
+        c.expiration = arr.data[i].expiration;
+        c.strike = arr.data[i].strike;
+        c.right = arr.data[i].right;
+        c.strike_price_type = arr.data[i].strike_price_type;
+        result.push_back(std::move(c));
+    }
     tdx_option_contract_array_free(arr);
     return result;
 }

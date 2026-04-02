@@ -30,6 +30,7 @@ extern void tdx_open_interest_tick_array_free(TdxTickArray arr);
 extern void tdx_market_value_tick_array_free(TdxTickArray arr);
 extern void tdx_calendar_day_array_free(TdxTickArray arr);
 extern void tdx_interest_rate_tick_array_free(TdxTickArray arr);
+extern void tdx_snapshot_trade_tick_array_free(TdxTickArray arr);
 extern void tdx_trade_quote_tick_array_free(TdxTickArray arr);
 extern void tdx_option_contract_array_free(TdxOptionContractArray arr);
 extern void tdx_string_array_free(TdxStringArray arr);
@@ -327,6 +328,18 @@ type cTradeQuoteTick struct {
 	_pad           [128 - 26*4]byte
 }
 
+// cSnapshotTradeTick mirrors TdxSnapshotTradeTick #[repr(C, align(64))]
+type cSnapshotTradeTick struct {
+	MsOfDay   int32
+	Sequence  int32
+	Size      int32
+	Condition int32
+	Price     int32
+	PriceType int32
+	Date      int32
+	_pad      [64 - 7*4]byte
+}
+
 // cOptionContract mirrors TdxOptionContract from FFI
 type cOptionContract struct {
 	Root           uintptr // *const c_char
@@ -454,6 +467,7 @@ type GreeksTick struct {
 	DualGamma float64 `json:"dual_gamma"`
 	Epsilon   float64 `json:"epsilon"`
 	Lambda    float64 `json:"lambda"`
+	Vera      float64 `json:"vera"`
 	Date      int     `json:"date"`
 }
 
@@ -484,6 +498,17 @@ type InterestRateTick struct {
 	MsOfDay int     `json:"ms_of_day"`
 	Rate    float64 `json:"rate"`
 	Date    int     `json:"date"`
+}
+
+type SnapshotTradeTick struct {
+	MsOfDay   int     `json:"ms_of_day"`
+	Sequence  int     `json:"sequence"`
+	Size      int     `json:"size"`
+	Condition int     `json:"condition"`
+	Price     float64 `json:"price"`
+	PriceRaw  int     `json:"price_raw"`
+	PriceType int     `json:"price_type"`
+	Date      int     `json:"date"`
 }
 
 type OptionContract struct {
@@ -648,7 +673,7 @@ func convertGreeksTicks(arr C.TdxTickArray) []GreeksTick {
 			Vanna: t.Vanna, Charm: t.Charm, Vomma: t.Vomma, Veta: t.Veta,
 			Speed: t.Speed, Zomma: t.Zomma, Color: t.Color, Ultima: t.Ultima,
 			D1: t.D1, D2: t.D2, DualDelta: t.DualDelta, DualGamma: t.DualGamma,
-			Epsilon: t.Epsilon, Lambda: t.Lambda, Date: int(t.Date),
+			Epsilon: t.Epsilon, Lambda: t.Lambda, Vera: t.Vera, Date: int(t.Date),
 		}
 	}
 	return result
@@ -689,6 +714,21 @@ func convertInterestRateTicks(arr C.TdxTickArray) []InterestRateTick {
 	src := unsafe.Slice((*cInterestRateTick)(arr.data), n)
 	result := make([]InterestRateTick, n)
 	for i, t := range src { result[i] = InterestRateTick{int(t.MsOfDay), t.Rate, int(t.Date)} }
+	return result
+}
+
+func convertSnapshotTradeTicks(arr C.TdxTickArray) []SnapshotTradeTick {
+	if arr.data == nil || arr.len == 0 { return nil }
+	n := int(arr.len)
+	src := unsafe.Slice((*cSnapshotTradeTick)(arr.data), n)
+	result := make([]SnapshotTradeTick, n)
+	for i, t := range src {
+		result[i] = SnapshotTradeTick{
+			MsOfDay: int(t.MsOfDay), Sequence: int(t.Sequence), Size: int(t.Size),
+			Condition: int(t.Condition), Price: priceToFloat(t.Price, t.PriceType),
+			PriceRaw: int(t.Price), PriceType: int(t.PriceType), Date: int(t.Date),
+		}
+	}
 	return result
 }
 
@@ -876,6 +916,18 @@ func (c *Client) OptionSnapshotGreeksAll(s, e, k, r string) ([]GreeksTick, error
 	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
 	arr := C.tdx_option_snapshot_greeks_all(c.handle, cS, cE, cK, cR); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
 }
+func (c *Client) OptionSnapshotGreeksFirstOrder(s, e, k, r string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	arr := C.tdx_option_snapshot_greeks_first_order(c.handle, cS, cE, cK, cR); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionSnapshotGreeksSecondOrder(s, e, k, r string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	arr := C.tdx_option_snapshot_greeks_second_order(c.handle, cS, cE, cK, cR); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionSnapshotGreeksThirdOrder(s, e, k, r string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	arr := C.tdx_option_snapshot_greeks_third_order(c.handle, cS, cE, cK, cR); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
 
 // Option history endpoints follow the same pattern. Including all for completeness.
 
@@ -925,6 +977,36 @@ func (c *Client) OptionHistoryTradeGreeksAll(s, e, k, r, d string) ([]GreeksTick
 	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
 	cD := C.CString(d); defer C.free(unsafe.Pointer(cD))
 	arr := C.tdx_option_history_trade_greeks_all(c.handle, cS, cE, cK, cR, cD); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryGreeksFirstOrder(s, e, k, r, d, iv string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); cI := C.CString(iv); defer C.free(unsafe.Pointer(cD)); defer C.free(unsafe.Pointer(cI))
+	arr := C.tdx_option_history_greeks_first_order(c.handle, cS, cE, cK, cR, cD, cI); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryTradeGreeksFirstOrder(s, e, k, r, d string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); defer C.free(unsafe.Pointer(cD))
+	arr := C.tdx_option_history_trade_greeks_first_order(c.handle, cS, cE, cK, cR, cD); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryGreeksSecondOrder(s, e, k, r, d, iv string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); cI := C.CString(iv); defer C.free(unsafe.Pointer(cD)); defer C.free(unsafe.Pointer(cI))
+	arr := C.tdx_option_history_greeks_second_order(c.handle, cS, cE, cK, cR, cD, cI); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryTradeGreeksSecondOrder(s, e, k, r, d string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); defer C.free(unsafe.Pointer(cD))
+	arr := C.tdx_option_history_trade_greeks_second_order(c.handle, cS, cE, cK, cR, cD); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryGreeksThirdOrder(s, e, k, r, d, iv string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); cI := C.CString(iv); defer C.free(unsafe.Pointer(cD)); defer C.free(unsafe.Pointer(cI))
+	arr := C.tdx_option_history_greeks_third_order(c.handle, cS, cE, cK, cR, cD, cI); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
+}
+func (c *Client) OptionHistoryTradeGreeksThirdOrder(s, e, k, r, d string) ([]GreeksTick, error) {
+	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()
+	cD := C.CString(d); defer C.free(unsafe.Pointer(cD))
+	arr := C.tdx_option_history_trade_greeks_third_order(c.handle, cS, cE, cK, cR, cD); result := convertGreeksTicks(arr); C.tdx_greeks_tick_array_free(arr); return result, nil
 }
 func (c *Client) OptionHistoryGreeksIV(s, e, k, r, d, iv string) ([]IVTick, error) {
 	cS, cE, cK, cR, free := c.optArgs4(s, e, k, r); defer free()

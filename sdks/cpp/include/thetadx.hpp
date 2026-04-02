@@ -40,7 +40,16 @@ using CalendarDay = TdxCalendarDay;
 using InterestRateTick = TdxInterestRateTick;
 using SnapshotTradeTick = TdxSnapshotTradeTick;
 using TradeQuoteTick = TdxTradeQuoteTick;
-using OptionContract = TdxOptionContract;
+// OptionContract uses std::string for root to avoid use-after-free.
+// The C FFI TdxOptionContract uses a raw char* that is freed with the array,
+// so we deep-copy the string during conversion.
+struct OptionContract {
+    std::string root;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
+};
 
 // ── Price decoding utility ──
 
@@ -293,9 +302,7 @@ public:
     std::vector<std::string> option_list_strikes(const std::string& symbol,
                                                   const std::string& expiration) const;
 
-    /** 18. List all option contracts on a date.
-     *  NOTE: Caller is responsible for NOT holding references to OptionContract.root
-     *  after the returned vector is destroyed. */
+    /** 18. List all option contracts on a date. */
     std::vector<OptionContract> option_list_contracts(const std::string& request_type,
                                                       const std::string& symbol,
                                                       const std::string& date) const;

@@ -12,9 +12,9 @@ graph LR
         FPSS["FPSS<br/>nj-a.thetadata.us:20000/20001<br/>nj-b.thetadata.us:20000/20001<br/>Custom TLS/TCP protocol"]
     end
 
-    App - "HTTPS<br/>email + password" --> Nexus
-    App - "gRPC over TLS<br/>session UUID in QueryInfo" --> MDDS
-    App - "TLS/TCP<br/>email + password<br/>FIT-encoded ticks" --> FPSS
+    App -->|"HTTPS<br/>email + password"| Nexus
+    App -->|"gRPC over TLS<br/>session UUID in QueryInfo"| MDDS
+    App -->|"TLS/TCP<br/>email + password<br/>FIT-encoded ticks"| FPSS
 
     Nexus -. "session UUID" .-> App
 ```
@@ -347,9 +347,9 @@ Permanent reasons: `InvalidCredentials` (0), `InvalidLoginValues` (1), `InvalidL
 ```mermaid
 flowchart TD
     D["Disconnected"] --> Check{Reason?}
-    Check - "Credential/account error<br/>(0,1,2,6,9,17,18)" --> Stop["Stop permanently"]
-    Check - "TooManyRequests (12)" --> W130["Wait 130s"] --> Reconnect
-    Check - "All others" --> W2["Wait 2s"] --> Reconnect
+    Check -->|"Credential/account error<br/>(0,1,2,6,9,17,18)"| Stop["Stop permanently"]
+    Check -->|"TooManyRequests (12)"| W130["Wait 130s"] --> Reconnect
+    Check -->|"All others"| W2["Wait 2s"] --> Reconnect
     Reconnect["Reconnect"] --> TLS["New TLS connection"]
     TLS --> Auth["Re-authenticate"]
     Auth --> Resub["Re-subscribe all active<br/>subscriptions with req_id = -1"]
@@ -420,8 +420,8 @@ flowchart LR
         T2["[34200500, 2, 0, 0, 0, 150, 4, 15022]"]
     end
 
-    T1 - "+" --> D2
-    D2 - "=" --> T2
+    T1 -->|"+"| D2
+    D2 -->|"="| T2
 ```
 
 - **First tick** per contract: absolute values (no delta applied)

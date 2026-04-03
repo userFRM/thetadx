@@ -154,7 +154,8 @@ extern int tdx_fpss_is_authenticated(const TdxFpssHandle* h);
 extern char* tdx_fpss_contract_lookup(const TdxFpssHandle* h, int id);
 extern TdxSubscriptionArray* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);
 extern void tdx_subscription_array_free(TdxSubscriptionArray* arr);
-extern char* tdx_fpss_next_event(const TdxFpssHandle* h, uint64_t timeout_ms);
+extern TdxFpssEvent* tdx_fpss_next_event(const TdxFpssHandle* h, uint64_t timeout_ms);
+extern void tdx_fpss_event_free(TdxFpssEvent* event);
 extern void tdx_fpss_shutdown(const TdxFpssHandle* h);
 extern void tdx_fpss_free(TdxFpssHandle* h);
 */

@@ -261,6 +261,21 @@ fn greeks_tick_to_dict(py: Python<'_>, t: &tick::GreeksTick) -> Py<PyAny> {
     dict.set_item("vega", t.vega).unwrap();
     dict.set_item("rho", t.rho).unwrap();
     dict.set_item("iv_error", t.iv_error).unwrap();
+    dict.set_item("vanna", t.vanna).unwrap();
+    dict.set_item("charm", t.charm).unwrap();
+    dict.set_item("vomma", t.vomma).unwrap();
+    dict.set_item("veta", t.veta).unwrap();
+    dict.set_item("speed", t.speed).unwrap();
+    dict.set_item("zomma", t.zomma).unwrap();
+    dict.set_item("color", t.color).unwrap();
+    dict.set_item("ultima", t.ultima).unwrap();
+    dict.set_item("d1", t.d1).unwrap();
+    dict.set_item("d2", t.d2).unwrap();
+    dict.set_item("dual_delta", t.dual_delta).unwrap();
+    dict.set_item("dual_gamma", t.dual_gamma).unwrap();
+    dict.set_item("epsilon", t.epsilon).unwrap();
+    dict.set_item("lambda", t.lambda).unwrap();
+    dict.set_item("vera", t.vera).unwrap();
     dict.set_item("date", t.date).unwrap();
     set_contract_id!(dict, t);
     dict.into_any().unbind()

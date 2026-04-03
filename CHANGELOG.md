@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.1] - 2026-04-04
+
+### Fixed
+
+- `option_list_contracts` returned 0 contracts. The v3 MDDS server sends `symbol` (not `root`), ISO date strings (not YYYYMMDD integers), and `PUT`/`CALL` text (not integer codes). Added `root` -> `symbol` header alias and a v3-aware parser. (#97)
+- Dev server FPSS replay boundary corruption handled gracefully. Binary Error frames are silently skipped. Unknown message codes are skipped with bounded retry (5 consecutive = framing corruption -> clean disconnect). (#85)
+
 ## [5.2.0] - 2026-04-04
 
 ### Breaking Changes
@@ -597,7 +604,8 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 - FIT decoder uses i64 accumulator with i32 saturation (no silent overflow)
 - Price type range enforced with `assert!` in release builds
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.0...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.1...HEAD
+[5.2.1]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.0...v5.2.1
 [5.2.0]: https://github.com/userFRM/ThetaDataDx/compare/v5.1.1...v5.2.0
 [5.1.1]: https://github.com/userFRM/ThetaDataDx/compare/v5.1.0...v5.1.1
 [5.1.0]: https://github.com/userFRM/ThetaDataDx/compare/v5.0.2...v5.1.0

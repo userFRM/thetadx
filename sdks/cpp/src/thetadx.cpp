@@ -46,6 +46,7 @@ Credentials Credentials::from_email(const std::string& email, const std::string&
 
 Config Config::production() { return Config(tdx_config_production()); }
 Config Config::dev() { return Config(tdx_config_dev()); }
+Config Config::stage() { return Config(tdx_config_stage()); }
 
 // ── Client ──
 

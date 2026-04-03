@@ -24,6 +24,7 @@ extern void tdx_credentials_free(TdxCredentials* creds);
 // ── Config ──
 extern TdxConfig* tdx_config_production();
 extern TdxConfig* tdx_config_dev();
+extern TdxConfig* tdx_config_stage();
 extern void tdx_config_free(TdxConfig* config);
 
 // ── Client ──
@@ -266,9 +267,14 @@ func ProductionConfig() *Config {
 	return &Config{handle: C.tdx_config_production()}
 }
 
-// DevConfig returns the dev server config (shorter timeouts).
+// DevConfig returns the dev FPSS config (port 20200, infinite historical replay).
 func DevConfig() *Config {
 	return &Config{handle: C.tdx_config_dev()}
+}
+
+// StageConfig returns the stage FPSS config (port 20100, testing, unstable).
+func StageConfig() *Config {
+	return &Config{handle: C.tdx_config_stage()}
 }
 
 // Close frees the config handle.

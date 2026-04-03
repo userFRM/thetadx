@@ -296,8 +296,11 @@ void tdx_credentials_free(TdxCredentials* creds);
 /** Create a production config (ThetaData NJ datacenter). */
 TdxConfig* tdx_config_production(void);
 
-/** Create a dev config (shorter timeouts). */
+/** Create a dev FPSS config (port 20200, infinite historical replay). */
 TdxConfig* tdx_config_dev(void);
+
+/** Create a stage FPSS config (port 20100, testing, unstable). */
+TdxConfig* tdx_config_stage(void);
 
 /** Free a config handle. */
 void tdx_config_free(TdxConfig* config);

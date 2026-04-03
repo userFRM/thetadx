@@ -91,11 +91,19 @@ impl Config {
         }
     }
 
-    /// Dev configuration (shorter timeouts).
+    /// Dev FPSS configuration (port 20200, infinite historical replay).
     #[staticmethod]
     fn dev() -> Self {
         Self {
             inner: config::DirectConfig::dev(),
+        }
+    }
+
+    /// Stage FPSS configuration (port 20100, testing, unstable).
+    #[staticmethod]
+    fn stage() -> Self {
+        Self {
+            inner: config::DirectConfig::stage(),
         }
     }
 

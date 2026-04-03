@@ -370,11 +370,19 @@ pub extern "C" fn tdx_config_production() -> *mut TdxConfig {
     }))
 }
 
-/// Create a dev config (shorter timeouts).
+/// Create a dev config (FPSS dev servers, port 20200, infinite replay).
 #[no_mangle]
 pub extern "C" fn tdx_config_dev() -> *mut TdxConfig {
     Box::into_raw(Box::new(TdxConfig {
         inner: thetadatadx::DirectConfig::dev(),
+    }))
+}
+
+/// Create a stage config (FPSS stage servers, port 20100, unstable).
+#[no_mangle]
+pub extern "C" fn tdx_config_stage() -> *mut TdxConfig {
+    Box::into_raw(Box::new(TdxConfig {
+        inner: thetadatadx::DirectConfig::stage(),
     }))
 }
 

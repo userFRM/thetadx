@@ -187,8 +187,11 @@ public:
     /** Production config (ThetaData NJ datacenter). */
     static Config production();
 
-    /** Dev config (shorter timeouts). */
+    /** Dev FPSS config (port 20200, infinite historical replay). */
     static Config dev();
+
+    /** Stage FPSS config (port 20100, testing, unstable). */
+    static Config stage();
 
     /** Get the raw handle. */
     TdxConfig* get() const { return handle_.get(); }

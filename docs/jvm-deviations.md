@@ -267,6 +267,14 @@ As of v1.2.0:
 | **Source** | `OHLCVC.java:processTrade()` | `fpss/mod.rs` OHLCVC accumulator |
 | **Rationale** | Java's `processTrade()` indexes into a pre-parsed trade tick array where fields are already extracted by position. Rust indexes into the raw FIT-decoded field array before tick-type-specific extraction. Both arrive at the correct price, priceType, and size values — the different indices reflect different stages in the decode pipeline, not different data. |
 
+### FPSS Trade Tick: 8-Field vs 16-Field Format
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | `TradeRef.java` always uses 8-field indices (`data[2]` = size, `data[4]` = price) against a 16-field array (known bug in TradeRef) | Detects actual field count from the first absolute tick per `(msg_type, contract_id)` and selects the correct index mapping | Correct field extraction in both formats |
+| **Source** | `TradeRef.java`, `FPSSClient` internal event handling | `fpss/mod.rs:decode_tick()` + `decode_frame()` Trade branch |
+| **Rationale** | The FPSS dev server sends 8-field trade ticks (simple format: `[ms_of_day, sequence, size, condition, price, exchange, price_type, date]`) while production sends 16-field trade ticks (extended format with ext_conditions, flags, volume_type, records_back). Java's `TradeRef.java` hard-codes 8-field indices and applies them to 16-field arrays, producing correct results only by accident when the server happens to send 16-field data with the 8-field subset at matching positions. ThetaDataDx records the actual FIT field count from the first absolute tick for each contract and dispatches to the correct field mapping. Fields absent in the 8-field format (`ext_condition1..4`, `condition_flags`, `price_flags`, `volume_type`, `records_back`) are set to 0. |
+
 ## What Is NOT Different
 
 These are identical to the Java terminal:

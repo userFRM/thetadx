@@ -73,7 +73,7 @@ All 61 endpoints are available as `tdx_stock_*`, `tdx_option_*`, `tdx_index_*`, 
 | `tdx_fpss_unsubscribe_full_open_interest` | Unsubscribe from firehose open interest stream |
 | `tdx_fpss_is_authenticated` | Check if FPSS is authenticated |
 | `tdx_fpss_contract_lookup` | Look up contract by ID |
-| `tdx_fpss_active_subscriptions` | List active subscriptions (JSON) |
+| `tdx_fpss_active_subscriptions` | List active subscriptions (typed `TdxSubscriptionArray`) |
 | `tdx_fpss_next_event` | Poll for next event (JSON, blocks with timeout) |
 | `tdx_fpss_shutdown` | Shut down FPSS client |
 | `tdx_fpss_free` | Free the FPSS handle |
@@ -87,7 +87,8 @@ All functions that can fail return null on error. Call `tdx_last_error()` to get
 - Opaque handles are heap-allocated via `Box::into_raw`, freed via `Box::from_raw` in the corresponding `*_free` function.
 - Data endpoints return typed `#[repr(C)]` struct arrays (e.g. `TdxEodTickArray { data, len }`) - free with the corresponding `tdx_*_array_free` function.
 - List endpoints return `TdxStringArray` - free with `tdx_string_array_free`.
-- FPSS streaming functions (`tdx_fpss_next_event`, `tdx_fpss_active_subscriptions`) return `*mut c_char` (JSON string) - free with `tdx_string_free`.
+- `tdx_fpss_next_event` returns `*mut c_char` (JSON string) - free with `tdx_string_free`.
+- `tdx_fpss_active_subscriptions` returns `*mut TdxSubscriptionArray` - free with `tdx_subscription_array_free`.
 - `tdx_last_error()` returns a borrowed pointer - do NOT free it.
 - `tdx_unified_historical()` returns a borrowed pointer - do NOT free it.
 

@@ -106,7 +106,7 @@ pub struct TdxUnified {
 ///
 /// Uses the same pattern as the Python SDK: an internal mpsc channel buffering
 /// events from the Disruptor callback, and `tdx_fpss_next_event` polls it with
-/// a timeout, returning JSON.
+/// a timeout, returning a `*mut TdxFpssEvent` typed struct.
 pub struct TdxFpssHandle {
     inner: Arc<Mutex<Option<thetadatadx::fpss::FpssClient>>>,
     rx: Arc<Mutex<std::sync::mpsc::Receiver<FfiBufferedEvent>>>,
@@ -2296,7 +2296,7 @@ pub unsafe extern "C" fn tdx_unified_is_streaming(handle: *const TdxUnified) -> 
     }
 }
 
-/// Look up a contract by ID. Returns JSON string or null.
+/// Look up a contract by ID. Returns a Display-formatted C string or null.
 #[no_mangle]
 pub unsafe extern "C" fn tdx_unified_contract_lookup(
     handle: *const TdxUnified,
@@ -2934,7 +2934,7 @@ pub unsafe extern "C" fn tdx_fpss_is_authenticated(handle: *const TdxFpssHandle)
 
 /// Look up a single contract by its server-assigned ID.
 ///
-/// Returns a JSON string representation of the contract, or NULL if not found.
+/// Returns a Display-formatted C string representation of the contract, or NULL if not found.
 /// Caller must free the returned string with `tdx_string_free`.
 #[no_mangle]
 pub unsafe extern "C" fn tdx_fpss_contract_lookup(

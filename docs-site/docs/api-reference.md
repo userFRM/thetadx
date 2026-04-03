@@ -2217,7 +2217,7 @@ if event:
     print(event)
 ```
 ```go [Go]
-event, err := fpss.NextEvent(5000)  // returns json.RawMessage or nil
+event, err := fpss.NextEvent(5000)  // returns *FpssEvent or nil
 ```
 ```cpp [C++]
 std::string event = fpss.next_event(5000);  // empty string on timeout
@@ -2247,7 +2247,7 @@ fpss.shutdown();
 |--------|---------|-------------|
 | `is_streaming` | bool | Check if the streaming connection is live |
 | `contract_map` / `contract_lookup` | map/string | Look up server-assigned contract IDs |
-| `active_subscriptions` | list/JSON | Get list of active subscriptions |
+| `active_subscriptions` | list/typed structs | Get list of active subscriptions |
 
 ### FpssEvent Types
 

@@ -340,7 +340,7 @@ Prices in streaming events are raw integers with a `PriceType` field. Decode usi
 | `UnsubscribeFullOpenInterest(secType)` | `(int, error)` | Unsubscribe from all OI for a security type |
 | `IsAuthenticated()` | `bool` | Check if FPSS client is authenticated |
 | `ContractLookup(id)` | `(string, error)` | Look up contract by server-assigned ID |
-| `ActiveSubscriptions()` | `(json.RawMessage, error)` | List currently active subscriptions |
+| `ActiveSubscriptions()` | `([]Subscription, error)` | List currently active subscriptions |
 | `NextEvent(timeoutMs)` | `(*FpssEvent, error)` | Poll next event as typed struct (nil on timeout) |
 | `Shutdown()` | | Graceful shutdown of streaming |
 | `Close()` | | Free the FPSS handle (call after Shutdown) |

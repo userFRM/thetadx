@@ -51,8 +51,8 @@ All 61 endpoints are available as `tdx_stock_*`, `tdx_option_*`, `tdx_index_*`, 
 | `tdx_unified_unsubscribe_full_open_interest` | Unsubscribe from firehose open interest stream |
 | `tdx_unified_is_streaming` | Check if FPSS connection is live |
 | `tdx_unified_contract_lookup` | Look up contract by ID |
-| `tdx_unified_active_subscriptions` | List active subscriptions (JSON) |
-| `tdx_unified_next_event` | Poll for next event (JSON, blocks with timeout) |
+| `tdx_unified_active_subscriptions` | List active subscriptions (typed `TdxSubscriptionArray`) |
+| `tdx_unified_next_event` | Poll for next event (`*mut TdxFpssEvent`, blocks with timeout) |
 | `tdx_unified_stop_streaming` | Stop streaming, historical stays alive |
 | `tdx_unified_free` | Free the unified handle |
 

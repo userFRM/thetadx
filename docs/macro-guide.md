@@ -224,7 +224,7 @@ The FFI layer uses its own macro set to wrap the Rust builders into
 | `tick_array_free!`             | Generates the `extern "C"` free function for a tick array |
 | `ffi_typed_endpoint!`          | Wraps a typed endpoint with C string params            |
 | `ffi_typed_endpoint_no_params!`| Wraps a typed endpoint with no params                  |
-| `ffi_typed_snapshot_endpoint!` | Wraps a snapshot endpoint (takes JSON array of symbols)|
+| `ffi_typed_snapshot_endpoint!` | Wraps a snapshot endpoint (takes C string array of symbols)|
 | `ffi_list_endpoint!`           | Wraps a list endpoint with C string params             |
 | `ffi_list_endpoint_no_params!` | Wraps a list endpoint with no params                   |
 

@@ -320,7 +320,7 @@ Prices in streaming events are raw integers with a `price_type` field. Decode wi
 | `unsubscribe_open_interest(symbol)` | `int` | Unsubscribe from open interest data |
 | `is_authenticated()` | `bool` | Check if the client is currently authenticated |
 | `contract_lookup(id)` | `optional<string>` | Look up a contract by server-assigned ID |
-| `active_subscriptions()` | `string` (JSON) | Get active subscriptions as a JSON array |
+| `active_subscriptions()` | `vector<Subscription>` | Get active subscriptions as typed structs |
 | `next_event(timeout_ms)` | `FpssEventPtr` | Poll for the next event (nullptr on timeout) |
 | `shutdown()` | `void` | Shut down the FPSS client |
 

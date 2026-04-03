@@ -201,7 +201,7 @@ extern int tdx_fpss_unsubscribe_full_trades(const TdxFpssHandle* h, const char* 
 extern int tdx_fpss_unsubscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
 extern int tdx_fpss_is_authenticated(const TdxFpssHandle* h);
 extern char* tdx_fpss_contract_lookup(const TdxFpssHandle* h, int id);
-extern char* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);
+extern TdxSubscriptionArray* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);
 extern void tdx_fpss_shutdown(const TdxFpssHandle* h);
 extern void tdx_fpss_free(TdxFpssHandle* h);
 */
@@ -320,7 +320,10 @@ func symbolsToCArray(symbols []string) (**C.char, C.size_t) {
 	}
 	// Allocate an array of *C.char pointers.
 	cArray := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof((*C.char)(nil))))
-	ptrs := (*[1 << 30]*C.char)(cArray)
+	if cArray == nil {
+		panic("thetadatadx: C.malloc returned nil")
+	}
+	ptrs := unsafe.Slice((**C.char)(cArray), n)
 	for i, s := range symbols {
 		ptrs[i] = C.CString(s)
 	}
@@ -332,8 +335,8 @@ func freeSymbolArray(arr **C.char, n C.size_t) {
 	if arr == nil {
 		return
 	}
-	ptrs := (*[1 << 30]*C.char)(unsafe.Pointer(arr))
-	for i := C.size_t(0); i < n; i++ {
+	ptrs := unsafe.Slice(arr, int(n))
+	for i := range ptrs {
 		C.free(unsafe.Pointer(ptrs[i]))
 	}
 	C.free(unsafe.Pointer(arr))

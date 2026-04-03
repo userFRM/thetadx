@@ -127,6 +127,17 @@ extern TdxGreeksResult* tdx_all_greeks(double spot, double strike, double rate, 
 extern void tdx_greeks_result_free(TdxGreeksResult* result);
 extern int tdx_implied_volatility(double spot, double strike, double rate, double div_yield, double tte, double option_price, int is_call, double* out_iv, double* out_error);
 
+// ── Subscription types ──
+typedef struct {
+    const char* kind;
+    const char* contract;
+} TdxSubscription;
+
+typedef struct {
+    const TdxSubscription* data;
+    size_t len;
+} TdxSubscriptionArray;
+
 // FPSS
 extern TdxFpssHandle* tdx_fpss_connect(const TdxCredentials* creds, const TdxConfig* config);
 extern int tdx_fpss_subscribe_quotes(const TdxFpssHandle* h, const char* symbol);
@@ -141,7 +152,8 @@ extern int tdx_fpss_unsubscribe_full_trades(const TdxFpssHandle* h, const char* 
 extern int tdx_fpss_unsubscribe_full_open_interest(const TdxFpssHandle* h, const char* sec_type);
 extern int tdx_fpss_is_authenticated(const TdxFpssHandle* h);
 extern char* tdx_fpss_contract_lookup(const TdxFpssHandle* h, int id);
-extern char* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);
+extern TdxSubscriptionArray* tdx_fpss_active_subscriptions(const TdxFpssHandle* h);
+extern void tdx_subscription_array_free(TdxSubscriptionArray* arr);
 extern char* tdx_fpss_next_event(const TdxFpssHandle* h, uint64_t timeout_ms);
 extern void tdx_fpss_shutdown(const TdxFpssHandle* h);
 extern void tdx_fpss_free(TdxFpssHandle* h);

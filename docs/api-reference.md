@@ -663,7 +663,7 @@ ThetaDataDx exposes **61 typed methods** (plus 4 `_stream` variants) covering al
 
 All 61 endpoints are exposed through the `thetadatadx-ffi` C ABI crate. Each method has a corresponding `extern "C"` function (e.g., `thetadatadx_stock_history_eod`). The Go and C++ SDKs wrap these FFI functions 1:1.
 
-**No JSON crosses the FFI boundary.** All inputs and outputs use typed `#[repr(C)]` structs:
+**No JSON crosses the FFI boundary for historical data, snapshots, or subscriptions.** All inputs and outputs for these endpoints use typed `#[repr(C)]` structs. The sole exception is `tdx_fpss_next_event`, which returns a pre-formatted JSON string for real-time streaming events:
 
 - **Bulk snapshot endpoints** (stock/index snapshot OHLC, trade, quote, market value, price) accept `symbols: *const *const c_char, symbols_len: usize` — a C array of C string pointers with a length.
 - **`tdx_all_greeks`** returns `*mut TdxGreeksResult` (22 `f64` fields). Caller frees with `tdx_greeks_result_free`.

@@ -1029,13 +1029,19 @@ macro_rules! ffi_list_endpoint {
 
 /// Parse a C array of C string pointers into `Vec<String>`.
 ///
-/// Returns `None` and sets the thread-local error if the array is null or
-/// any element is null / invalid UTF-8.
+/// When `symbols` is null and `symbols_len` is 0 (Go empty-slice convention),
+/// returns `Some(vec![])`. Returns `None` and sets the thread-local error if
+/// the pointer is null with a non-zero length, or any element is null / invalid
+/// UTF-8.
 unsafe fn parse_symbol_array(
     symbols: *const *const c_char,
     symbols_len: usize,
 ) -> Option<Vec<String>> {
     if symbols.is_null() {
+        if symbols_len == 0 {
+            // Go sends (nil, 0) for empty slices — that's valid.
+            return Some(vec![]);
+        }
         set_error("symbols array pointer is null");
         return None;
     }

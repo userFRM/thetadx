@@ -1479,6 +1479,14 @@ fn decode_frame(
                 Some((contract_id, f, n_data)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "trade").increment(1);
 
+                    if n_data != 8 && n_data != TRADE_FIELDS {
+                        tracing::warn!(
+                            contract_id,
+                            n_data,
+                            "unexpected trade field count (expected 8 or 16)",
+                        );
+                    }
+
                     // The dev server sends 8-field trades (simple format) while
                     // production sends 16-field trades (extended format).
                     // 8-field layout: [ms_of_day, sequence, size, condition, price, exchange, price_type, date]

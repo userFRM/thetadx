@@ -237,20 +237,23 @@ All endpoints return fully typed C++ structs. No raw JSON.
 
 | Struct | Fields | Used by |
 |--------|--------|---------|
-| `EodTick` | ms_of_day, open, high, low, close, volume, count, bid, ask, date | EOD endpoints |
-| `OhlcTick` | ms_of_day, open, high, low, close, volume, count, date | OHLC endpoints |
-| `TradeTick` | ms_of_day, sequence, condition, size, exchange, price, price_raw, price_type, condition_flags, price_flags, volume_type, records_back, date | Trade endpoints |
-| `QuoteTick` | ms_of_day, bid_size, bid_exchange, bid, bid_condition, ask_size, ask_exchange, ask, ask_condition, date | Quote endpoints |
-| `TradeQuoteTick` | ms_of_day, sequence, ext_condition1-4, condition, size, exchange, price, condition_flags, price_flags, volume_type, records_back, quote_ms_of_day, bid_size, bid_exchange, bid, bid_condition, ask_size, ask_exchange, ask, ask_condition, date | Trade+quote endpoints |
-| `OpenInterestTick` | ms_of_day, open_interest, date | Open interest endpoints |
-| `GreeksTick` | ms_of_day, value, delta, gamma, theta, vega, rho, iv, iv_error, vanna, charm, vomma, veta, speed, zomma, color, ultima, d1, d2, dual_delta, dual_gamma, epsilon, lambda, date | Greeks snapshot/history |
-| `IvTick` | ms_of_day, iv, iv_error, date | IV-only endpoints |
+| `EodTick` | ms_of_day, open, high, low, close, volume, count, bid, ask, date, **expiration, strike, right, strike_price_type** | EOD endpoints |
+| `OhlcTick` | ms_of_day, open, high, low, close, volume, count, date, **expiration, strike, right, strike_price_type** | OHLC endpoints |
+| `TradeTick` | ms_of_day, sequence, condition, size, exchange, price, price_raw, price_type, condition_flags, price_flags, volume_type, records_back, date, **expiration, strike, right, strike_price_type** | Trade endpoints |
+| `QuoteTick` | ms_of_day, bid_size, bid_exchange, bid, bid_condition, ask_size, ask_exchange, ask, ask_condition, date, **expiration, strike, right, strike_price_type** | Quote endpoints |
+| `TradeQuoteTick` | ms_of_day, sequence, ext_condition1-4, condition, size, exchange, price, condition_flags, price_flags, volume_type, records_back, quote_ms_of_day, bid_size, bid_exchange, bid, bid_condition, ask_size, ask_exchange, ask, ask_condition, date, **expiration, strike, right, strike_price_type** | Trade+quote endpoints |
+| `OpenInterestTick` | ms_of_day, open_interest, date, **expiration, strike, right, strike_price_type** | Open interest endpoints |
+| `GreeksTick` | ms_of_day, value, delta, gamma, theta, vega, rho, iv, iv_error, vanna, charm, vomma, veta, speed, zomma, color, ultima, d1, d2, dual_delta, dual_gamma, epsilon, lambda, date, **expiration, strike, right, strike_price_type** | Greeks snapshot/history |
+| `IvTick` | ms_of_day, iv, iv_error, date, **expiration, strike, right, strike_price_type** | IV-only endpoints |
 | `PriceTick` | ms_of_day, price, date | Index price endpoints |
-| `MarketValueTick` | ms_of_day, market_cap, shares_outstanding, enterprise_value, book_value, free_float, date | Market value endpoints |
+| `MarketValueTick` | ms_of_day, market_cap, shares_outstanding, enterprise_value, book_value, free_float, date, **expiration, strike, right, strike_price_type** | Market value endpoints |
+| `SnapshotTradeTick` | ms_of_day, sequence, size, condition, price, price_type, date, **expiration, strike, right, strike_price_type** | Snapshot trade endpoints |
 | `OptionContract` | root, expiration, strike, right | option_list_contracts |
 | `CalendarDay` | date, is_open, open_time, close_time, status | Calendar endpoints |
 | `InterestRateTick` | ms_of_day, rate, date | Interest rate endpoints |
 | `Greeks` | value, delta, gamma, theta, vega, rho, iv, iv_error, vanna, charm, vomma, veta, speed, zomma, color, ultima, d1, d2, dual_delta, dual_gamma, epsilon, lambda | Standalone all_greeks() |
+
+**Contract identification fields** (bold above): `expiration`, `strike`, `right`, `strike_price_type` are populated by the server on wildcard queries (pass `"0"` for expiration/strike/right). On single-contract queries these fields are `0`.
 
 ## FPSS Streaming
 

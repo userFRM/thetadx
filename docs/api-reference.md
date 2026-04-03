@@ -884,6 +884,44 @@ let (contract, consumed) = Contract::from_bytes(&bytes)?;  // deserialize
 
 All 14 tick types are `Clone + Debug` structs generated from `endpoint_schema.toml`. Most are also `Copy` (except `OptionContract`, which contains a `String` field). Fields are typically `i32`, with `i64` for large values (e.g., `MarketValueTick.market_cap`), `f64` for Greeks/IV, and `String` for identifiers. Prices are stored in fixed-point encoding. Use the `*_price()` methods to get `Price` values with proper decimal handling.
 
+### Contract Identification Fields
+
+10 tick types carry **contract identification fields** that identify which option contract each tick belongs to. These fields are populated by the server on wildcard/bulk queries (where strike/expiration/right are `0`); on single-contract queries they are `0`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expiration` | `i32` | Contract expiration date (YYYYMMDD). 0 on single-contract queries. |
+| `strike` | `i32` | Strike price (fixed-point encoded). Use `strike_price()` for `f64`. |
+| `right` | `i32` | Contract right: `67` = Call ('C'), `80` = Put ('P'). 0 if absent. |
+| `strike_price_type` | `i32` | Price type for decoding `strike`. |
+
+Helper methods on all 10 tick types:
+
+| Method | Return | Description |
+|--------|--------|-------------|
+| `strike_price()` | `f64` | Decode strike to float |
+| `is_call()` | `bool` | `right == 67` |
+| `is_put()` | `bool` | `right == 80` |
+| `has_contract_id()` | `bool` | `expiration != 0` |
+
+Tick types with contract ID: `TradeTick`, `QuoteTick`, `OhlcTick`, `EodTick`, `OpenInterestTick`, `SnapshotTradeTick`, `TradeQuoteTick`, `MarketValueTick`, `GreeksTick`, `IvTick`.
+
+**Not** on: `CalendarDay`, `InterestRateTick`, `PriceTick`.
+
+```rust
+// Wildcard query — ticks include contract identification
+let ticks = tdx.option_history_trade("AAPL", "0", "0", "0", "20250101").await?;
+for t in &ticks {
+    if t.has_contract_id() {
+        println!("{} {} strike={} price={}",
+            t.expiration,
+            if t.is_call() { "C" } else { "P" },
+            t.strike_price(),
+            t.get_price().to_f64());
+    }
+}
+```
+
 ### TradeTick
 
 16 fields representing a single trade.
@@ -906,6 +944,10 @@ pub struct TradeTick {
     pub records_back: i32,      // Records back count
     pub price_type: i32,        // Decimal type for price decoding
     pub date: i32,              // Date as YYYYMMDD integer
+    pub expiration: i32,        // Contract expiration (YYYYMMDD, 0 if absent)
+    pub strike: i32,            // Contract strike (fixed-point)
+    pub right: i32,             // C=67, P=80 (ASCII)
+    pub strike_price_type: i32, // Price type for strike decoding
 }
 ```
 
@@ -920,6 +962,9 @@ Methods:
 | `is_incremental_volume()` | `bool` | volume_type == 0 |
 | `regular_trading_hours()` | `bool` | 9:30 AM - 4:00 PM ET |
 | `is_seller()` | `bool` | ext_condition1 == 12 |
+| `strike_price()` | `f64` | Decoded strike price |
+| `is_call()` / `is_put()` | `bool` | Contract right check |
+| `has_contract_id()` | `bool` | Whether contract ID fields are populated |
 
 ### QuoteTick
 
@@ -938,21 +983,16 @@ pub struct QuoteTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods:
-
-| Method | Return | Description |
-|--------|--------|-------------|
-| `bid_price()` | `Price` | Bid price with decimal handling |
-| `ask_price()` | `Price` | Ask price with decimal handling |
-| `midpoint_value()` | `i32` | Integer midpoint (bid + ask) / 2 |
-| `midpoint_price()` | `Price` | Midpoint as Price |
+Methods: `bid_price()`, `ask_price()`, `midpoint_value()`, `midpoint_price()`, plus contract ID helpers.
 
 ### OhlcTick
-
-9 fields representing an aggregated bar.
 
 ```rust
 pub struct OhlcTick {
@@ -965,10 +1005,14 @@ pub struct OhlcTick {
     pub count: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()` - all return `Price`.
+Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, plus contract ID helpers.
 
 ### EodTick
 
@@ -994,10 +1038,14 @@ pub struct EodTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()` - all operate on the shared `price_type`.
+Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()`, plus contract ID helpers.
 
 ### OpenInterestTick
 
@@ -1006,12 +1054,14 @@ pub struct OpenInterestTick {
     pub ms_of_day: i32,
     pub open_interest: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
 ### SnapshotTradeTick
-
-7-field abbreviated trade for snapshots.
 
 ```rust
 pub struct SnapshotTradeTick {
@@ -1022,10 +1072,14 @@ pub struct SnapshotTradeTick {
     pub price: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `get_price() -> Price`.
+Methods: `get_price()`, plus contract ID helpers.
 
 ### TradeQuoteTick
 
@@ -1062,14 +1116,16 @@ pub struct TradeQuoteTick {
     // Shared
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `trade_price()`, `bid_price()`, `ask_price()` - all return `Price`.
+Methods: `trade_price()`, `bid_price()`, `ask_price()`, plus contract ID helpers.
 
 ### MarketValueTick
-
-7 fields - market capitalization and related data.
 
 ```rust
 pub struct MarketValueTick {
@@ -1080,12 +1136,14 @@ pub struct MarketValueTick {
     pub book_value: i64,
     pub free_float: i64,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
 ### GreeksTick
-
-24 fields - full set of option Greeks.
 
 ```rust
 pub struct GreeksTick {
@@ -1113,12 +1171,14 @@ pub struct GreeksTick {
     pub lambda: f64,
     pub vera: f64,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
 ### IvTick
-
-4 fields - implied volatility.
 
 ```rust
 pub struct IvTick {
@@ -1126,6 +1186,10 @@ pub struct IvTick {
     pub implied_volatility: f64,
     pub iv_error: f64,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 

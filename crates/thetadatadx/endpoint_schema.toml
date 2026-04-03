@@ -22,6 +22,8 @@
 #   copy = true/false   -- whether to derive Copy (false when String fields exist)
 #   align = 64          -- repr(C, align(N)); omit for no repr attribute
 #   doc = "..."         -- doc comment on the struct
+#   contract_id = true  -- inject expiration/strike/right/strike_price_type fields
+#                          (populated by server on wildcard queries, 0 otherwise)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Existing 4 tick types (hand-written before, now generated)
@@ -31,6 +33,7 @@
 doc = "Trade tick -- 16 fields. Core unit of trade data."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_trade_ticks"
 required = ["ms_of_day", "price"]
 price_typed_columns = ["price"]
@@ -57,6 +60,7 @@ columns = [
 doc = "Quote tick -- 11 fields. NBBO quote data."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_quote_ticks"
 required = ["ms_of_day", "bid", "ask"]
 price_typed_columns = ["bid", "ask"]
@@ -78,6 +82,7 @@ columns = [
 doc = "OHLC tick -- 9 fields. Aggregated bar data."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_ohlc_ticks"
 required = ["ms_of_day", "open"]
 price_typed_columns = ["open", "high", "low", "close"]
@@ -97,6 +102,7 @@ columns = [
 doc = "End-of-day tick -- 18 fields. Full EOD snapshot with OHLC + quote."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_eod_ticks"
 eod_style = true
 required = []
@@ -128,6 +134,7 @@ columns = [
 [types.OpenInterestTick]
 doc = "Open interest tick -- 3 fields."
 copy = true
+contract_id = true
 parser = "parse_open_interest_ticks"
 required = ["ms_of_day"]
 columns = [
@@ -139,6 +146,7 @@ columns = [
 [types.SnapshotTradeTick]
 doc = "Snapshot trade tick -- 7 fields. Abbreviated trade for snapshots."
 copy = true
+contract_id = true
 parser = "parse_snapshot_trade_ticks"
 required = ["ms_of_day", "price"]
 price_typed_columns = ["price"]
@@ -155,6 +163,7 @@ columns = [
 [types.TradeQuoteTick]
 doc = "Combined trade + quote tick -- 26 fields."
 copy = true
+contract_id = true
 parser = "parse_trade_quote_ticks"
 required = ["ms_of_day", "price"]
 price_typed_columns = ["price"]
@@ -192,6 +201,7 @@ columns = [
 doc = "Market value tick -- 7 fields. Market capitalization and related data."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_market_value_ticks"
 required = ["ms_of_day"]
 columns = [
@@ -208,6 +218,7 @@ columns = [
 doc = "Greeks tick -- 24 fields. Full set of option greeks."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_greeks_ticks"
 required = ["ms_of_day"]
 columns = [
@@ -241,6 +252,7 @@ columns = [
 doc = "Implied volatility tick -- 4 fields."
 copy = true
 align = 64
+contract_id = true
 parser = "parse_iv_ticks"
 required = ["ms_of_day"]
 columns = [

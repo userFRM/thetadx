@@ -62,6 +62,8 @@ auto contracts = client.option_list_contracts("EOD", "SPY", "20240315");
 
 ::: tip
 Option contracts are identified by four parameters: underlying symbol, expiration date, strike price (in tenths of a cent, so `500000` = $500.00), and side (`"C"` for call, `"P"` for put).
+
+Pass `"*"` for `strike`, `expiration`, or `right` to query across multiple contracts in a single request. Each tick in the response carries `expiration`, `strike`, `right`, and `strike_price_type` fields identifying its contract. Use `has_contract_id()` (Rust) or check `expiration != 0` to detect wildcard results. See [Contract Identification Fields](/api-reference#contract-identification-fields).
 :::
 
 ## Snapshots

@@ -176,6 +176,14 @@ The 14 generated tick types are: `TradeTick`, `QuoteTick`, `OhlcTick`, `EodTick`
 
 Adding a new tick type requires only adding a TOML table to `endpoint_schema.toml` - no hand-written struct or parser code needed. See `docs/endpoint-schema.md` for the full schema reference.
 
+### Contract Identification on Tick Types
+
+10 of the 14 tick types carry contract identification fields (`expiration`, `strike`, `right`, `strike_price_type`) that identify which option contract a tick belongs to. These fields are populated by the server on **wildcard queries** -- when you pass `"*"` for strike, expiration, or right to request data across multiple contracts in a single response.
+
+The `contract_id = true` flag in `endpoint_schema.toml` drives this: `build.rs` injects the four extra fields into the generated struct and emits parser code that extracts them from the DataTable (when the server includes the columns). On single-contract queries, all four fields default to `0`.
+
+The `impl_contract_id!` macro in `crates/tdbe/src/types/tick.rs` adds four helper methods to all 10 types: `strike_price() -> f64`, `is_call() -> bool`, `is_put() -> bool`, `has_contract_id() -> bool`. All fields are `i32`, `Copy`, `repr(C)`, and FFI-safe (zero allocation).
+
 ## FPSS Protocol (Real-Time Streaming)
 
 FPSS is a custom binary protocol over TLS/TCP.

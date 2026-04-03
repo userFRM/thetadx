@@ -884,6 +884,30 @@ let (contract, consumed) = Contract::from_bytes(&bytes)?;  // deserialize
 
 All 14 tick types are `Clone + Debug` structs generated from `endpoint_schema.toml`. Most are also `Copy` (except `OptionContract`, which contains a `String` field). Fields are typically `i32`, with `i64` for large values (e.g., `MarketValueTick.market_cap`), `f64` for Greeks/IV, and `String` for identifiers. Prices are stored in fixed-point encoding. Use the `*_price()` methods to get `Price` values with proper decimal handling.
 
+### Contract Identification Fields
+
+10 of the 14 tick types carry **contract identification fields** for wildcard option queries. When you query with `"*"` for strike, expiration, or right (returning data for multiple contracts in one response), the server populates these fields on each tick so you can identify which contract it belongs to:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expiration` | `i32` | Expiration date as `YYYYMMDD` (e.g., `20241220`) |
+| `strike` | `i32` | Strike price, price-encoded (e.g., `500000` = $500.00) |
+| `right` | `i32` | ASCII code: `67` = Call (`'C'`), `80` = Put (`'P'`) |
+| `strike_price_type` | `i32` | Decimal type for decoding the strike price |
+
+All four fields are `i32`, `Copy`, `repr(C)`, FFI-safe, and zero-allocation. On single-contract queries (where you specify an exact strike/expiration/right), these fields default to `0`.
+
+The 10 tick types with contract ID fields are: `TradeTick`, `QuoteTick`, `OhlcTick`, `EodTick`, `OpenInterestTick`, `SnapshotTradeTick`, `TradeQuoteTick`, `MarketValueTick`, `GreeksTick`, `IvTick`.
+
+**Helper methods** (added by `impl_contract_id!` macro on all 10 types):
+
+| Method | Return | Description |
+|--------|--------|-------------|
+| `strike_price()` | `f64` | Decode strike to float (e.g., `500000` with type `8` -> `5000.0`). Returns `0.0` if contract ID is absent. |
+| `is_call()` | `bool` | `true` if `right == 67` (ASCII `'C'`) |
+| `is_put()` | `bool` | `true` if `right == 80` (ASCII `'P'`) |
+| `has_contract_id()` | `bool` | `true` if `expiration != 0` (i.e., contract ID fields are populated) |
+
 ### TradeTick
 
 16 fields representing a single trade.
@@ -906,6 +930,11 @@ pub struct TradeTick {
     pub records_back: i32,      // Records back count
     pub price_type: i32,        // Decimal type for price decoding
     pub date: i32,              // Date as YYYYMMDD integer
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,        // YYYYMMDD
+    pub strike: i32,            // Price-encoded strike
+    pub right: i32,             // ASCII: 67=Call, 80=Put
+    pub strike_price_type: i32, // Decimal type for strike decoding
 }
 ```
 
@@ -920,6 +949,10 @@ Methods:
 | `is_incremental_volume()` | `bool` | volume_type == 0 |
 | `regular_trading_hours()` | `bool` | 9:30 AM - 4:00 PM ET |
 | `is_seller()` | `bool` | ext_condition1 == 12 |
+| `strike_price()` | `f64` | Decoded strike price (wildcard queries) |
+| `is_call()` | `bool` | `right == 67` |
+| `is_put()` | `bool` | `right == 80` |
+| `has_contract_id()` | `bool` | `expiration != 0` |
 
 ### QuoteTick
 
@@ -938,6 +971,11 @@ pub struct QuoteTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
@@ -949,6 +987,10 @@ Methods:
 | `ask_price()` | `Price` | Ask price with decimal handling |
 | `midpoint_value()` | `i32` | Integer midpoint (bid + ask) / 2 |
 | `midpoint_price()` | `Price` | Midpoint as Price |
+| `strike_price()` | `f64` | Decoded strike price (wildcard queries) |
+| `is_call()` | `bool` | `right == 67` |
+| `is_put()` | `bool` | `right == 80` |
+| `has_contract_id()` | `bool` | `expiration != 0` |
 
 ### OhlcTick
 
@@ -965,10 +1007,15 @@ pub struct OhlcTick {
     pub count: i32,
     pub price_type: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()` - all return `Price`.
+Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()` - all return `Price`. Plus `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### EodTick
 
@@ -994,10 +1041,15 @@ pub struct EodTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()` - all operate on the shared `price_type`.
+Methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()` - all operate on the shared `price_type`. Plus `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### OpenInterestTick
 
@@ -1006,6 +1058,11 @@ pub struct OpenInterestTick {
     pub ms_of_day: i32,
     pub open_interest: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
@@ -1022,10 +1079,15 @@ pub struct SnapshotTradeTick {
     pub price: i32,
     pub price_type: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `get_price() -> Price`.
+Methods: `get_price() -> Price`, `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()`.
 
 ### TradeQuoteTick
 
@@ -1062,10 +1124,15 @@ pub struct TradeQuoteTick {
     // Shared
     pub price_type: i32,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
 
-Methods: `trade_price()`, `bid_price()`, `ask_price()` - all return `Price`.
+Methods: `trade_price()`, `bid_price()`, `ask_price()` - all return `Price`. Plus `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### MarketValueTick
 
@@ -1080,8 +1147,15 @@ pub struct MarketValueTick {
     pub book_value: i64,
     pub free_float: i64,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
+
+Methods: `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### GreeksTick
 
@@ -1113,8 +1187,15 @@ pub struct GreeksTick {
     pub lambda: f64,
     pub vera: f64,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
+
+Methods: `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### IvTick
 
@@ -1126,8 +1207,15 @@ pub struct IvTick {
     pub implied_volatility: f64,
     pub iv_error: f64,
     pub date: i32,
+    // Contract identification (wildcard queries only; 0 on single-contract queries)
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 ```
+
+Methods: `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` for wildcard queries.
 
 ### PriceTick
 

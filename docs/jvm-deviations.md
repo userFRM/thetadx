@@ -267,6 +267,14 @@ As of v1.2.0:
 | **Source** | `OHLCVC.java:processTrade()` | `fpss/mod.rs` OHLCVC accumulator |
 | **Rationale** | Java's `processTrade()` indexes into a pre-parsed trade tick array where fields are already extracted by position. Rust indexes into the raw FIT-decoded field array before tick-type-specific extraction. Both arrive at the correct price, priceType, and size values — the different indices reflect different stages in the decode pipeline, not different data. |
 
+### Contract Identification: Embedded Fields vs DataTable Columns
+
+| | Java | Rust | Impact |
+|---|---|---|---|
+| **Behavior** | Wildcard query responses return contract ID columns (`expiration`, `strike`, `right`) as extra DataTable columns that the user must locate and parse manually | 10 tick types embed `expiration`, `strike`, `right`, `strike_price_type` fields directly in the struct, with `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` helpers | No wire change |
+| **Source** | DataTable column-based response parsing in terminal REST handlers | `endpoint_schema.toml` (`contract_id = true`) + `build.rs` codegen + `impl_contract_id!` macro in `tick.rs` |
+| **Rationale** | The Java terminal returns wildcard query results as a raw DataTable where contract identification is mixed in with market data columns. Users must discover the column indices and extract them manually. The Rust SDK promotes these to first-class struct fields with typed helpers, making wildcard queries ergonomic. The fields default to `0` on single-contract queries, adding no overhead. All fields are `i32`, `Copy`, `repr(C)`, FFI-safe, zero allocation. |
+
 ## What Is NOT Different
 
 These are identical to the Java terminal:

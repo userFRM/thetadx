@@ -252,6 +252,31 @@ All endpoints return fully typed C++ structs. No raw JSON.
 | `InterestRateTick` | ms_of_day, rate, date | Interest rate endpoints |
 | `Greeks` | value, delta, gamma, theta, vega, rho, iv, iv_error, vanna, charm, vomma, veta, speed, zomma, color, ultima, d1, d2, dual_delta, dual_gamma, epsilon, lambda | Standalone all_greeks() |
 
+### Contract Identification Fields (Wildcard Queries)
+
+10 tick types (`EodTick`, `OhlcTick`, `TradeTick`, `QuoteTick`, `TradeQuoteTick`, `OpenInterestTick`, `MarketValueTick`, `GreeksTick`, `IvTick`, `SnapshotTradeTick`) carry four extra fields for wildcard option queries:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expiration` | `int32_t` | Expiration date as `YYYYMMDD` |
+| `strike` | `int32_t` | Strike price, price-encoded |
+| `right` | `int32_t` | ASCII code: `67` = Call (`'C'`), `80` = Put (`'P'`) |
+| `strike_price_type` | `int32_t` | Decimal type for strike decoding |
+
+These fields are populated when you pass `"*"` for strike, expiration, or right in option endpoints. On single-contract queries, all four are `0`.
+
+```cpp
+// Wildcard strike -- fetch all strikes for an expiration
+auto trades = client.option_snapshot_trade("SPY", "20241220", "*", "C");
+for (auto& tick : trades) {
+    if (tick.expiration != 0) {
+        std::cout << "exp=" << tick.expiration
+                  << " strike=" << tick.strike
+                  << " right=" << (char)tick.right << std::endl;
+    }
+}
+```
+
 ## FPSS Streaming
 
 Real-time market data via ThetaData's FPSS servers. Streaming uses a **separate `FpssClient` class**, not methods on `Client`.

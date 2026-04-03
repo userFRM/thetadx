@@ -18,6 +18,10 @@ Option contracts are identified by four parameters:
 | `strike` | Strike price in tenths of a cent | `"500000"` ($500.00) |
 | `right` | Call or put | `"C"` or `"P"` |
 
+## Wildcard Queries
+
+You can pass `"*"` for `strike`, `expiration`, or `right` to fetch data across multiple contracts in a single request. When you do, each tick in the response carries **contract identification fields** (`expiration`, `strike`, `right`, `strike_price_type`) so you can identify which contract it belongs to. Use `has_contract_id()` (Rust) or check `expiration != 0` to detect wildcard responses. See [Contract Identification Fields](../../api-reference#contract-identification-fields) for details.
+
 ## Endpoint Categories
 
 ### [List](./list/roots) (5 endpoints)

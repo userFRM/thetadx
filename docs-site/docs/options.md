@@ -135,6 +135,32 @@ df = to_dataframe(chain)
 print(df[["strike", "close", "volume"]].head(20))
 ```
 
+### Wildcard Queries (Bulk Fetch)
+
+Instead of querying one contract at a time, pass `"*"` for strike, expiration, or right to fetch data for multiple contracts in a single request. Each tick carries contract identification fields so you can tell which contract it belongs to:
+
+::: code-group
+```rust [Rust]
+// All strikes for a given expiration
+let quotes = client.option_snapshot_quote("SPY", "20240419", "*", "C").await?;
+for q in &quotes {
+    if q.has_contract_id() {
+        println!("strike={:.2} bid={} ask={}",
+            q.strike_price(), q.bid_price(), q.ask_price());
+    }
+}
+```
+```python [Python]
+# All strikes -- each tick has expiration/strike/right fields
+quotes = client.option_snapshot_quote("SPY", "20240419", "*", "C")
+for q in quotes:
+    if q.get("expiration", 0) != 0:
+        print(f"strike={q['strike']} bid={q['bid']:.2f} ask={q['ask']:.2f}")
+```
+:::
+
+The four fields (`expiration`, `strike`, `right`, `strike_price_type`) default to `0` on single-contract queries and are populated on wildcard queries. See [API Reference](/api-reference#contract-identification-fields).
+
 ---
 
 ## Local Greeks Calculator

@@ -40,6 +40,7 @@ These are included into the crate via `include!()`:
 | `parser`               | `string`   | Name of the generated parse function |
 | `required`             | `[string]` | Headers that must exist or the parser returns `vec![]` |
 | `price_typed_columns`  | `[string]` | Columns that may carry `Price`-typed cells (vs plain `Number`) |
+| `contract_id`          | `bool`     | Inject `expiration`, `strike`, `right`, `strike_price_type` fields for wildcard queries (default `false`) |
 | `eod_style`            | `bool`     | Use `eod_num` helper that handles both Price and Number cells |
 
 ### Per-column options

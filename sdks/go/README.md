@@ -253,6 +253,30 @@ defer client.Close()
 | `InterestRate` | Date, Rate | Interest rate data point |
 | `Contract` | Symbol, Expiration, Strike, Right | Option contract identifier |
 
+### Contract Identification Fields (Wildcard Queries)
+
+10 tick types (`EodTick`, `OhlcTick`, `TradeTick`, `QuoteTick`, `TradeQuoteTick`, `OpenInterestTick`, `MarketValueTick`, `GreeksTick`, `IVTick`, `SnapshotTradeTick`) carry four extra fields for wildcard option queries:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Expiration` | `int32` | Expiration date as `YYYYMMDD` |
+| `Strike` | `int32` | Strike price, price-encoded |
+| `Right` | `int32` | ASCII code: `67` = Call (`'C'`), `80` = Put (`'P'`) |
+| `StrikePriceType` | `int32` | Decimal type for strike decoding |
+
+These fields are populated when you pass `"*"` for strike, expiration, or right in option endpoints. On single-contract queries, all four are `0`.
+
+```go
+// Wildcard strike -- fetch all strikes for an expiration
+trades, err := client.OptionSnapshotTrade("SPY", "20241220", "*", "C")
+for _, tick := range trades {
+    if tick.Expiration != 0 {
+        fmt.Printf("exp=%d strike=%d right=%c\n",
+            tick.Expiration, tick.Strike, rune(tick.Right))
+    }
+}
+```
+
 ## FPSS Streaming
 
 Real-time market data via ThetaData's FPSS servers. Streaming uses a separate `FpssClient` struct (not the historical `Client`).

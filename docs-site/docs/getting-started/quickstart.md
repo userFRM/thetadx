@@ -171,6 +171,32 @@ df = client.stock_history_ohlc_df("AAPL", "20240315", "60000")
 
 Requires `pip install thetadatadx[pandas]`.
 
+## Wildcard Queries and Contract Identification
+
+When querying option endpoints, you can pass `"*"` for `strike`, `expiration`, or `right` to fetch data across multiple contracts in a single request. Each tick in the response carries contract identification fields so you can tell which contract it belongs to:
+
+::: code-group
+```rust [Rust]
+// Fetch all SPY calls for a given expiration (wildcard strike)
+let trades = tdx.option_snapshot_trade("SPY", "20241220", "*", "C").await?;
+for tick in &trades {
+    if tick.has_contract_id() {
+        println!("strike={:.2} call={} price={:?}",
+            tick.strike_price(), tick.is_call(), tick.get_price());
+    }
+}
+```
+```python [Python]
+# Wildcard strike -- all strikes returned, each tick has contract fields
+trades = tdx.option_snapshot_trade("SPY", "20241220", "*", "C")
+for tick in trades:
+    if tick.get("expiration", 0) != 0:
+        print(f"exp={tick['expiration']} strike={tick['strike']} right={tick['right']}")
+```
+:::
+
+The four fields (`expiration`, `strike`, `right`, `strike_price_type`) are `0` on single-contract queries and populated on wildcard queries. See [API Reference](../api-reference#contract-identification-fields) for details.
+
 ## What's Next
 
 - [Historical Data](../historical/) - all 61 endpoints with examples

@@ -111,6 +111,34 @@ The helper macros (`req_field_type!`, `req_param_type!`, `opt_field_type!`,
 | `opt_bool` | `Option<bool>`    | `bool`            | Boolean flags                 |
 | `string`   | `String`          | `&str`            | Required-with-default string  |
 
+## `contract_id = true` -- wildcard query contract fields
+
+Setting `contract_id = true` on a tick type in `endpoint_schema.toml` causes
+`build.rs` to inject four extra fields into the generated struct:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expiration` | `i32` | Expiration date as `YYYYMMDD` |
+| `strike` | `i32` | Strike price, price-encoded |
+| `right` | `i32` | ASCII code: `67` = Call, `80` = Put |
+| `strike_price_type` | `i32` | Decimal type for strike decoding |
+
+The generated parser extracts these from DataTable columns named `"expiration"`,
+`"strike"`, and `"right"` when present (wildcard queries). When absent
+(single-contract queries), all four default to `0`.
+
+In `crates/tdbe/src/types/tick.rs`, the `impl_contract_id!` macro adds four
+helper methods to each type with `contract_id = true`:
+
+- `strike_price() -> f64` -- decode strike to float using `strike_price_type`
+- `is_call() -> bool` -- `right == 67` (ASCII `'C'`)
+- `is_put() -> bool` -- `right == 80` (ASCII `'P'`)
+- `has_contract_id() -> bool` -- `expiration != 0`
+
+Currently 10 of 14 tick types have `contract_id = true`: `TradeTick`,
+`QuoteTick`, `OhlcTick`, `EodTick`, `OpenInterestTick`, `SnapshotTradeTick`,
+`TradeQuoteTick`, `MarketValueTick`, `GreeksTick`, `IvTick`.
+
 ## Adding a new endpoint (step by step)
 
 ### 1. Define the tick type (if new)

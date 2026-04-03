@@ -28,7 +28,8 @@
 //! # use thetadatadx::auth::Credentials;
 //! # fn example() -> Result<(), thetadatadx::error::Error> {
 //! let creds = Credentials::new("user@example.com", "pw");
-//! let client = FpssClient::connect(&creds, 4096, Default::default(), |event: &FpssEvent| {
+//! let hosts = thetadatadx::config::DirectConfig::production().fpss_hosts;
+//! let client = FpssClient::connect(&creds, &hosts, 4096, Default::default(), |event: &FpssEvent| {
 //!     // Runs on the Disruptor consumer thread -- keep it fast.
 //!     // Push to your own queue for heavy processing.
 //!     match event {
@@ -297,7 +298,7 @@ impl FpssClient {
     ///
     /// # Sequence (from `FPSSClient.java`)
     ///
-    /// 1. Try each server in `SERVERS` until one connects (blocking TLS over TCP)
+    /// 1. Try each server in `hosts` until one connects (blocking TLS over TCP)
     /// 2. Send CREDENTIALS (code 0) with email + password
     /// 3. Wait for METADATA (code 3) = login success, or DISCONNECTED (code 12) = failure
     /// 4. Start ping heartbeat (100ms interval, std::thread with sleep loop)
@@ -305,8 +306,12 @@ impl FpssClient {
     ///
     /// Source: `FPSSClient.connect()` and `FPSSClient.sendCredentials()`.
     /// Connect with default settings (OHLCVC derivation enabled).
+    ///
+    /// `hosts` is the FPSS server list from [`DirectConfig::fpss_hosts`].
+    /// Servers are tried in order until one connects.
     pub fn connect<F>(
         creds: &Credentials,
+        hosts: &[(String, u16)],
         ring_size: usize,
         flush_mode: FpssFlushMode,
         handler: F,
@@ -314,7 +319,8 @@ impl FpssClient {
     where
         F: FnMut(&FpssEvent) + Send + 'static,
     {
-        let (stream, server_addr) = connection::connect()?;
+        let borrowed: Vec<(&str, u16)> = hosts.iter().map(|(h, p)| (h.as_str(), *p)).collect();
+        let (stream, server_addr) = connection::connect_to_servers(&borrowed)?;
         Self::connect_with_stream(
             creds,
             stream,
@@ -332,8 +338,11 @@ impl FpssClient {
     /// `FpssData::Ohlcvc` events after each trade. You still receive
     /// server-sent OHLCVC frames. This reduces throughput overhead by
     /// eliminating one extra event per trade.
+    ///
+    /// `hosts` is the FPSS server list from [`DirectConfig::fpss_hosts`].
     pub fn connect_no_ohlcvc<F>(
         creds: &Credentials,
+        hosts: &[(String, u16)],
         ring_size: usize,
         flush_mode: FpssFlushMode,
         handler: F,
@@ -341,7 +350,8 @@ impl FpssClient {
     where
         F: FnMut(&FpssEvent) + Send + 'static,
     {
-        let (stream, server_addr) = connection::connect()?;
+        let borrowed: Vec<(&str, u16)> = hosts.iter().map(|(h, p)| (h.as_str(), *p)).collect();
+        let (stream, server_addr) = connection::connect_to_servers(&borrowed)?;
         Self::connect_with_stream(
             creds,
             stream,
@@ -1719,6 +1729,7 @@ fn ping_loop(
 /// Source: `FPSSClient.java` reconnection logic in the main loop.
 pub fn reconnect<F>(
     creds: &Credentials,
+    hosts: &[(String, u16)],
     previous_subs: Vec<(SubscriptionKind, Contract)>,
     previous_full_subs: Vec<(SubscriptionKind, tdbe::types::enums::SecType)>,
     delay_ms: u64,
@@ -1732,7 +1743,7 @@ where
     tracing::info!(delay_ms, "waiting before FPSS reconnection");
     thread::sleep(Duration::from_millis(delay_ms));
 
-    let client = FpssClient::connect(creds, ring_size, flush_mode, handler)?;
+    let client = FpssClient::connect(creds, hosts, ring_size, flush_mode, handler)?;
 
     // Re-subscribe all previous per-contract subscriptions with req_id = -1
     // Source: FPSSClient.java -- reconnect logic uses req_id = -1 for re-subscriptions

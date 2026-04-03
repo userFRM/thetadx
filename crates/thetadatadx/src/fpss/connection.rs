@@ -24,15 +24,15 @@ use std::time::Duration;
 use rustls::pki_types::ServerName;
 use rustls::{ClientConfig, ClientConnection, StreamOwned};
 
-use super::protocol::{CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS, SERVERS};
+use super::protocol::{CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS};
 
 /// Type alias for the TLS-wrapped TCP stream (blocking).
 pub type FpssStream = StreamOwned<ClientConnection, TcpStream>;
 
 /// Establish a TLS connection to the first reachable FPSS server.
 ///
-/// Tries each server in [`SERVERS`] in order. Returns the stream and
-/// connected server address on success, or the last error if all fail.
+/// Tries each server in order. Returns the stream and connected server
+/// address on success, or the last error if all fail.
 ///
 /// # Connection sequence (from `FPSSClient.connect()`)
 ///
@@ -42,13 +42,6 @@ pub type FpssStream = StreamOwned<ClientConnection, TcpStream>;
 /// 4. TLS handshake via system trust store
 ///
 /// Source: `FPSSClient.connect()` in decompiled terminal.
-pub fn connect() -> Result<(FpssStream, String), crate::error::Error> {
-    connect_to_servers(SERVERS)
-}
-
-/// Connect to a specific server list (for testing or custom endpoints).
-///
-/// Same behavior as [`connect`] but accepts an arbitrary server list.
 pub fn connect_to_servers(
     servers: &[(&str, u16)],
 ) -> Result<(FpssStream, String), crate::error::Error> {
@@ -200,13 +193,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn server_list_has_four_entries() {
-        // Sanity check: the hardcoded server list from Java has 4 entries.
-        assert_eq!(SERVERS.len(), 4);
-        assert_eq!(SERVERS[0], ("nj-a.thetadata.us", 20000));
-        assert_eq!(SERVERS[1], ("nj-a.thetadata.us", 20001));
-        assert_eq!(SERVERS[2], ("nj-b.thetadata.us", 20000));
-        assert_eq!(SERVERS[3], ("nj-b.thetadata.us", 20001));
+    fn production_config_has_four_fpss_hosts() {
+        let config = crate::config::DirectConfig::production();
+        assert_eq!(config.fpss_hosts.len(), 4);
+        assert_eq!(
+            config.fpss_hosts[0],
+            ("nj-a.thetadata.us".to_string(), 20000)
+        );
+        assert_eq!(
+            config.fpss_hosts[1],
+            ("nj-a.thetadata.us".to_string(), 20001)
+        );
+        assert_eq!(
+            config.fpss_hosts[2],
+            ("nj-b.thetadata.us".to_string(), 20000)
+        );
+        assert_eq!(
+            config.fpss_hosts[3],
+            ("nj-b.thetadata.us".to_string(), 20001)
+        );
     }
 
     #[test]

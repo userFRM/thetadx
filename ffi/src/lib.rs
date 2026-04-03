@@ -2026,6 +2026,7 @@ pub unsafe extern "C" fn tdx_fpss_connect(
 
     let client = match thetadatadx::fpss::FpssClient::connect(
         &creds.inner,
+        &config.inner.fpss_hosts,
         config.inner.fpss_ring_size,
         config.inner.fpss_flush_mode,
         move |event: &thetadatadx::fpss::FpssEvent| {

@@ -87,9 +87,13 @@ impl ThetaDataDx {
             return Err(Error::Fpss("streaming already started".into()));
         }
         let config = self.historical.config();
-        let ring_size = config.fpss_ring_size;
-        let flush_mode = config.fpss_flush_mode;
-        let client = FpssClient::connect(&self.creds, ring_size, flush_mode, handler)?;
+        let client = FpssClient::connect(
+            &self.creds,
+            &config.fpss_hosts,
+            config.fpss_ring_size,
+            config.fpss_flush_mode,
+            handler,
+        )?;
         *guard = Some(client);
         Ok(())
     }
@@ -104,9 +108,13 @@ impl ThetaDataDx {
             return Err(Error::Fpss("streaming already started".into()));
         }
         let config = self.historical.config();
-        let ring_size = config.fpss_ring_size;
-        let flush_mode = config.fpss_flush_mode;
-        let client = FpssClient::connect_no_ohlcvc(&self.creds, ring_size, flush_mode, handler)?;
+        let client = FpssClient::connect_no_ohlcvc(
+            &self.creds,
+            &config.fpss_hosts,
+            config.fpss_ring_size,
+            config.fpss_flush_mode,
+            handler,
+        )?;
         *guard = Some(client);
         Ok(())
     }

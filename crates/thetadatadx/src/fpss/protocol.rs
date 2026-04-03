@@ -70,16 +70,6 @@ pub const CONNECT_TIMEOUT_MS: u64 = 2_000;
 /// Source: `FPSSClient.java` — `socket.setSoTimeout(10000)`.
 pub const READ_TIMEOUT_MS: u64 = 10_000;
 
-/// FPSS server endpoints.
-///
-/// Source: `FPSSClient.java` — `SERVERS` array, four entries across two sites.
-pub const SERVERS: &[(&str, u16)] = &[
-    ("nj-a.thetadata.us", 20000),
-    ("nj-a.thetadata.us", 20001),
-    ("nj-b.thetadata.us", 20000),
-    ("nj-b.thetadata.us", 20001),
-];
-
 // ---------------------------------------------------------------------------
 // Contract
 // ---------------------------------------------------------------------------

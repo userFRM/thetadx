@@ -226,6 +226,7 @@ impl ThetaDataDx {
     where
         F: FnMut(&FpssEvent) + Send + 'static,
     {
+        metrics::counter!("thetadatadx.fpss.reconnects").increment(1);
         // 1. Save active subscriptions before stopping
         let saved_subs = {
             let guard = self.streaming.lock().unwrap_or_else(|e| e.into_inner());

@@ -63,14 +63,30 @@ macro_rules! list_endpoint {
         $(#[$meta])*
         pub async fn $name(&self, $($arg : $arg_ty),*) -> Result<Vec<String>, Error> {
             tracing::debug!(endpoint = stringify!($name), "gRPC request");
+            metrics::counter!("thetadatadx.grpc.requests", "endpoint" => stringify!($name)).increment(1);
+            let _metrics_start = std::time::Instant::now();
             let _permit = self.request_semaphore.acquire().await
                 .map_err(|_| Error::Fpss("request semaphore closed".into()))?;
             let request = proto_v3::$req {
                 query_info: Some(self.query_info()),
                 params: Some(proto_v3::$query { $($field : $val),* }),
             };
-            let stream = self.stub().$grpc(request).await?.into_inner();
-            let table = self.collect_stream(stream).await?;
+            let stream = match self.stub().$grpc(request).await {
+                Ok(resp) => resp.into_inner(),
+                Err(e) => {
+                    metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                    return Err(e.into());
+                }
+            };
+            let table = match self.collect_stream(stream).await {
+                Ok(t) => t,
+                Err(e) => {
+                    metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                    return Err(e);
+                }
+            };
+            metrics::histogram!("thetadatadx.grpc.latency_ms", "endpoint" => stringify!($name))
+                .record(_metrics_start.elapsed().as_millis() as f64);
             Ok(decode::extract_text_column(&table, $col)
                 .into_iter()
                 .flatten()
@@ -138,14 +154,30 @@ macro_rules! parsed_endpoint {
                     let _ = &client;
                     $($(validate_date(&$date_arg)?;)+)?
                     tracing::debug!(endpoint = stringify!($name), "gRPC request");
+                    metrics::counter!("thetadatadx.grpc.requests", "endpoint" => stringify!($name)).increment(1);
+                    let _metrics_start = std::time::Instant::now();
                     let _permit = client.request_semaphore.acquire().await
                         .map_err(|_| Error::Fpss("request semaphore closed".into()))?;
                     let request = proto_v3::$req {
                         query_info: Some(client.query_info()),
                         params: Some(proto_v3::$query { $($field : $val),* }),
                     };
-                    let stream = client.stub().$grpc(request).await?.into_inner();
-                    let table = client.collect_stream(stream).await?;
+                    let stream = match client.stub().$grpc(request).await {
+                        Ok(resp) => resp.into_inner(),
+                        Err(e) => {
+                            metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                            return Err(e.into());
+                        }
+                    };
+                    let table = match client.collect_stream(stream).await {
+                        Ok(t) => t,
+                        Err(e) => {
+                            metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                            return Err(e);
+                        }
+                    };
+                    metrics::histogram!("thetadatadx.grpc.latency_ms", "endpoint" => stringify!($name))
+                        .record(_metrics_start.elapsed().as_millis() as f64);
                     Ok($parser(&table))
                 })
             }
@@ -286,21 +318,39 @@ macro_rules! streaming_endpoint {
                 let _ = &client;
                 $($(validate_date(&$date_arg)?;)+)?
                 tracing::debug!(endpoint = stringify!($name), "gRPC streaming request");
+                metrics::counter!("thetadatadx.grpc.requests", "endpoint" => stringify!($name)).increment(1);
+                let _metrics_start = std::time::Instant::now();
                 let _permit = client.request_semaphore.acquire().await
                     .map_err(|_| Error::Fpss("request semaphore closed".into()))?;
                 let request = proto_v3::$req {
                     query_info: Some(client.query_info()),
                     params: Some(proto_v3::$query { $($field : $val),* }),
                 };
-                let stream = client.stub().$grpc(request).await?.into_inner();
-                client.for_each_chunk(stream, |_headers, rows| {
+                let stream = match client.stub().$grpc(request).await {
+                    Ok(resp) => resp.into_inner(),
+                    Err(e) => {
+                        metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                        return Err(e.into());
+                    }
+                };
+                let result = client.for_each_chunk(stream, |_headers, rows| {
                     let table = proto::DataTable {
                         headers: _headers.to_vec(),
                         data_table: rows.to_vec(),
                     };
                     let ticks = $parser(&table);
                     handler(&ticks);
-                }).await
+                }).await;
+                match &result {
+                    Ok(()) => {
+                        metrics::histogram!("thetadatadx.grpc.latency_ms", "endpoint" => stringify!($name))
+                            .record(_metrics_start.elapsed().as_millis() as f64);
+                    }
+                    Err(_) => {
+                        metrics::counter!("thetadatadx.grpc.errors", "endpoint" => stringify!($name)).increment(1);
+                    }
+                }
+                result
             }
         }
 

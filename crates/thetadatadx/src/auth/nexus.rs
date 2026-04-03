@@ -144,6 +144,9 @@ impl AuthUser {
 /// The returned `AuthResponse.session_id` is a UUID string that must be
 /// embedded in every MDDS gRPC request as `QueryInfo.auth_token.session_uuid`.
 pub async fn authenticate(creds: &Credentials) -> Result<AuthResponse, Error> {
+    metrics::counter!("thetadatadx.auth.requests").increment(1);
+    let _auth_start = std::time::Instant::now();
+
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .connect_timeout(Duration::from_secs(5))
@@ -205,6 +208,9 @@ pub async fn authenticate(creds: &Credentials) -> Result<AuthResponse, Error> {
         session_id_prefix = %&auth.session_id[..8.min(auth.session_id.len())],
         "authenticated successfully (session_id redacted)"
     );
+
+    metrics::histogram!("thetadatadx.auth.latency_ms")
+        .record(_auth_start.elapsed().as_millis() as f64);
 
     Ok(auth)
 }

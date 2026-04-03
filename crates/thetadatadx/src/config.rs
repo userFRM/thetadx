@@ -310,6 +310,251 @@ impl DirectConfig {
     }
 }
 
+// ── Config file loading (behind `config-file` feature) ──────────────────────
+
+#[cfg(feature = "config-file")]
+mod config_file {
+    use super::{DirectConfig, FpssFlushMode};
+    use crate::error::Error;
+    use serde::Deserialize;
+
+    /// TOML-level representation of the config file.
+    ///
+    /// Unknown keys are silently ignored (`#[serde(default)]` on each section).
+    /// Missing sections fall back to production defaults.
+    #[derive(Debug, Default, Deserialize)]
+    #[serde(default)]
+    struct ConfigFile {
+        mdds: MddsSection,
+        fpss: FpssSection,
+        grpc: GrpcSection,
+        auth: AuthSection,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(default)]
+    struct MddsSection {
+        host: String,
+        port: u16,
+        tls: bool,
+        keepalive_time_secs: u64,
+        keepalive_timeout_secs: u64,
+        max_message_size: usize,
+    }
+
+    impl Default for MddsSection {
+        fn default() -> Self {
+            let prod = DirectConfig::production();
+            Self {
+                host: prod.mdds_host,
+                port: prod.mdds_port,
+                tls: prod.mdds_tls,
+                keepalive_time_secs: prod.mdds_keepalive_secs,
+                keepalive_timeout_secs: prod.mdds_keepalive_timeout_secs,
+                max_message_size: prod.mdds_max_message_size,
+            }
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(default)]
+    struct FpssSection {
+        /// Hosts as `["host:port", ...]` array or `"host:port,host:port"` string.
+        hosts: FpssHosts,
+        connect_timeout: u64,
+        read_timeout: u64,
+        ping_interval: u64,
+        reconnect_wait: u64,
+        reconnect_wait_rate_limited: u64,
+        queue_depth: usize,
+        ring_size: usize,
+        flush_mode: String,
+    }
+
+    impl Default for FpssSection {
+        fn default() -> Self {
+            let prod = DirectConfig::production();
+            Self {
+                hosts: FpssHosts::Array(
+                    prod.fpss_hosts
+                        .iter()
+                        .map(|(h, p)| format!("{h}:{p}"))
+                        .collect(),
+                ),
+                connect_timeout: prod.fpss_connect_timeout_ms,
+                read_timeout: prod.fpss_timeout_ms,
+                ping_interval: prod.fpss_ping_interval_ms,
+                reconnect_wait: prod.reconnect_wait_ms,
+                reconnect_wait_rate_limited: prod.reconnect_wait_rate_limited_ms,
+                queue_depth: prod.fpss_queue_depth,
+                ring_size: prod.fpss_ring_size,
+                flush_mode: "batched".to_string(),
+            }
+        }
+    }
+
+    /// FPSS hosts can be specified as either a TOML array or a comma-separated string.
+    #[derive(Debug, Deserialize)]
+    #[serde(untagged)]
+    enum FpssHosts {
+        Array(Vec<String>),
+        Csv(String),
+    }
+
+    impl Default for FpssHosts {
+        fn default() -> Self {
+            let prod = DirectConfig::production();
+            FpssHosts::Array(
+                prod.fpss_hosts
+                    .iter()
+                    .map(|(h, p)| format!("{h}:{p}"))
+                    .collect(),
+            )
+        }
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(default)]
+    struct GrpcSection {
+        window_size_kb: usize,
+        connection_window_size_kb: usize,
+        max_message_size_mb: usize,
+        concurrent_requests: usize,
+    }
+
+    impl Default for GrpcSection {
+        fn default() -> Self {
+            let prod = DirectConfig::production();
+            Self {
+                window_size_kb: prod.mdds_window_size_kb,
+                connection_window_size_kb: prod.mdds_connection_window_size_kb,
+                max_message_size_mb: prod.mdds_max_message_size / (1024 * 1024),
+                concurrent_requests: prod.mdds_concurrent_requests,
+            }
+        }
+    }
+
+    #[derive(Debug, Default, Deserialize)]
+    #[serde(default)]
+    struct AuthSection {
+        #[allow(dead_code)]
+        creds_file: Option<String>,
+    }
+
+    impl FpssHosts {
+        fn parse(self) -> Result<Vec<(String, u16)>, Error> {
+            let entries = match self {
+                FpssHosts::Array(arr) => arr,
+                FpssHosts::Csv(s) => s.split(',').map(|s| s.trim().to_string()).collect(),
+            };
+            let mut result = Vec::new();
+            for entry in entries {
+                let entry = entry.trim();
+                if entry.is_empty() {
+                    continue;
+                }
+                let (host, port_str) = entry
+                    .rsplit_once(':')
+                    .ok_or_else(|| Error::Config(format!("invalid host:port entry: '{entry}'")))?;
+                let port: u16 = port_str
+                    .parse()
+                    .map_err(|e| Error::Config(format!("invalid port in '{entry}': {e}")))?;
+                result.push((host.to_string(), port));
+            }
+            if result.is_empty() {
+                return Err(Error::Config("no FPSS hosts provided".to_string()));
+            }
+            Ok(result)
+        }
+    }
+
+    impl DirectConfig {
+        /// Load configuration from a TOML file.
+        ///
+        /// The file format matches `config.default.toml` shipped with the crate.
+        /// Missing sections and keys fall back to [`DirectConfig::production()`] defaults.
+        /// Unknown keys are silently ignored.
+        ///
+        /// # Example file
+        ///
+        /// ```toml
+        /// [mdds]
+        /// host = "mdds-01.thetadata.us"
+        /// port = 443
+        /// tls = true
+        ///
+        /// [fpss]
+        /// hosts = ["nj-a.thetadata.us:20000", "nj-b.thetadata.us:20000"]
+        /// reconnect_wait = 2000
+        /// queue_depth = 1000000
+        /// flush_mode = "batched"  # or "immediate"
+        ///
+        /// [grpc]
+        /// window_size_kb = 64
+        /// connection_window_size_kb = 64
+        /// concurrent_requests = 0  # 0 = auto from tier
+        /// ```
+        pub fn from_file(path: impl AsRef<std::path::Path>) -> Result<Self, Error> {
+            let contents = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+                Error::Config(format!(
+                    "failed to read config file '{}': {e}",
+                    path.as_ref().display()
+                ))
+            })?;
+            Self::from_toml_str(&contents)
+        }
+
+        /// Parse configuration from a TOML string.
+        ///
+        /// Same semantics as [`from_file`](Self::from_file) but takes a string directly.
+        pub fn from_toml_str(toml_str: &str) -> Result<Self, Error> {
+            let cf: ConfigFile = toml::from_str(toml_str)
+                .map_err(|e| Error::Config(format!("failed to parse TOML config: {e}")))?;
+
+            let flush_mode = match cf.fpss.flush_mode.to_lowercase().as_str() {
+                "immediate" => FpssFlushMode::Immediate,
+                _ => FpssFlushMode::Batched,
+            };
+
+            // If [grpc].max_message_size_mb is set, it overrides [mdds].max_message_size.
+            // The grpc section value is in MB; the mdds section value is in bytes.
+            let max_message_size = if cf.grpc.max_message_size_mb
+                != DirectConfig::production().mdds_max_message_size / (1024 * 1024)
+            {
+                cf.grpc.max_message_size_mb * 1024 * 1024
+            } else {
+                cf.mdds.max_message_size
+            };
+
+            Ok(DirectConfig {
+                mdds_host: cf.mdds.host,
+                mdds_port: cf.mdds.port,
+                mdds_tls: cf.mdds.tls,
+
+                fpss_hosts: cf.fpss.hosts.parse()?,
+                fpss_timeout_ms: cf.fpss.read_timeout,
+                fpss_queue_depth: cf.fpss.queue_depth,
+                fpss_ring_size: cf.fpss.ring_size,
+                fpss_ping_interval_ms: cf.fpss.ping_interval,
+                fpss_connect_timeout_ms: cf.fpss.connect_timeout,
+                fpss_flush_mode: flush_mode,
+
+                mdds_concurrent_requests: cf.grpc.concurrent_requests,
+                mdds_max_message_size: max_message_size,
+                mdds_keepalive_secs: cf.mdds.keepalive_time_secs,
+                mdds_keepalive_timeout_secs: cf.mdds.keepalive_timeout_secs,
+                mdds_window_size_kb: cf.grpc.window_size_kb,
+                mdds_connection_window_size_kb: cf.grpc.connection_window_size_kb,
+
+                reconnect_wait_ms: cf.fpss.reconnect_wait,
+                reconnect_wait_rate_limited_ms: cf.fpss.reconnect_wait_rate_limited,
+
+                tokio_worker_threads: None,
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -388,5 +633,156 @@ mod tests {
         let dev = DirectConfig::dev();
         assert!(dev.fpss_timeout_ms < prod.fpss_timeout_ms);
         assert!(dev.reconnect_wait_ms < prod.reconnect_wait_ms);
+    }
+
+    // -- Config file tests (only compiled with the `config-file` feature) --
+
+    #[cfg(feature = "config-file")]
+    mod config_file_tests {
+        use crate::config::{DirectConfig, FpssFlushMode};
+
+        #[test]
+        fn empty_toml_gives_production_defaults() {
+            let config = DirectConfig::from_toml_str("").unwrap();
+            let prod = DirectConfig::production();
+            assert_eq!(config.mdds_host, prod.mdds_host);
+            assert_eq!(config.mdds_port, prod.mdds_port);
+            assert_eq!(config.fpss_hosts.len(), prod.fpss_hosts.len());
+            assert_eq!(config.fpss_queue_depth, prod.fpss_queue_depth);
+        }
+
+        #[test]
+        fn partial_toml_overrides_only_specified() {
+            let toml = r#"
+                [mdds]
+                host = "custom.example.com"
+                port = 8443
+
+                [fpss]
+                queue_depth = 500000
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.mdds_host, "custom.example.com");
+            assert_eq!(config.mdds_port, 8443);
+            assert_eq!(config.fpss_queue_depth, 500000);
+            // Unspecified fields keep production defaults
+            assert!(config.mdds_tls);
+        }
+
+        #[test]
+        fn fpss_hosts_as_array() {
+            let toml = r#"
+                [fpss]
+                hosts = ["host-a.example.com:20000", "host-b.example.com:20001"]
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.fpss_hosts.len(), 2);
+            assert_eq!(
+                config.fpss_hosts[0],
+                ("host-a.example.com".to_string(), 20000)
+            );
+            assert_eq!(
+                config.fpss_hosts[1],
+                ("host-b.example.com".to_string(), 20001)
+            );
+        }
+
+        #[test]
+        fn fpss_hosts_as_csv_string() {
+            let toml = r#"
+                [fpss]
+                hosts = "host-a.example.com:20000,host-b.example.com:20001"
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.fpss_hosts.len(), 2);
+            assert_eq!(config.fpss_hosts[0].0, "host-a.example.com");
+        }
+
+        #[test]
+        fn flush_mode_immediate() {
+            let toml = r#"
+                [fpss]
+                flush_mode = "immediate"
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.fpss_flush_mode, FpssFlushMode::Immediate);
+        }
+
+        #[test]
+        fn flush_mode_batched_by_default() {
+            let toml = r#"
+                [fpss]
+                flush_mode = "batched"
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.fpss_flush_mode, FpssFlushMode::Batched);
+        }
+
+        #[test]
+        fn grpc_section_sets_window_sizes() {
+            let toml = r#"
+                [grpc]
+                window_size_kb = 128
+                connection_window_size_kb = 256
+                concurrent_requests = 4
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.mdds_window_size_kb, 128);
+            assert_eq!(config.mdds_connection_window_size_kb, 256);
+            assert_eq!(config.mdds_concurrent_requests, 4);
+        }
+
+        #[test]
+        fn grpc_max_message_size_mb_overrides_mdds_bytes() {
+            let toml = r#"
+                [grpc]
+                max_message_size_mb = 8
+            "#;
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.mdds_max_message_size, 8 * 1024 * 1024);
+        }
+
+        #[test]
+        fn unknown_keys_are_ignored() {
+            let toml = r#"
+                [mdds]
+                host = "mdds-01.thetadata.us"
+                port = 443
+                unknown_key = "should be ignored"
+
+                [some_unknown_section]
+                foo = "bar"
+            "#;
+            // Should not error
+            let config = DirectConfig::from_toml_str(toml).unwrap();
+            assert_eq!(config.mdds_port, 443);
+        }
+
+        #[test]
+        fn full_config_default_toml_parses() {
+            // Validate that config.default.toml (shipped with the crate) can be parsed.
+            let default_toml = include_str!("../../../config.default.toml");
+            let config = DirectConfig::from_toml_str(default_toml).unwrap();
+            assert_eq!(config.mdds_host, "mdds-01.thetadata.us");
+            assert_eq!(config.mdds_port, 443);
+            assert_eq!(config.fpss_hosts.len(), 4);
+        }
+
+        #[test]
+        fn invalid_toml_returns_error() {
+            let result = DirectConfig::from_toml_str("this is not valid toml [[[");
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("TOML"));
+        }
+    }
+
+    // -- Metrics tests --
+
+    #[test]
+    fn metrics_counter_compiles_and_runs() {
+        // Verify that metrics macros resolve without a recorder installed.
+        // The `metrics` crate is designed to no-op when no recorder is set.
+        metrics::counter!("thetadatadx.test.counter", "tag" => "value").increment(1);
+        metrics::histogram!("thetadatadx.test.histogram").record(42.0);
     }
 }

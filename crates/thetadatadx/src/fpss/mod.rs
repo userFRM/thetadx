@@ -1398,24 +1398,27 @@ fn decode_frame(
         StreamMsgType::Quote => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, QUOTE_FIELDS) {
-                Some((contract_id, f)) => (
-                    Some(FpssEvent::Data(FpssData::Quote {
-                        contract_id,
-                        ms_of_day: f[0],
-                        bid_size: f[1],
-                        bid_exchange: f[2],
-                        bid: f[3],
-                        bid_condition: f[4],
-                        ask_size: f[5],
-                        ask_exchange: f[6],
-                        ask: f[7],
-                        ask_condition: f[8],
-                        price_type: f[9],
-                        date: f[10],
-                        received_at_ns,
-                    })),
-                    None,
-                ),
+                Some((contract_id, f)) => {
+                    metrics::counter!("thetadatadx.fpss.events", "kind" => "quote").increment(1);
+                    (
+                        Some(FpssEvent::Data(FpssData::Quote {
+                            contract_id,
+                            ms_of_day: f[0],
+                            bid_size: f[1],
+                            bid_exchange: f[2],
+                            bid: f[3],
+                            bid_condition: f[4],
+                            ask_size: f[5],
+                            ask_exchange: f[6],
+                            ask: f[7],
+                            ask_condition: f[8],
+                            price_type: f[9],
+                            date: f[10],
+                            received_at_ns,
+                        })),
+                        None,
+                    )
+                }
                 // DATE markers return None from decode_tick -- this is normal
                 // protocol flow (session date boundary), not corruption.
                 None if delta_state.last_was_date => (None, None),
@@ -1433,6 +1436,7 @@ fn decode_frame(
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, TRADE_FIELDS) {
                 Some((contract_id, f)) => {
+                    metrics::counter!("thetadatadx.fpss.events", "kind" => "trade").increment(1);
                     let (ms_of_day, size, price) = (f[0], f[7], f[9]);
                     let (price_type, date) = (f[14], f[15]);
                     let trade_event = FpssEvent::Data(FpssData::Trade {
@@ -1501,16 +1505,20 @@ fn decode_frame(
         StreamMsgType::OpenInterest => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, OI_FIELDS) {
-                Some((contract_id, f)) => (
-                    Some(FpssEvent::Data(FpssData::OpenInterest {
-                        contract_id,
-                        ms_of_day: f[0],
-                        open_interest: f[1],
-                        date: f[2],
-                        received_at_ns,
-                    })),
-                    None,
-                ),
+                Some((contract_id, f)) => {
+                    metrics::counter!("thetadatadx.fpss.events", "kind" => "open_interest")
+                        .increment(1);
+                    (
+                        Some(FpssEvent::Data(FpssData::OpenInterest {
+                            contract_id,
+                            ms_of_day: f[0],
+                            open_interest: f[1],
+                            date: f[2],
+                            received_at_ns,
+                        })),
+                        None,
+                    )
+                }
                 None if delta_state.last_was_date => (None, None),
                 None => (
                     Some(FpssEvent::RawData {
@@ -1526,6 +1534,7 @@ fn decode_frame(
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, OHLCVC_FIELDS) {
                 Some((contract_id, f)) => {
+                    metrics::counter!("thetadatadx.fpss.events", "kind" => "ohlcvc").increment(1);
                     let acc = delta_state
                         .ohlcvc
                         .entry(contract_id)
@@ -1613,6 +1622,8 @@ fn decode_frame(
         StreamMsgType::Disconnected => {
             let reason = parse_disconnect_reason(payload);
             tracing::warn!(reason = ?reason, "server disconnected us");
+            metrics::counter!("thetadatadx.fpss.disconnects", "reason" => format!("{:?}", reason))
+                .increment(1);
             authenticated.store(false, Ordering::Release);
 
             // Permanent errors -- no reconnect will fix these.

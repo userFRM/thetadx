@@ -12,8 +12,11 @@ env:
 
 jobs:
   check:
-    name: Format & Lint
-    runs-on: ubuntu-latest
+    name: Format & Lint (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -40,8 +43,27 @@ jobs:
       - run: cargo test --workspace
 
   build-ffi:
-    name: Build FFI
-    runs-on: ubuntu-latest
+    name: Build FFI (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact-name: ffi-linux-x86_64
+            artifact-path: |
+              target/release/libthetadatadx_ffi.so
+              target/release/libthetadatadx_ffi.a
+          - os: macos-latest
+            artifact-name: ffi-macos-arm64
+            artifact-path: |
+              target/release/libthetadatadx_ffi.dylib
+              target/release/libthetadatadx_ffi.a
+          - os: windows-latest
+            artifact-name: ffi-windows-x86_64
+            artifact-path: |
+              target/release/thetadatadx_ffi.dll
+              target/release/thetadatadx_ffi.dll.lib
+    runs-on: ${{ matrix.os }}
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -53,10 +75,8 @@ jobs:
       - run: cargo build --release -p thetadatadx-ffi
       - uses: actions/upload-artifact@v4
         with:
-          name: ffi-linux-x86_64
-          path: |
-            target/release/libthetadatadx_ffi.so
-            target/release/libthetadatadx_ffi.a
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
 
   publish-crate:
     name: Publish to crates.io
@@ -89,10 +109,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ffi-linux-x86_64
-          path: artifacts/
+          path: artifacts/linux/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffi-macos-arm64
+          path: artifacts/macos/
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffi-windows-x86_64
+          path: artifacts/windows/
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            artifacts/libthetadatadx_ffi.so
-            artifacts/libthetadatadx_ffi.a
+            artifacts/linux/libthetadatadx_ffi.so
+            artifacts/linux/libthetadatadx_ffi.a
+            artifacts/macos/libthetadatadx_ffi.dylib
+            artifacts/macos/libthetadatadx_ffi.a
+            artifacts/windows/thetadatadx_ffi.dll
+            artifacts/windows/thetadatadx_ffi.dll.lib

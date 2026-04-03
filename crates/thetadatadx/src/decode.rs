@@ -41,13 +41,19 @@ fn find_header(headers: &[&str], name: &str) -> Option<usize> {
 
 /// Eastern Time UTC offset in milliseconds for a given epoch_ms.
 ///
-/// US DST rule (Energy Policy Act of 2005):
+/// US DST rules changed over time:
+///
+/// **2007-onward** (Energy Policy Act of 2005):
 /// - EDT (UTC-4): second Sunday of March at 2:00 AM local -> first Sunday of November at 2:00 AM local
+/// - EST (UTC-5): rest of the year
+///
+/// **Before 2007** (Uniform Time Act of 1966):
+/// - EDT (UTC-4): first Sunday of April at 2:00 AM local -> last Sunday of October at 2:00 AM local
 /// - EST (UTC-5): rest of the year
 ///
 /// We compute the transition points in UTC and compare. This avoids
 /// external timezone crate dependencies while being correct for all
-/// dates from 2007 onward (when the current DST rule took effect).
+/// dates with US Eastern Time DST rules.
 fn eastern_offset_ms(epoch_ms: u64) -> i64 {
     // First, determine the UTC year/month/day to find DST boundaries.
     let epoch_secs = epoch_ms as i64 / 1000;
@@ -64,10 +70,16 @@ fn eastern_offset_ms(epoch_ms: u64) -> i64 {
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = if month <= 2 { year + 1 } else { year };
 
-    // Find DST start: second Sunday of March at 2:00 AM EST (= 7:00 AM UTC).
-    let dst_start_utc = march_second_sunday_utc(year);
-    // Find DST end: first Sunday of November at 2:00 AM EDT (= 6:00 AM UTC).
-    let dst_end_utc = november_first_sunday_utc(year);
+    let (dst_start_utc, dst_end_utc) = if year >= 2007 {
+        // Post-2007: second Sunday of March -> first Sunday of November.
+        (
+            march_second_sunday_utc(year),
+            november_first_sunday_utc(year),
+        )
+    } else {
+        // Pre-2007: first Sunday of April -> last Sunday of October.
+        (april_first_sunday_utc(year), october_last_sunday_utc(year))
+    };
 
     let epoch_ms_i64 = epoch_ms as i64;
     if epoch_ms_i64 >= dst_start_utc && epoch_ms_i64 < dst_end_utc {
@@ -95,6 +107,29 @@ fn november_first_sunday_utc(year: i32) -> i64 {
     let days_to_first_sunday = (6 - dow + 7) % 7;
     let first_sunday = nov1 + days_to_first_sunday;
     first_sunday * 86_400_000 + 6 * 3600 * 1000 // 6:00 AM UTC = 2:00 AM EDT
+}
+
+/// Epoch ms of the first Sunday of April at 7:00 AM UTC (= 2:00 AM EST).
+///
+/// Used for pre-2007 DST start (Uniform Time Act of 1966).
+fn april_first_sunday_utc(year: i32) -> i64 {
+    let apr1 = civil_to_epoch_days(year, 4, 1);
+    let dow = ((apr1 + 3) % 7 + 7) % 7;
+    let days_to_first_sunday = (6 - dow + 7) % 7;
+    let first_sunday = apr1 + days_to_first_sunday;
+    first_sunday * 86_400_000 + 7 * 3600 * 1000 // 7:00 AM UTC = 2:00 AM EST
+}
+
+/// Epoch ms of the last Sunday of October at 6:00 AM UTC (= 2:00 AM EDT).
+///
+/// Used for pre-2007 DST end (Uniform Time Act of 1966).
+fn october_last_sunday_utc(year: i32) -> i64 {
+    // Start from October 31 and walk back to find the last Sunday.
+    let oct31 = civil_to_epoch_days(year, 10, 31);
+    let dow = ((oct31 + 3) % 7 + 7) % 7; // 0=Mon..6=Sun
+    let days_back = (dow + 1) % 7; // days back from Oct 31 to last Sunday
+    let last_sunday = oct31 - days_back;
+    last_sunday * 86_400_000 + 6 * 3600 * 1000 // 6:00 AM UTC = 2:00 AM EDT
 }
 
 /// Convert civil date to days since 1970-01-01 (inverse of the Euclidean algorithm).
@@ -614,5 +649,31 @@ mod tests {
         assert_eq!(super::eastern_offset_ms(before), -5 * 3600 * 1000);
         let after: u64 = 1_772_953_260_000; // Mar 8 2026, 07:01 UTC
         assert_eq!(super::eastern_offset_ms(after), -4 * 3600 * 1000);
+    }
+
+    #[test]
+    fn pre2007_dst_summer_uses_old_rules() {
+        // 2006: old rules apply (first Sunday April -> last Sunday October).
+        // 2006-07-15 18:00:00 UTC = 2006-07-15 14:00:00 EDT (summer, mid-July).
+        // This is well within DST under both old and new rules, so EDT (UTC-4).
+        let epoch_ms: u64 = 1_153_065_600_000; // Jul 15 2006, 18:00 UTC
+        assert_eq!(
+            super::eastern_offset_ms(epoch_ms),
+            -4 * 3600 * 1000,
+            "mid-July 2006 should be EDT under old DST rules"
+        );
+    }
+
+    #[test]
+    fn pre2007_est_before_april_dst_start() {
+        // 2006: old rules — DST starts first Sunday of April (April 2, 2006).
+        // 2006-02-15 15:00:00 UTC = 2006-02-15 10:00:00 EST (winter, mid-Feb).
+        // Under old rules, February is EST.
+        let epoch_ms: u64 = 1_140_015_600_000; // Feb 15 2006, 15:00 UTC
+        assert_eq!(
+            super::eastern_offset_ms(epoch_ms),
+            -5 * 3600 * 1000,
+            "mid-February 2006 should be EST under old DST rules"
+        );
     }
 }

@@ -34,6 +34,14 @@ pub struct EodTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    /// Contract expiration (YYYYMMDD). Populated on wildcard queries, 0 otherwise.
+    pub expiration: i32,
+    /// Contract strike (price-encoded). Use `strike_price()` for f64.
+    pub strike: i32,
+    /// Contract right (C=67, P=80 ASCII). 0 on single-contract queries.
+    pub right: i32,
+    /// Strike price type for decoding `strike`.
+    pub strike_price_type: i32,
 }
 
 /// Greeks tick. Full set of option greeks.
@@ -64,6 +72,14 @@ pub struct GreeksTick {
     pub lambda: f64,
     pub vera: f64,
     pub date: i32,
+    /// Contract expiration (YYYYMMDD). Populated on wildcard queries, 0 otherwise.
+    pub expiration: i32,
+    /// Contract strike (price-encoded). Use `strike_price()` for f64.
+    pub strike: i32,
+    /// Contract right (C=67, P=80 ASCII). 0 on single-contract queries.
+    pub right: i32,
+    /// Strike price type for decoding `strike`.
+    pub strike_price_type: i32,
 }
 
 /// Interest rate tick.
@@ -83,6 +99,10 @@ pub struct IvTick {
     pub implied_volatility: f64,
     pub iv_error: f64,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Market value tick.
@@ -96,6 +116,10 @@ pub struct MarketValueTick {
     pub book_value: i64,
     pub free_float: i64,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// OHLC tick. Aggregated bar data.
@@ -111,6 +135,10 @@ pub struct OhlcTick {
     pub count: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Open interest tick.
@@ -120,6 +148,10 @@ pub struct OpenInterestTick {
     pub ms_of_day: i32,
     pub open_interest: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Option contract specification.
@@ -157,6 +189,10 @@ pub struct QuoteTick {
     pub ask_condition: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Snapshot trade tick. Abbreviated trade for snapshots.
@@ -170,6 +206,10 @@ pub struct SnapshotTradeTick {
     pub price: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Combined trade + quote tick.
@@ -202,6 +242,10 @@ pub struct TradeQuoteTick {
     pub quote_price_type: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
 
 /// Trade tick. Core unit of trade data.
@@ -224,7 +268,61 @@ pub struct TradeTick {
     pub records_back: i32,
     pub price_type: i32,
     pub date: i32,
+    pub expiration: i32,
+    pub strike: i32,
+    pub right: i32,
+    pub strike_price_type: i32,
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Contract ID helpers (shared by all tick types with contract_id = true)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Adds `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()` to
+/// tick types that carry contract identification fields.
+macro_rules! impl_contract_id {
+    ($ty:ident) => {
+        impl $ty {
+            /// Decode the strike price to f64. Returns 0.0 if contract ID is absent.
+            #[inline]
+            pub fn strike_price(&self) -> f64 {
+                if self.strike_price_type == 0 && self.strike == 0 {
+                    return 0.0;
+                }
+                Price::new(self.strike, self.strike_price_type).to_f64()
+            }
+
+            /// True if this is a Call contract.
+            #[inline]
+            pub fn is_call(&self) -> bool {
+                self.right == 67 // ASCII 'C'
+            }
+
+            /// True if this is a Put contract.
+            #[inline]
+            pub fn is_put(&self) -> bool {
+                self.right == 80 // ASCII 'P'
+            }
+
+            /// True if contract identification fields are populated (wildcard query).
+            #[inline]
+            pub fn has_contract_id(&self) -> bool {
+                self.expiration != 0
+            }
+        }
+    };
+}
+
+impl_contract_id!(TradeTick);
+impl_contract_id!(QuoteTick);
+impl_contract_id!(OhlcTick);
+impl_contract_id!(EodTick);
+impl_contract_id!(OpenInterestTick);
+impl_contract_id!(MarketValueTick);
+impl_contract_id!(GreeksTick);
+impl_contract_id!(IvTick);
+impl_contract_id!(SnapshotTradeTick);
+impl_contract_id!(TradeQuoteTick);
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Hand-written impl blocks

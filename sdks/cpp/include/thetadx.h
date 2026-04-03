@@ -63,6 +63,10 @@ typedef struct __attribute__((aligned(64))) {
     int32_t ask_condition;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxEodTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -91,6 +95,10 @@ typedef struct __attribute__((aligned(64))) {
     double lambda;
     double vera;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxGreeksTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -106,6 +114,10 @@ typedef struct __attribute__((aligned(64))) {
     double implied_volatility;
     double iv_error;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxIvTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -117,6 +129,10 @@ typedef struct __attribute__((aligned(64))) {
     int64_t book_value;
     int64_t free_float;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxMarketValueTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -129,12 +145,20 @@ typedef struct __attribute__((aligned(64))) {
     int32_t count;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxOhlcTick;
 
 typedef struct __attribute__((aligned(64))) {
     int32_t ms_of_day;
     int32_t open_interest;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxOpenInterestTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -156,6 +180,10 @@ typedef struct __attribute__((aligned(64))) {
     int32_t ask_condition;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxQuoteTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -166,6 +194,10 @@ typedef struct __attribute__((aligned(64))) {
     int32_t price;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxSnapshotTradeTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -195,6 +227,10 @@ typedef struct __attribute__((aligned(64))) {
     int32_t quote_price_type;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxTradeQuoteTick;
 
 typedef struct __attribute__((aligned(64))) {
@@ -214,6 +250,10 @@ typedef struct __attribute__((aligned(64))) {
     int32_t records_back;
     int32_t price_type;
     int32_t date;
+    int32_t expiration;
+    int32_t strike;
+    int32_t right;
+    int32_t strike_price_type;
 } TdxTradeTick;
 
 /* ═══════════════════════════════════════════════════════════════════════ */

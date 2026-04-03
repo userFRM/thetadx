@@ -2116,7 +2116,7 @@ dependencies = [
 
 [[package]]
 name = "thetadatadx"
-version = "4.5.0"
+version = "5.0.0"
 dependencies = [
  "criterion",
  "disruptor",
@@ -2146,7 +2146,7 @@ dependencies = [
 
 [[package]]
 name = "thetadatadx-cli"
-version = "4.5.0"
+version = "5.0.0"
 dependencies = [
  "clap",
  "comfy-table",
@@ -2158,7 +2158,7 @@ dependencies = [
 
 [[package]]
 name = "thetadatadx-ffi"
-version = "4.5.0"
+version = "5.0.0"
 dependencies = [
  "serde_json",
  "tdbe",

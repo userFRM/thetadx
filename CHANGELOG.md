@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-04-02
+
+### Breaking Changes
+
+- **Builder pattern on all 61 endpoints** -- methods return builders with `IntoFuture`. `start_time`/`end_time` are now builder methods, not positional params. All optional proto params exposed as chainable setters.
+- `received_at_ns: u64` added to every `FpssData` variant (Quote, Trade, OpenInterest, Ohlcvc)
+- `DirectConfig::dev()` now uses actual ThetaData dev FPSS servers (port 20200, infinite replay) instead of production with reduced buffers
+
+### Added
+
+- **Builder pattern** -- all endpoints return chainable builders. Zero noise for simple calls, all optional proto params discoverable via autocomplete.
+- **`received_at_ns`** -- nanosecond receive timestamp on every FPSS event for latency measurement
+- **`tdbe::latency::latency_ns()`** -- DST-aware wire-to-application latency computation
+- **`FpssFlushMode`** -- `Batched` (default, matches Java) or `Immediate` (lowest latency)
+- **Metrics** -- `metrics` crate integration. Counters/histograms on all gRPC, FPSS, and auth operations. Zero overhead when no backend installed.
+- **Config file** -- `DirectConfig::from_file()` behind `config-file` feature flag. TOML format matching v3 terminal.
+- **`DirectConfig::stage()`** -- staging FPSS servers (port 20100)
+- **3 FPSS methods** in all SDKs -- `subscribe_full_open_interest`, `unsubscribe_full_trades`, `unsubscribe_full_open_interest`
+- **Cross-platform CI** -- Format, Lint, Test, FFI Build on Ubuntu + macOS + Windows
+- **Macro guide** -- `docs/macro-guide.md` for contributors
+- **DST pre-2007 safety net** -- handles old US DST rules (April-October) for pre-2007 dates
+- **`unsubscribe_option_open_interest`** in Python SDK (was missing)
+- **Go `FpssClient`** -- complete standalone streaming client wrapper (`sdks/go/fpss.go`)
+
+### Fixed
+
+- 30 documentation findings from production audit (version pins, method tables, CHANGELOG, SECURITY)
+- 14 public methods missing doc comments on `ThetaDataDx`
+- Python SDK `lock().unwrap()` changed to poison recovery
+- Legacy `config.default.properties` removed (v2 artifact)
+
 ## [4.5.0] - 2026-04-02
 
 ### Breaking Changes
@@ -504,7 +535,8 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 - FIT decoder uses i64 accumulator with i32 saturation (no silent overflow)
 - Price type range enforced with `assert!` in release builds
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.5.0...v5.0.0
 [4.5.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/userFRM/ThetaDataDx/compare/v4.2.0...v4.3.0

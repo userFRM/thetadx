@@ -1246,6 +1246,10 @@ struct DeltaState {
     /// Set after `decode_tick` to indicate the last row was a DATE marker.
     /// Callers use this to distinguish normal DATE skips from corrupt payloads.
     last_was_date: bool,
+    /// Actual data field count from the first absolute tick for each
+    /// `(msg_type, contract_id)`. The dev server sends 8-field trades (simple
+    /// format) while production sends 16-field trades (extended format).
+    field_counts: HashMap<(u8, i32), usize>,
 }
 
 impl DeltaState {
@@ -1256,6 +1260,7 @@ impl DeltaState {
             ohlcvc: HashMap::new(),
             alloc_buf: vec![0i32; TRADE_FIELDS + 1],
             last_was_date: false,
+            field_counts: HashMap::new(),
         }
     }
 
@@ -1267,6 +1272,7 @@ impl DeltaState {
     fn clear(&mut self) {
         self.prev.clear();
         self.ohlcvc.clear();
+        self.field_counts.clear();
         self.last_was_date = false;
     }
 
@@ -1282,15 +1288,16 @@ impl DeltaState {
     /// Contract c = idToContract.get(alloc[0]); // first field IS the contract_id
     /// ```
     ///
-    /// Returns `(contract_id, tick_fields)` or `None` if payload is too short
-    /// or the FIT row is a DATE marker. Sets `self.last_was_date` so callers
-    /// can distinguish DATE markers from corrupt payloads.
+    /// Returns `(contract_id, tick_fields, data_field_count)` or `None` if
+    /// payload is too short or the FIT row is a DATE marker. `data_field_count`
+    /// is the number of actual data fields (excluding contract_id) from the
+    /// first absolute tick for this `(msg_type, contract_id)`.
     fn decode_tick(
         &mut self,
         msg_code: u8,
         payload: &[u8],
         expected_fields: usize,
-    ) -> Option<(i32, Vec<i32>)> {
+    ) -> Option<(i32, Vec<i32>, usize)> {
         self.last_was_date = false;
 
         if payload.is_empty() {
@@ -1324,7 +1331,7 @@ impl DeltaState {
         // Log field count mismatches (helps diagnose dev server replay issues
         // where the server may send fewer fields than expected).
         if n != total_fields {
-            tracing::trace!(
+            tracing::debug!(
                 msg_code,
                 contract_id,
                 expected = total_fields,
@@ -1350,13 +1357,18 @@ impl DeltaState {
         if let Some(prev) = self.prev.get(&key) {
             // Delta row: accumulate onto previous absolute values.
             apply_deltas(&mut fields, prev, tick_n);
+        } else {
+            // First absolute tick: record the actual field count.
+            // The dev server sends 8-field trades (simple format) while
+            // production sends 16-field trades (extended format).
+            self.field_counts.insert(key, tick_n);
         }
-        // else: first row for this contract -- values are already absolute.
 
         // Store as the new previous state (tick fields only, not contract_id).
         self.prev.insert(key, fields.clone());
 
-        Some((contract_id, fields))
+        let data_fields = *self.field_counts.get(&key).unwrap_or(&expected_fields);
+        Some((contract_id, fields, data_fields))
     }
 }
 
@@ -1427,7 +1439,7 @@ fn decode_frame(
         StreamMsgType::Quote => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, QUOTE_FIELDS) {
-                Some((contract_id, f)) => {
+                Some((contract_id, f, _n)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "quote").increment(1);
                     (
                         Some(FpssEvent::Data(FpssData::Quote {
@@ -1464,41 +1476,65 @@ fn decode_frame(
         StreamMsgType::Trade => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, TRADE_FIELDS) {
-                Some((contract_id, f)) => {
+                Some((contract_id, f, n_data)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "trade").increment(1);
-                    // Diagnostic: log raw fields when trade data looks anomalous
-                    // (price=0 with large size suggests field shift, e.g. dev server
-                    // sending fewer fields than TRADE_FIELDS=16).
-                    if f[9] == 0 && f[7] > 1_000_000 {
-                        tracing::warn!(
+
+                    // The dev server sends 8-field trades (simple format) while
+                    // production sends 16-field trades (extended format).
+                    // 8-field layout: [ms_of_day, sequence, size, condition, price, exchange, price_type, date]
+                    // 16-field layout: [ms_of_day, sequence, ext1..ext4, condition, size, exchange, price, cond_flags, price_flags, vol_type, records_back, price_type, date]
+                    let trade_event = if n_data <= 8 {
+                        // Simple format (dev server / older format)
+                        FpssEvent::Data(FpssData::Trade {
                             contract_id,
-                            fields = ?&f[..],
-                            "trade field anomaly: price=0, size={} -- possible field layout mismatch",
-                            f[7],
-                        );
-                    }
-                    let (ms_of_day, size, price) = (f[0], f[7], f[9]);
-                    let (price_type, date) = (f[14], f[15]);
-                    let trade_event = FpssEvent::Data(FpssData::Trade {
-                        contract_id,
-                        ms_of_day,
-                        sequence: f[1],
-                        ext_condition1: f[2],
-                        ext_condition2: f[3],
-                        ext_condition3: f[4],
-                        ext_condition4: f[5],
-                        condition: f[6],
-                        size,
-                        exchange: f[8],
-                        price,
-                        condition_flags: f[10],
-                        price_flags: f[11],
-                        volume_type: f[12],
-                        records_back: f[13],
-                        price_type,
-                        date,
-                        received_at_ns,
-                    });
+                            ms_of_day: f[0],
+                            sequence: f[1],
+                            ext_condition1: 0,
+                            ext_condition2: 0,
+                            ext_condition3: 0,
+                            ext_condition4: 0,
+                            condition: f[3],
+                            size: f[2],
+                            exchange: f[5],
+                            price: f[4],
+                            condition_flags: 0,
+                            price_flags: 0,
+                            volume_type: 0,
+                            records_back: 0,
+                            price_type: f[6],
+                            date: f[7],
+                            received_at_ns,
+                        })
+                    } else {
+                        // Extended format (production)
+                        FpssEvent::Data(FpssData::Trade {
+                            contract_id,
+                            ms_of_day: f[0],
+                            sequence: f[1],
+                            ext_condition1: f[2],
+                            ext_condition2: f[3],
+                            ext_condition3: f[4],
+                            ext_condition4: f[5],
+                            condition: f[6],
+                            size: f[7],
+                            exchange: f[8],
+                            price: f[9],
+                            condition_flags: f[10],
+                            price_flags: f[11],
+                            volume_type: f[12],
+                            records_back: f[13],
+                            price_type: f[14],
+                            date: f[15],
+                            received_at_ns,
+                        })
+                    };
+
+                    // Extract for OHLCVC derivation (format-aware)
+                    let (ms_of_day, size, price, price_type, date) = if n_data <= 8 {
+                        (f[0], f[2], f[4], f[6], f[7])
+                    } else {
+                        (f[0], f[7], f[9], f[14], f[15])
+                    };
                     // Derive OHLCVC from trade (Java: OHLCVC.processTrade).
                     // Only if enabled AND the server has already seeded a bar.
                     // When derive_ohlcvc is false, skip entirely — zero overhead.
@@ -1545,7 +1581,7 @@ fn decode_frame(
         StreamMsgType::OpenInterest => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, OI_FIELDS) {
-                Some((contract_id, f)) => {
+                Some((contract_id, f, _n)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "open_interest")
                         .increment(1);
                     (
@@ -1573,7 +1609,7 @@ fn decode_frame(
         StreamMsgType::Ohlcvc => {
             let msg_code = code as u8;
             match delta_state.decode_tick(msg_code, payload, OHLCVC_FIELDS) {
-                Some((contract_id, f)) => {
+                Some((contract_id, f, _n)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "ohlcvc").increment(1);
                     let acc = delta_state
                         .ohlcvc

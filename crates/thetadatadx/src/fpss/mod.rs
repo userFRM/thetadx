@@ -1321,6 +1321,18 @@ impl DeltaState {
         // First FIT field is the contract_id.
         let contract_id = self.alloc_buf[0];
 
+        // Log field count mismatches (helps diagnose dev server replay issues
+        // where the server may send fewer fields than expected).
+        if n != total_fields {
+            tracing::trace!(
+                msg_code,
+                contract_id,
+                expected = total_fields,
+                actual = n,
+                "FIT field count mismatch",
+            );
+        }
+
         // Tick data is alloc[1..]. Extract into its own vec.
         // This clone is unavoidable: we need to store a copy in the delta HashMap.
         let mut fields: Vec<i32> = self.alloc_buf[1..total_fields].to_vec();
@@ -1454,6 +1466,17 @@ fn decode_frame(
             match delta_state.decode_tick(msg_code, payload, TRADE_FIELDS) {
                 Some((contract_id, f)) => {
                     metrics::counter!("thetadatadx.fpss.events", "kind" => "trade").increment(1);
+                    // Diagnostic: log raw fields when trade data looks anomalous
+                    // (price=0 with large size suggests field shift, e.g. dev server
+                    // sending fewer fields than TRADE_FIELDS=16).
+                    if f[9] == 0 && f[7] > 1_000_000 {
+                        tracing::warn!(
+                            contract_id,
+                            fields = ?&f[..],
+                            "trade field anomaly: price=0, size={} -- possible field layout mismatch",
+                            f[7],
+                        );
+                    }
                     let (ms_of_day, size, price) = (f[0], f[7], f[9]);
                     let (price_type, date) = (f[14], f[15]);
                     let trade_event = FpssEvent::Data(FpssData::Trade {

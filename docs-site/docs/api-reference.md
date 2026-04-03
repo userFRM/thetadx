@@ -2321,6 +2321,21 @@ tdx.option_history_quote_stream("SPY", "20241220", "500000", "C", "20240315", "0
 
 ## Types and Enums
 
+### Contract Identification Fields
+
+10 tick types carry contract identification fields populated by the server on wildcard queries (pass `0` for expiration/strike/right). On single-contract queries these fields are `0`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expiration` | i32 | Contract expiration (YYYYMMDD). 0 if absent. |
+| `strike` | i32 | Strike price (fixed-point). Use `strike_price()` for decoded float. |
+| `right` | i32 | Contract right: 67 = Call ('C'), 80 = Put ('P'). |
+| `strike_price_type` | i32 | Price type for decoding `strike`. |
+
+Helper methods (all 10 types): `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()`.
+
+Types with contract ID: TradeTick, QuoteTick, OhlcTick, EodTick, OpenInterestTick, SnapshotTradeTick, TradeQuoteTick, MarketValueTick, GreeksTick, IvTick.
+
 ### TradeTick
 
 A single trade execution.
@@ -2340,8 +2355,12 @@ A single trade execution.
 | `records_back` | i32 | Records back count |
 | `price_type` | i32 | Decimal type for price decoding |
 | `date` | i32 | Date as YYYYMMDD integer |
+| `expiration` | i32 | Contract expiration (wildcard queries) |
+| `strike` | i32 | Contract strike (wildcard queries) |
+| `right` | i32 | Contract right C=67/P=80 (wildcard queries) |
+| `strike_price_type` | i32 | Strike price type (wildcard queries) |
 
-Helper methods: `get_price()`, `is_cancelled()`, `regular_trading_hours()`, `is_seller()`, `is_incremental_volume()`
+Helper methods: `get_price()`, `is_cancelled()`, `regular_trading_hours()`, `is_seller()`, `is_incremental_volume()`, `strike_price()`, `is_call()`, `is_put()`, `has_contract_id()`
 
 ### QuoteTick
 
@@ -2356,8 +2375,9 @@ An NBBO quote.
 | `bid_condition` / `ask_condition` | i32 | Condition codes |
 | `price_type` | i32 | Decimal type for price decoding |
 | `date` | i32 | Date as YYYYMMDD integer |
+| `expiration` / `strike` / `right` / `strike_price_type` | i32 | Contract ID (wildcard queries) |
 
-Helper methods: `bid_price()`, `ask_price()`, `midpoint_price()`, `midpoint_value()`
+Helper methods: `bid_price()`, `ask_price()`, `midpoint_price()`, `midpoint_value()`, plus contract ID helpers
 
 ### OhlcTick
 
@@ -2371,12 +2391,13 @@ An aggregated OHLC bar.
 | `count` | i32 | Number of trades in bar |
 | `price_type` | i32 | Decimal type for price decoding |
 | `date` | i32 | Date as YYYYMMDD integer |
+| `expiration` / `strike` / `right` / `strike_price_type` | i32 | Contract ID (wildcard queries) |
 
-Helper methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`
+Helper methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, plus contract ID helpers
 
 ### EodTick
 
-Full end-of-day snapshot with OHLC + closing quote data (18 fields).
+Full end-of-day snapshot with OHLC + closing quote data.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -2390,14 +2411,15 @@ Full end-of-day snapshot with OHLC + closing quote data (18 fields).
 | `bid_condition` / `ask_condition` | i32 | Closing quote conditions |
 | `price_type` | i32 | Decimal type |
 | `date` | i32 | Date as YYYYMMDD |
+| `expiration` / `strike` / `right` / `strike_price_type` | i32 | Contract ID (wildcard queries) |
 
-Helper methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()`
+Helper methods: `open_price()`, `high_price()`, `low_price()`, `close_price()`, `bid_price()`, `ask_price()`, `midpoint_value()`, plus contract ID helpers
 
 ### TradeQuoteTick
 
-Combined trade + quote tick (25 fields). Contains the full trade data plus the prevailing NBBO quote at the time of the trade.
+Combined trade + quote tick. Contains the full trade data plus the prevailing NBBO quote at the time of the trade.
 
-Helper methods: `trade_price()`, `bid_price()`, `ask_price()`
+Helper methods: `trade_price()`, `bid_price()`, `ask_price()`, plus contract ID helpers
 
 ### OpenInterestTick
 
@@ -2406,6 +2428,7 @@ Helper methods: `trade_price()`, `bid_price()`, `ask_price()`
 | `ms_of_day` | i32 | Milliseconds since midnight ET |
 | `open_interest` | i32 | Open interest count |
 | `date` | i32 | Date as YYYYMMDD |
+| `expiration` / `strike` / `right` / `strike_price_type` | i32 | Contract ID (wildcard queries) |
 
 ### GreeksResult
 

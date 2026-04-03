@@ -5,6 +5,8 @@ description: 34 option data endpoints - list, snapshots, history, Greeks, trade 
 
 # Option Endpoints (34)
 
+All option tick types carry **contract identification fields** (`expiration`, `strike`, `right`, `strike_price_type`) populated on wildcard queries (pass `"0"` for expiration/strike/right). Use `has_contract_id()`, `strike_price()`, `is_call()`, `is_put()` to work with them.
+
 ## List
 
 ::: code-group

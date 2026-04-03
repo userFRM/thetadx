@@ -119,6 +119,31 @@ impl Config {
 
 // ── Tick types as Python dicts ──
 
+macro_rules! set_contract_id {
+    ($dict:expr, $tick:expr) => {
+        if $tick.expiration != 0 {
+            $dict.set_item("expiration", $tick.expiration).unwrap();
+            $dict
+                .set_item("strike", $tick.strike_price())
+                .unwrap();
+            $dict.set_item("strike_raw", $tick.strike).unwrap();
+            $dict.set_item("strike_price_type", $tick.strike_price_type).unwrap();
+            $dict
+                .set_item(
+                    "right",
+                    if $tick.is_call() {
+                        "C"
+                    } else if $tick.is_put() {
+                        "P"
+                    } else {
+                        ""
+                    },
+                )
+                .unwrap();
+        }
+    };
+}
+
 fn trade_tick_to_dict(py: Python<'_>, t: &tick::TradeTick) -> Py<PyAny> {
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", t.ms_of_day).unwrap();
@@ -134,6 +159,7 @@ fn trade_tick_to_dict(py: Python<'_>, t: &tick::TradeTick) -> Py<PyAny> {
     dict.set_item("volume_type", t.volume_type).unwrap();
     dict.set_item("records_back", t.records_back).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 
@@ -149,6 +175,7 @@ fn quote_tick_to_dict(py: Python<'_>, q: &tick::QuoteTick) -> Py<PyAny> {
     dict.set_item("ask", q.ask_price().to_f64()).unwrap();
     dict.set_item("ask_condition", q.ask_condition).unwrap();
     dict.set_item("date", q.date).unwrap();
+    set_contract_id!(dict, q);
     dict.into_any().unbind()
 }
 
@@ -162,6 +189,7 @@ fn ohlc_tick_to_dict(py: Python<'_>, o: &tick::OhlcTick) -> Py<PyAny> {
     dict.set_item("volume", o.volume).unwrap();
     dict.set_item("count", o.count).unwrap();
     dict.set_item("date", o.date).unwrap();
+    set_contract_id!(dict, o);
     dict.into_any().unbind()
 }
 
@@ -177,6 +205,7 @@ fn eod_tick_to_dict(py: Python<'_>, e: &tick::EodTick) -> Py<PyAny> {
     dict.set_item("bid", e.bid_price().to_f64()).unwrap();
     dict.set_item("ask", e.ask_price().to_f64()).unwrap();
     dict.set_item("date", e.date).unwrap();
+    set_contract_id!(dict, e);
     dict.into_any().unbind()
 }
 
@@ -193,6 +222,7 @@ fn trade_quote_tick_to_dict(py: Python<'_>, t: &tick::TradeQuoteTick) -> Py<PyAn
     dict.set_item("ask", t.ask_price().to_f64()).unwrap();
     dict.set_item("ask_size", t.ask_size).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 
@@ -201,6 +231,7 @@ fn open_interest_tick_to_dict(py: Python<'_>, t: &tick::OpenInterestTick) -> Py<
     dict.set_item("ms_of_day", t.ms_of_day).unwrap();
     dict.set_item("open_interest", t.open_interest).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 
@@ -215,6 +246,7 @@ fn market_value_tick_to_dict(py: Python<'_>, t: &tick::MarketValueTick) -> Py<Py
     dict.set_item("book_value", t.book_value).unwrap();
     dict.set_item("free_float", t.free_float).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 
@@ -230,6 +262,7 @@ fn greeks_tick_to_dict(py: Python<'_>, t: &tick::GreeksTick) -> Py<PyAny> {
     dict.set_item("rho", t.rho).unwrap();
     dict.set_item("iv_error", t.iv_error).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 
@@ -240,6 +273,7 @@ fn iv_tick_to_dict(py: Python<'_>, t: &tick::IvTick) -> Py<PyAny> {
         .unwrap();
     dict.set_item("iv_error", t.iv_error).unwrap();
     dict.set_item("date", t.date).unwrap();
+    set_contract_id!(dict, t);
     dict.into_any().unbind()
 }
 

@@ -175,6 +175,6 @@ Requires `pip install thetadatadx[pandas]`.
 
 - [Historical Data](../historical/) - all 61 endpoints with examples
 - [Real-Time Streaming](../streaming/) - FPSS subscribe/callback and polling
-- [Options & Greeks](../options) - option chain workflow and local Greeks
+- [Options & Greeks](../options) - option chain workflow, local Greeks, and wildcard queries with contract identification
 - [Configuration](../configuration) - timeouts, concurrency, server settings
 - [API Reference](../api-reference) - complete type and method listing

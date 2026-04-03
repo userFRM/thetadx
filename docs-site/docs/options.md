@@ -137,6 +137,37 @@ print(df[["strike", "close", "volume"]].head(20))
 
 ---
 
+## Wildcard Queries with Contract Identification
+
+When you pass `"0"` for expiration, strike, or right, the server returns data across all matching contracts. Each tick includes contract identification fields (`expiration`, `strike`, `right`, `strike_price_type`) so you can distinguish which contract each tick belongs to.
+
+::: code-group
+```rust [Rust]
+// Wildcard: all SPY contracts on a given date
+let trades = client.option_history_trade("SPY", "0", "0", "0", "20240315").await?;
+for t in &trades {
+    if t.has_contract_id() {
+        println!("{} {} strike={:.2} price={:.4}",
+            t.expiration,
+            if t.is_call() { "C" } else { "P" },
+            t.strike_price(),
+            t.get_price().to_f64());
+    }
+}
+```
+```python [Python]
+# Wildcard: all SPY contracts on a given date
+trades = client.option_history_trade("SPY", "0", "0", "0", "20240315")
+for t in trades:
+    if "expiration" in t:
+        print(f"{t['expiration']} {t['right']} strike={t['strike']:.2f} price={t['price']:.4f}")
+```
+:::
+
+The 4 contract ID fields and helper methods (`strike_price()`, `is_call()`, `is_put()`, `has_contract_id()`) are available on all 10 option tick types.
+
+---
+
 ## Local Greeks Calculator
 
 Compute Greeks locally without any server call using the built-in Black-Scholes calculator. Works offline, no ThetaData subscription needed.

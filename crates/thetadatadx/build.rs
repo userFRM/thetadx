@@ -39,6 +39,8 @@ struct TickTypeDef {
     price_typed_columns: Vec<String>,
     #[serde(default)]
     eod_style: bool,
+    #[serde(default)]
+    contract_id: bool,
     columns: Vec<ColumnDef>,
 }
 
@@ -204,6 +206,14 @@ fn generate_parser(out: &mut String, type_name: &str, def: &TickTypeDef) {
                 col.name
             ));
         }
+    }
+
+    // Contract identification columns (wildcard queries inject expiration/strike/right).
+    if def.contract_id {
+        out.push_str("    let _cid_exp_idx = h.iter().position(|c| *c == \"expiration\");\n");
+        out.push_str("    let _cid_strike_idx = h.iter().position(|c| *c == \"strike\");\n");
+        out.push_str("    let _cid_right_idx = h.iter().position(|c| *c == \"right\");\n");
+        out.push_str("    let _cid_strike_is_typed = _cid_strike_idx.is_some() && h.contains(&\"strike\");\n");
     }
 
     // Precompute price_is_typed flags for price_typed_columns.
@@ -426,6 +436,32 @@ fn generate_parser(out: &mut String, type_name: &str, def: &TickTypeDef) {
             }
             other => panic!("unknown column type '{other}' in parser for {type_name}"),
         }
+    }
+
+    // Contract identification fields (injected when contract_id = true).
+    if def.contract_id {
+        out.push_str(
+            "                expiration: _cid_exp_idx.map(|i| row_number(row, i)).unwrap_or(0),\n",
+        );
+        out.push_str("                strike: match _cid_strike_idx {\n");
+        out.push_str(
+            "                    Some(i) if _cid_strike_is_typed => row_price_value(row, i),\n",
+        );
+        out.push_str("                    Some(i) => row_number(row, i),\n");
+        out.push_str("                    None => 0,\n");
+        out.push_str("                },\n");
+        out.push_str("                right: _cid_right_idx.map(|i| {\n");
+        out.push_str("                    let s = row_text(row, i);\n");
+        out.push_str(
+            "                    if s.is_empty() { 0i32 } else { s.as_bytes()[0] as i32 }\n",
+        );
+        out.push_str("                }).unwrap_or(0),\n");
+        out.push_str("                strike_price_type: match _cid_strike_idx {\n");
+        out.push_str(
+            "                    Some(i) if _cid_strike_is_typed => row_price_type(row, i),\n",
+        );
+        out.push_str("                    _ => 0,\n");
+        out.push_str("                },\n");
     }
 
     out.push_str("            }\n");

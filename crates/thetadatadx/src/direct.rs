@@ -647,7 +647,7 @@ impl DirectClient {
     list_endpoint! {
         /// List available dates for a stock by request type.
         ///
-        /// `request_type` is e.g. `"EOD"`, `"TRADE"`, `"QUOTE"`, etc.
+        /// `request_type` is e.g. `"TRADE"`, `"QUOTE"`, etc.
         ///
         /// gRPC: `BetaThetaTerminal/GetStockListDates`
         fn stock_list_dates(request_type: &str, symbol: &str) -> "date";
@@ -1963,7 +1963,7 @@ parsed_endpoint! {
     grpc: get_calendar_open_today;
     request: CalendarOpenTodayRequest;
     query: CalendarOpenTodayRequestQuery {};
-    parse: decode::parse_calendar_days;
+    parse: decode::parse_calendar_days_v3;
     optional {}
 }
 
@@ -1977,7 +1977,7 @@ parsed_endpoint! {
     query: CalendarOnDateRequestQuery {
         date: date.to_string(),
     };
-    parse: decode::parse_calendar_days;
+    parse: decode::parse_calendar_days_v3;
     dates: date;
     optional {}
 }
@@ -1992,7 +1992,7 @@ parsed_endpoint! {
     query: CalendarYearRequestQuery {
         year: year.to_string(),
     };
-    parse: decode::parse_calendar_days;
+    parse: decode::parse_calendar_days_v3;
     optional {}
 }
 

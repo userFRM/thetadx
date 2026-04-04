@@ -139,12 +139,16 @@ print(df[["strike", "close", "volume"]].head(20))
 
 ## Wildcard Queries with Contract Identification
 
-When you pass `"0"` for expiration, strike, or right, the server returns data across all matching contracts. Each tick includes contract identification fields (`expiration`, `strike`, `right`, `strike_price_type`) so you can distinguish which contract each tick belongs to.
+When you pass `"0"` for `expiration` or `strike`, the server returns data across all matching contracts. Each tick includes contract identification fields (`expiration`, `strike`, `right`, `strike_price_type`) so you can distinguish which contract each tick belongs to.
+
+::: warning
+The `right` parameter does **not** support wildcards. You must specify `"C"` (call) or `"P"` (put). Only `expiration` and `strike` accept `"0"` as a wildcard.
+:::
 
 ::: code-group
 ```rust [Rust]
-// Wildcard: all SPY contracts on a given date
-let trades = client.option_history_trade("SPY", "0", "0", "0", "20240315").await?;
+// Wildcard: all SPY call contracts on a given date
+let trades = client.option_history_trade("SPY", "0", "0", "C", "20240315").await?;
 for t in &trades {
     if t.has_contract_id() {
         println!("{} {} strike={:.2} price={:.4}",
@@ -156,8 +160,8 @@ for t in &trades {
 }
 ```
 ```python [Python]
-# Wildcard: all SPY contracts on a given date
-trades = client.option_history_trade("SPY", "0", "0", "0", "20240315")
+# Wildcard: all SPY call contracts on a given date
+trades = client.option_history_trade("SPY", "0", "0", "C", "20240315")
 for t in trades:
     if "expiration" in t:
         print(f"{t['expiration']} {t['right']} strike={t['strike']:.2f} price={t['price']:.4f}")

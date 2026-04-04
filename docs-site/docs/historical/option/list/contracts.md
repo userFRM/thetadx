@@ -13,16 +13,16 @@ List all option contracts available for a given underlying symbol on a specific 
 
 ::: code-group
 ```rust [Rust]
-let contracts: Vec<OptionContract> = tdx.option_list_contracts("EOD", "SPY", "20240315").await?;
+let contracts: Vec<OptionContract> = tdx.option_list_contracts("TRADE", "SPY", "20240315").await?;
 ```
 ```python [Python]
-contracts = tdx.option_list_contracts("EOD", "SPY", "20240315")
+contracts = tdx.option_list_contracts("TRADE", "SPY", "20240315")
 ```
 ```go [Go]
-contracts, err := client.OptionListContracts("EOD", "SPY", "20240315")
+contracts, err := client.OptionListContracts("TRADE", "SPY", "20240315")
 ```
 ```cpp [C++]
-auto contracts = client.option_list_contracts("EOD", "SPY", "20240315");
+auto contracts = client.option_list_contracts("TRADE", "SPY", "20240315");
 ```
 :::
 
@@ -31,7 +31,7 @@ auto contracts = client.option_list_contracts("EOD", "SPY", "20240315");
 <div class="param-list">
 <div class="param">
 <div class="param-header"><code>request_type</code><span class="param-type">string</span><span class="param-badge required">required</span></div>
-<div class="param-desc">Data type (e.g. <code>"EOD"</code>, <code>"TRADE"</code>)</div>
+<div class="param-desc">Data type (e.g. <code>"TRADE"</code>, <code>"QUOTE"</code>)</div>
 </div>
 <div class="param">
 <div class="param-header"><code>symbol</code><span class="param-type">string</span><span class="param-badge required">required</span></div>

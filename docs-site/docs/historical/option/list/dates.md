@@ -14,17 +14,17 @@ List available dates for a specific option contract, filtered by data request ty
 ::: code-group
 ```rust [Rust]
 let dates: Vec<String> = tdx.option_list_dates(
-    "EOD", "SPY", "20241220", "500000", "C"
+    "TRADE", "SPY", "20241220", "500000", "C"
 ).await?;
 ```
 ```python [Python]
-dates = tdx.option_list_dates("EOD", "SPY", "20241220", "500000", "C")
+dates = tdx.option_list_dates("TRADE", "SPY", "20241220", "500000", "C")
 ```
 ```go [Go]
-dates, err := client.OptionListDates("EOD", "SPY", "20241220", "500000", "C")
+dates, err := client.OptionListDates("TRADE", "SPY", "20241220", "500000", "C")
 ```
 ```cpp [C++]
-auto dates = client.option_list_dates("EOD", "SPY", "20241220", "500000", "C");
+auto dates = client.option_list_dates("TRADE", "SPY", "20241220", "500000", "C");
 ```
 :::
 
@@ -33,7 +33,7 @@ auto dates = client.option_list_dates("EOD", "SPY", "20241220", "500000", "C");
 <div class="param-list">
 <div class="param">
 <div class="param-header"><code>request_type</code><span class="param-type">string</span><span class="param-badge required">required</span></div>
-<div class="param-desc">Data type: <code>"EOD"</code>, <code>"TRADE"</code>, <code>"QUOTE"</code>, or <code>"OHLC"</code></div>
+<div class="param-desc">Data type: <code>"TRADE"</code>, <code>"QUOTE"</code>, or <code>"OHLC"</code></div>
 </div>
 <div class="param">
 <div class="param-header"><code>symbol</code><span class="param-type">string</span><span class="param-badge required">required</span></div>
@@ -64,5 +64,5 @@ auto dates = client.option_list_dates("EOD", "SPY", "20241220", "500000", "C");
 
 ## Notes
 
-- Different request types may have different date availability. EOD data typically goes back further than tick-level trade or quote data.
+- Different request types may have different date availability.
 - Strike prices are expressed in tenths of a cent: `"500000"` = $500.00.

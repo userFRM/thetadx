@@ -71,7 +71,7 @@ All available stock symbols. gRPC: `GetStockListSymbols`
 pub async fn stock_list_dates(&self, request_type: &str, symbol: &str) -> Result<Vec<String>, Error>
 ```
 
-Available dates for a stock by request type (e.g. `"EOD"`, `"TRADE"`, `"QUOTE"`). gRPC: `GetStockListDates`
+Available dates for a stock by request type (e.g. `"TRADE"`, `"QUOTE"`). gRPC: `GetStockListDates`
 
 ### Stock - Snapshot (4)
 
@@ -915,7 +915,9 @@ All 14 tick types are `Clone + Debug` structs generated from `endpoint_schema.to
 
 ### Contract Identification Fields
 
-10 tick types carry **contract identification fields** that identify which option contract each tick belongs to. These fields are populated by the server on wildcard/bulk queries (where strike/expiration/right are `0`); on single-contract queries they are `0`.
+10 tick types carry **contract identification fields** that identify which option contract each tick belongs to. These fields are populated by the server on wildcard/bulk queries (where `expiration` and/or `strike` are `"0"`); on single-contract queries they are `0`.
+
+> **Note:** Only `expiration` and `strike` support wildcards (`"0"`). The `right` parameter does **not** accept wildcards -- you must specify `"C"` or `"P"`.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -939,7 +941,8 @@ Tick types with contract ID: `TradeTick`, `QuoteTick`, `OhlcTick`, `EodTick`, `O
 
 ```rust
 // Wildcard query — ticks include contract identification
-let ticks = tdx.option_history_trade("AAPL", "0", "0", "0", "20250101").await?;
+// Note: right must be "C" or "P", only expiration and strike accept "0"
+let ticks = tdx.option_history_trade("AAPL", "0", "0", "C", "20250101").await?;
 for t in &ticks {
     if t.has_contract_id() {
         println!("{} {} strike={} price={}",

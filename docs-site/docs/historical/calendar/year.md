@@ -40,34 +40,34 @@ auto year_info = client.calendar_year("2024");
 
 ## Response
 
-Returns a `Vec<CalendarDay>` with calendar info for every trading day in the year:
+Returns a `Vec<CalendarDay>` with calendar info for non-standard days in the year (holidays, early closes):
 
 <div class="param-list">
 <div class="param">
-<div class="param-header"><code>is_open</code><span class="param-type">bool</span></div>
-<div class="param-desc">Whether the market is open on this date</div>
-</div>
-<div class="param">
-<div class="param-header"><code>open_time</code><span class="param-type">u32</span></div>
-<div class="param-desc">Market open time (milliseconds from midnight ET)</div>
-</div>
-<div class="param">
-<div class="param-header"><code>close_time</code><span class="param-type">u32</span></div>
-<div class="param-desc">Market close time (milliseconds from midnight ET)</div>
-</div>
-<div class="param">
-<div class="param-header"><code>early_close</code><span class="param-type">bool</span></div>
-<div class="param-desc">Whether this is an early close day</div>
-</div>
-<div class="param">
-<div class="param-header"><code>date</code><span class="param-type">u32</span></div>
+<div class="param-header"><code>date</code><span class="param-type">i32</span></div>
 <div class="param-desc">Date as <code>YYYYMMDD</code> integer</div>
+</div>
+<div class="param">
+<div class="param-header"><code>is_open</code><span class="param-type">i32</span></div>
+<div class="param-desc"><code>1</code> if the market is open, <code>0</code> if closed</div>
+</div>
+<div class="param">
+<div class="param-header"><code>open_time</code><span class="param-type">i32</span></div>
+<div class="param-desc">Market open time (milliseconds from midnight ET). <code>0</code> if closed.</div>
+</div>
+<div class="param">
+<div class="param-header"><code>close_time</code><span class="param-type">i32</span></div>
+<div class="param-desc">Market close time (milliseconds from midnight ET). <code>0</code> if closed.</div>
+</div>
+<div class="param">
+<div class="param-header"><code>status</code><span class="param-type">i32</span></div>
+<div class="param-desc">Day type: <code>0</code> = open, <code>1</code> = early close, <code>2</code> = full close (holiday), <code>3</code> = weekend</div>
 </div>
 </div>
 
 ## Notes
 
-- Returns entries for all calendar days in the year, not just trading days. Non-trading days have `is_open: false`.
+- The server returns only non-standard days (holidays and early closes), not every calendar day.
 - Useful for building local trading calendars and scheduling data collection.
 - Future years may have incomplete data if the exchange has not yet published the full calendar.
 - Reflects NYSE trading hours only.

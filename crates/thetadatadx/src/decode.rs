@@ -744,6 +744,110 @@ mod tests {
             "mid-February 2006 should be EST under old DST rules"
         );
     }
+
+    /// Build a DataValue containing Text.
+    fn dv_text(s: &str) -> proto::DataValue {
+        proto::DataValue {
+            data_type: Some(proto::data_value::DataType::Text(s.to_string())),
+        }
+    }
+
+    #[test]
+    fn parse_calendar_v3_holiday() {
+        // Simulate calendar_year response for a holiday (full_close).
+        let table = proto::DataTable {
+            headers: vec!["date".into(), "type".into(), "open".into(), "close".into()],
+            data_table: vec![row_of(vec![
+                dv_text("2025-01-01"),
+                dv_text("full_close"),
+                dv_null(),
+                dv_null(),
+            ])],
+        };
+
+        let days = parse_calendar_days_v3(&table);
+        assert_eq!(days.len(), 1);
+        let d = &days[0];
+        assert_eq!(d.date, 20250101);
+        assert_eq!(d.is_open, 0);
+        assert_eq!(d.open_time, 0);
+        assert_eq!(d.close_time, 0);
+        assert_eq!(d.status, CALENDAR_STATUS_FULL_CLOSE);
+    }
+
+    #[test]
+    fn parse_calendar_v3_open_day() {
+        // Simulate calendar_on_date response for a regular trading day.
+        // Note: on_date and open_today omit the "date" column.
+        let table = proto::DataTable {
+            headers: vec!["type".into(), "open".into(), "close".into()],
+            data_table: vec![row_of(vec![
+                dv_text("open"),
+                dv_text("09:30:00"),
+                dv_text("16:00:00"),
+            ])],
+        };
+
+        let days = parse_calendar_days_v3(&table);
+        assert_eq!(days.len(), 1);
+        let d = &days[0];
+        assert_eq!(d.date, 0); // no date column
+        assert_eq!(d.is_open, 1);
+        assert_eq!(d.open_time, 34_200_000); // 9:30 AM = 9*3600+30*60 = 34200 seconds = 34200000 ms
+        assert_eq!(d.close_time, 57_600_000); // 4:00 PM = 16*3600 = 57600 seconds = 57600000 ms
+        assert_eq!(d.status, CALENDAR_STATUS_OPEN);
+    }
+
+    #[test]
+    fn parse_calendar_v3_early_close() {
+        // Simulate an early close day (day after Thanksgiving).
+        let table = proto::DataTable {
+            headers: vec!["date".into(), "type".into(), "open".into(), "close".into()],
+            data_table: vec![row_of(vec![
+                dv_text("2025-11-28"),
+                dv_text("early_close"),
+                dv_text("09:30:00"),
+                dv_text("13:00:00"),
+            ])],
+        };
+
+        let days = parse_calendar_days_v3(&table);
+        assert_eq!(days.len(), 1);
+        let d = &days[0];
+        assert_eq!(d.date, 20251128);
+        assert_eq!(d.is_open, 1);
+        assert_eq!(d.open_time, 34_200_000);
+        assert_eq!(d.close_time, 46_800_000); // 1:00 PM = 13*3600 = 46800 seconds = 46800000 ms
+        assert_eq!(d.status, CALENDAR_STATUS_EARLY_CLOSE);
+    }
+
+    #[test]
+    fn parse_calendar_v3_weekend() {
+        let table = proto::DataTable {
+            headers: vec!["type".into(), "open".into(), "close".into()],
+            data_table: vec![row_of(vec![dv_text("weekend"), dv_null(), dv_null()])],
+        };
+
+        let days = parse_calendar_days_v3(&table);
+        assert_eq!(days.len(), 1);
+        let d = &days[0];
+        assert_eq!(d.is_open, 0);
+        assert_eq!(d.status, CALENDAR_STATUS_WEEKEND);
+    }
+
+    #[test]
+    fn parse_time_text_valid() {
+        assert_eq!(super::parse_time_text("09:30:00"), 34_200_000);
+        assert_eq!(super::parse_time_text("16:00:00"), 57_600_000);
+        assert_eq!(super::parse_time_text("13:00:00"), 46_800_000);
+        assert_eq!(super::parse_time_text("00:00:00"), 0);
+    }
+
+    #[test]
+    fn parse_time_text_invalid_returns_zero() {
+        assert_eq!(super::parse_time_text("invalid"), 0);
+        assert_eq!(super::parse_time_text(""), 0);
+    }
 }
 
 /// Hand-written parser for OptionContract that handles the v3 server's
@@ -835,4 +939,146 @@ fn parse_iso_date(s: &str) -> i32 {
         }
     }
     0
+}
+
+/// Parse a time string "HH:MM:SS" to milliseconds from midnight.
+fn parse_time_text(s: &str) -> i32 {
+    let parts: Vec<&str> = s.split(':').collect();
+    if parts.len() == 3 {
+        if let (Ok(h), Ok(m), Ok(sec)) = (
+            parts[0].parse::<i32>(),
+            parts[1].parse::<i32>(),
+            parts[2].parse::<i32>(),
+        ) {
+            return (h * 3600 + m * 60 + sec) * 1000;
+        }
+    }
+    0
+}
+
+/// Calendar day status constants.
+///
+/// The v3 MDDS server sends a `type` column with text values. We map them to
+/// integer constants for the `CalendarDay.status` field:
+///
+/// | Server text    | Constant | Meaning                           |
+/// |----------------|----------|-----------------------------------|
+/// | `"open"`       | `0`      | Normal trading day                |
+/// | `"early_close"`| `1`      | Early close (e.g. day after Thanksgiving) |
+/// | `"full_close"` | `2`      | Market closed (holiday)           |
+/// | `"weekend"`    | `3`      | Weekend                           |
+/// | (unknown)      | `-1`     | Unrecognized status text          |
+pub const CALENDAR_STATUS_OPEN: i32 = 0;
+pub const CALENDAR_STATUS_EARLY_CLOSE: i32 = 1;
+pub const CALENDAR_STATUS_FULL_CLOSE: i32 = 2;
+pub const CALENDAR_STATUS_WEEKEND: i32 = 3;
+pub const CALENDAR_STATUS_UNKNOWN: i32 = -1;
+
+/// Map a v3 calendar `type` text to `(is_open, status)`.
+fn calendar_type_text(s: &str) -> (i32, i32) {
+    match s {
+        "open" => (1, CALENDAR_STATUS_OPEN),
+        "early_close" => (1, CALENDAR_STATUS_EARLY_CLOSE),
+        "full_close" => (0, CALENDAR_STATUS_FULL_CLOSE),
+        "weekend" => (0, CALENDAR_STATUS_WEEKEND),
+        _ => (0, CALENDAR_STATUS_UNKNOWN),
+    }
+}
+
+/// Hand-written parser for CalendarDay that handles the v3 server's
+/// text-formatted fields.
+///
+/// The v3 MDDS server sends calendar data with different column names and types
+/// than the generated parser expects:
+///
+/// | Schema field | Server header | Server type | Mapping                               |
+/// |--------------|---------------|-------------|---------------------------------------|
+/// | `date`       | `date`        | Text        | "2025-01-01" -> 20250101              |
+/// | `is_open`    | `type`        | Text        | "open"/"early_close" -> 1, else -> 0  |
+/// | `open_time`  | `open`        | Text / Null | "09:30:00" -> 34200000 ms             |
+/// | `close_time` | `close`       | Text / Null | "16:00:00" -> 57600000 ms             |
+/// | `status`     | `type`        | Text        | See [`CALENDAR_STATUS_OPEN`] etc.     |
+///
+/// Note: `calendar_on_date` and `calendar_open_today` omit the `date` column.
+pub fn parse_calendar_days_v3(table: &crate::proto::DataTable) -> Vec<CalendarDay> {
+    let h: Vec<&str> = table.headers.iter().map(|s| s.as_str()).collect();
+
+    let date_idx = h.iter().position(|&s| s == "date");
+    let type_idx = h.iter().position(|&s| s == "type");
+    let open_idx = h.iter().position(|&s| s == "open");
+    let close_idx = h.iter().position(|&s| s == "close");
+
+    table
+        .data_table
+        .iter()
+        .map(|row| {
+            // date: Text "2025-01-01" -> YYYYMMDD, or Number, or Timestamp
+            let date = date_idx
+                .map(|i| {
+                    // Try Number/Timestamp first (generated parser path)
+                    let n = row_number(row, i);
+                    if n != 0 {
+                        return n;
+                    }
+                    // v3: Text "2025-01-01"
+                    let s = row_text(row, i);
+                    if !s.is_empty() {
+                        return parse_iso_date(&s);
+                    }
+                    0
+                })
+                .unwrap_or(0);
+
+            // type: Text "open"/"full_close"/"early_close"/"weekend"
+            let (is_open, status) = type_idx
+                .map(|i| {
+                    let s = row_text(row, i);
+                    if !s.is_empty() {
+                        return calendar_type_text(&s);
+                    }
+                    // Fallback: try as Number (future-proofing)
+                    let n = row_number(row, i);
+                    (if n != 0 { 1 } else { 0 }, n)
+                })
+                .unwrap_or((0, 0));
+
+            // open: Text "09:30:00" -> ms_of_day, or Null/Number
+            let open_time = open_idx
+                .map(|i| {
+                    let n = row_number(row, i);
+                    if n != 0 {
+                        return n;
+                    }
+                    let s = row_text(row, i);
+                    if !s.is_empty() {
+                        return parse_time_text(&s);
+                    }
+                    0
+                })
+                .unwrap_or(0);
+
+            // close: Text "16:00:00" -> ms_of_day, or Null/Number
+            let close_time = close_idx
+                .map(|i| {
+                    let n = row_number(row, i);
+                    if n != 0 {
+                        return n;
+                    }
+                    let s = row_text(row, i);
+                    if !s.is_empty() {
+                        return parse_time_text(&s);
+                    }
+                    0
+                })
+                .unwrap_or(0);
+
+            CalendarDay {
+                date,
+                is_open,
+                open_time,
+                close_time,
+                status,
+            }
+        })
+        .collect()
 }

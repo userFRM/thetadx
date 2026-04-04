@@ -148,6 +148,10 @@ fn trade_tick_to_dict(py: Python<'_>, t: &tick::TradeTick) -> Py<PyAny> {
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", t.ms_of_day).unwrap();
     dict.set_item("sequence", t.sequence).unwrap();
+    dict.set_item("ext_condition1", t.ext_condition1).unwrap();
+    dict.set_item("ext_condition2", t.ext_condition2).unwrap();
+    dict.set_item("ext_condition3", t.ext_condition3).unwrap();
+    dict.set_item("ext_condition4", t.ext_condition4).unwrap();
     dict.set_item("condition", t.condition).unwrap();
     dict.set_item("size", t.size).unwrap();
     dict.set_item("exchange", t.exchange).unwrap();
@@ -169,11 +173,14 @@ fn quote_tick_to_dict(py: Python<'_>, q: &tick::QuoteTick) -> Py<PyAny> {
     dict.set_item("bid_size", q.bid_size).unwrap();
     dict.set_item("bid_exchange", q.bid_exchange).unwrap();
     dict.set_item("bid", q.bid_price().to_f64()).unwrap();
+    dict.set_item("bid_raw", q.bid).unwrap();
     dict.set_item("bid_condition", q.bid_condition).unwrap();
     dict.set_item("ask_size", q.ask_size).unwrap();
     dict.set_item("ask_exchange", q.ask_exchange).unwrap();
     dict.set_item("ask", q.ask_price().to_f64()).unwrap();
+    dict.set_item("ask_raw", q.ask).unwrap();
     dict.set_item("ask_condition", q.ask_condition).unwrap();
+    dict.set_item("price_type", q.price_type).unwrap();
     dict.set_item("date", q.date).unwrap();
     set_contract_id!(dict, q);
     dict.into_any().unbind()
@@ -183,11 +190,16 @@ fn ohlc_tick_to_dict(py: Python<'_>, o: &tick::OhlcTick) -> Py<PyAny> {
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", o.ms_of_day).unwrap();
     dict.set_item("open", o.open_price().to_f64()).unwrap();
+    dict.set_item("open_raw", o.open).unwrap();
     dict.set_item("high", o.high_price().to_f64()).unwrap();
+    dict.set_item("high_raw", o.high).unwrap();
     dict.set_item("low", o.low_price().to_f64()).unwrap();
+    dict.set_item("low_raw", o.low).unwrap();
     dict.set_item("close", o.close_price().to_f64()).unwrap();
+    dict.set_item("close_raw", o.close).unwrap();
     dict.set_item("volume", o.volume).unwrap();
     dict.set_item("count", o.count).unwrap();
+    dict.set_item("price_type", o.price_type).unwrap();
     dict.set_item("date", o.date).unwrap();
     set_contract_id!(dict, o);
     dict.into_any().unbind()
@@ -196,14 +208,28 @@ fn ohlc_tick_to_dict(py: Python<'_>, o: &tick::OhlcTick) -> Py<PyAny> {
 fn eod_tick_to_dict(py: Python<'_>, e: &tick::EodTick) -> Py<PyAny> {
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", e.ms_of_day).unwrap();
+    dict.set_item("ms_of_day2", e.ms_of_day2).unwrap();
     dict.set_item("open", e.open_price().to_f64()).unwrap();
+    dict.set_item("open_raw", e.open).unwrap();
     dict.set_item("high", e.high_price().to_f64()).unwrap();
+    dict.set_item("high_raw", e.high).unwrap();
     dict.set_item("low", e.low_price().to_f64()).unwrap();
+    dict.set_item("low_raw", e.low).unwrap();
     dict.set_item("close", e.close_price().to_f64()).unwrap();
+    dict.set_item("close_raw", e.close).unwrap();
     dict.set_item("volume", e.volume).unwrap();
     dict.set_item("count", e.count).unwrap();
+    dict.set_item("bid_size", e.bid_size).unwrap();
+    dict.set_item("bid_exchange", e.bid_exchange).unwrap();
     dict.set_item("bid", e.bid_price().to_f64()).unwrap();
+    dict.set_item("bid_raw", e.bid).unwrap();
+    dict.set_item("bid_condition", e.bid_condition).unwrap();
+    dict.set_item("ask_size", e.ask_size).unwrap();
+    dict.set_item("ask_exchange", e.ask_exchange).unwrap();
     dict.set_item("ask", e.ask_price().to_f64()).unwrap();
+    dict.set_item("ask_raw", e.ask).unwrap();
+    dict.set_item("ask_condition", e.ask_condition).unwrap();
+    dict.set_item("price_type", e.price_type).unwrap();
     dict.set_item("date", e.date).unwrap();
     set_contract_id!(dict, e);
     dict.into_any().unbind()
@@ -213,14 +239,32 @@ fn trade_quote_tick_to_dict(py: Python<'_>, t: &tick::TradeQuoteTick) -> Py<PyAn
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", t.ms_of_day).unwrap();
     dict.set_item("sequence", t.sequence).unwrap();
+    dict.set_item("ext_condition1", t.ext_condition1).unwrap();
+    dict.set_item("ext_condition2", t.ext_condition2).unwrap();
+    dict.set_item("ext_condition3", t.ext_condition3).unwrap();
+    dict.set_item("ext_condition4", t.ext_condition4).unwrap();
     dict.set_item("condition", t.condition).unwrap();
     dict.set_item("size", t.size).unwrap();
     dict.set_item("exchange", t.exchange).unwrap();
     dict.set_item("price", t.trade_price().to_f64()).unwrap();
-    dict.set_item("bid", t.bid_price().to_f64()).unwrap();
+    dict.set_item("price_raw", t.price).unwrap();
+    dict.set_item("condition_flags", t.condition_flags).unwrap();
+    dict.set_item("price_flags", t.price_flags).unwrap();
+    dict.set_item("volume_type", t.volume_type).unwrap();
+    dict.set_item("records_back", t.records_back).unwrap();
+    dict.set_item("quote_ms_of_day", t.quote_ms_of_day).unwrap();
     dict.set_item("bid_size", t.bid_size).unwrap();
-    dict.set_item("ask", t.ask_price().to_f64()).unwrap();
+    dict.set_item("bid_exchange", t.bid_exchange).unwrap();
+    dict.set_item("bid", t.bid_price().to_f64()).unwrap();
+    dict.set_item("bid_raw", t.bid).unwrap();
+    dict.set_item("bid_condition", t.bid_condition).unwrap();
     dict.set_item("ask_size", t.ask_size).unwrap();
+    dict.set_item("ask_exchange", t.ask_exchange).unwrap();
+    dict.set_item("ask", t.ask_price().to_f64()).unwrap();
+    dict.set_item("ask_raw", t.ask).unwrap();
+    dict.set_item("ask_condition", t.ask_condition).unwrap();
+    dict.set_item("quote_price_type", t.quote_price_type).unwrap();
+    dict.set_item("price_type", t.price_type).unwrap();
     dict.set_item("date", t.date).unwrap();
     set_contract_id!(dict, t);
     dict.into_any().unbind()
@@ -296,6 +340,7 @@ fn price_tick_to_dict(py: Python<'_>, t: &tick::PriceTick) -> Py<PyAny> {
     let dict = PyDict::new(py);
     dict.set_item("ms_of_day", t.ms_of_day).unwrap();
     dict.set_item("price", t.get_price().to_f64()).unwrap();
+    dict.set_item("price_raw", t.price).unwrap();
     dict.set_item("price_type", t.price_type).unwrap();
     dict.set_item("date", t.date).unwrap();
     dict.into_any().unbind()
@@ -483,6 +528,10 @@ enum BufferedEvent {
         contract_id: i32,
         ms_of_day: i32,
         sequence: i32,
+        ext_condition1: i32,
+        ext_condition2: i32,
+        ext_condition3: i32,
+        ext_condition4: i32,
         condition: i32,
         size: i32,
         exchange: i32,
@@ -568,6 +617,10 @@ fn fpss_event_to_buffered(event: &fpss::FpssEvent) -> BufferedEvent {
                 contract_id,
                 ms_of_day,
                 sequence,
+                ext_condition1,
+                ext_condition2,
+                ext_condition3,
+                ext_condition4,
                 condition,
                 size,
                 exchange,
@@ -584,6 +637,10 @@ fn fpss_event_to_buffered(event: &fpss::FpssEvent) -> BufferedEvent {
                 contract_id: *contract_id,
                 ms_of_day: *ms_of_day,
                 sequence: *sequence,
+                ext_condition1: *ext_condition1,
+                ext_condition2: *ext_condition2,
+                ext_condition3: *ext_condition3,
+                ext_condition4: *ext_condition4,
                 condition: *condition,
                 size: *size,
                 exchange: *exchange,
@@ -735,6 +792,10 @@ fn buffered_event_to_py(py: Python<'_>, event: &BufferedEvent) -> Py<PyAny> {
             contract_id,
             ms_of_day,
             sequence,
+            ext_condition1,
+            ext_condition2,
+            ext_condition3,
+            ext_condition4,
             condition,
             size,
             exchange,
@@ -752,6 +813,10 @@ fn buffered_event_to_py(py: Python<'_>, event: &BufferedEvent) -> Py<PyAny> {
             dict.set_item("contract_id", contract_id).unwrap();
             dict.set_item("ms_of_day", ms_of_day).unwrap();
             dict.set_item("sequence", sequence).unwrap();
+            dict.set_item("ext_condition1", ext_condition1).unwrap();
+            dict.set_item("ext_condition2", ext_condition2).unwrap();
+            dict.set_item("ext_condition3", ext_condition3).unwrap();
+            dict.set_item("ext_condition4", ext_condition4).unwrap();
             dict.set_item("condition", condition).unwrap();
             dict.set_item("size", size).unwrap();
             dict.set_item("exchange", exchange).unwrap();

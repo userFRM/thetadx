@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.3.0] - 2026-04-04
+
+### Breaking Changes
+
+- **Go SDK**: `EodTick`, `OhlcTick`, `TradeTick`, `QuoteTick`, `TradeQuoteTick`, `PriceTick`, `SnapshotTradeTick` gain additional fields (raw prices, ext_conditions, price_type). `Right` is now `string` ("C"/"P") with `RightRaw int32` for raw access.
+- **Python SDK**: trade dicts gain `ext_condition1..4`. Quote/OHLC/EOD/TradeQuote dicts gain raw price and detail fields.
+- **Rust**: `normalize_right()` maps `"C"` -> `"call"`, `"P"` -> `"put"`, `"*"` -> `"both"` for v3 server.
+
+### Added
+
+- **`tdbe::exchange`** -- 78 exchange codes with O(1) lookup: `exchange_name()`, `exchange_symbol()`. (#112)
+- **`tdbe::conditions`** -- 149 trade conditions + 75 quote conditions with semantic flags (cancel, volume, high, low, last). (#112)
+- **`tdbe::sequences`** -- FPSS sequence tracking with wrapping-aware gap detection. (#112)
+- **`tdbe::errors`** -- 14 ThetaData HTTP error codes mapped to human-readable names. gRPC errors now include the ThetaData error name. (#113)
+- **OHLC price normalization** -- `row_price_value_normalized()` and `change_price_type()` handle mixed price_types across OHLC fields. (#106)
+- **Greeks from Price cells** -- `row_float()` decodes Price-typed cells. `implied_vol` header alias. (#106)
+- **Calendar v3 parser** -- handles text dates, text times, and type codes from v3 server. (#109)
+- **`normalize_right()`** -- maps C/P/* to call/put/both for v3 server. Go `RightStr()` helper. (#111)
+- **Full SDK parity** -- Python and Go SDKs now expose every field from every Rust tick type.
+- **Latency physics documentation** -- speed-of-light calculations, colocation guidance, Mermaid diagrams.
+
+### Fixed
+
+- **37% of OHLC intraday bars had wrong prices** -- mixed price_type per cell caused 10x errors. (#106)
+- **All Greeks returned 0.0** -- server sends Greeks as Price cells, not Number cells. (#106)
+- **`option_list_contracts` returned 0** -- v3 server uses "symbol" not "root", ISO dates, text right. (#97)
+- **Calendar endpoints returned zeros** -- v3 text format mismatch. (#109)
+- **Dev server FPSS crashes** -- binary Error frames and unknown codes handled gracefully. (#85)
+- **`PriceToF64` Go formula wrong** -- was `value / 10^pt`, corrected to `value * 10^(pt-10)`.
+- **Python `greeks_tick_to_dict` missing 15 fields** -- now has all 24.
+
+### Documentation
+
+- 14 documentation fixes across 13 files
+- Mermaid diagrams replacing ASCII art in VitePress docs
+- Latency physics section with speed-of-light calculations per geography
+- 3 new JVM deviations documented
+- v3 migration guide compliance verified
+
 ## [5.2.1] - 2026-04-04
 
 ### Fixed
@@ -610,7 +649,8 @@ See [TODO.md](TODO.md) for the production readiness checklist and performance ro
 - FIT decoder uses i64 accumulator with i32 saturation (no silent overflow)
 - Price type range enforced with `assert!` in release builds
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.1...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v5.3.0...HEAD
+[5.3.0]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.1...v5.3.0
 [5.2.1]: https://github.com/userFRM/ThetaDataDx/compare/v5.2.0...v5.2.1
 [5.2.0]: https://github.com/userFRM/ThetaDataDx/compare/v5.1.1...v5.2.0
 [5.1.1]: https://github.com/userFRM/ThetaDataDx/compare/v5.1.0...v5.1.1

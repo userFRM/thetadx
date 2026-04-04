@@ -86,17 +86,15 @@ Last validated: 2026-04-04 against live MDDS production.
 
 ### FPSS Streaming
 
-Dev server replays April 28, 2025.
-
 | Feature | Tier | Status |
 |---------|------|--------|
 | Stock quote subscription | Standard | Verified |
 | Stock trade subscription | Standard | Verified |
-| Option quote subscription | Standard | Verified (SPY 550C bid=$7.26, 550P bid=$5.93) |
+| Option quote subscription | Standard | Verified |
 | Option trade subscription | Standard | Verified |
-| Open interest subscription | Pro | Not available on Standard |
-| Full trade firehose | Pro | Not available on Standard |
-| Full OI firehose | Pro | Not available on Standard |
+| Open interest subscription | Pro | Not tested |
+| Full trade firehose | Pro | Not tested |
+| Full OI firehose | Pro | Not tested |
 | Index price subscription | Free | Not tested |
 | Dev server replay | -- | Verified |
 | Reconnection | -- | Verified |

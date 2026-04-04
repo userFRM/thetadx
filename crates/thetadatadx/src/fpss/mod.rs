@@ -29,7 +29,7 @@
 //! # fn example() -> Result<(), thetadatadx::error::Error> {
 //! let creds = Credentials::new("user@example.com", "pw");
 //! let hosts = thetadatadx::config::DirectConfig::production().fpss_hosts;
-//! let client = FpssClient::connect(&creds, &hosts, 4096, Default::default(), |event: &FpssEvent| {
+//! let client = FpssClient::connect(&creds, &hosts, 4096, Default::default(), Default::default(), |event: &FpssEvent| {
 //!     // Runs on the Disruptor consumer thread -- keep it fast.
 //!     // Push to your own queue for heavy processing.
 //!     match event {
@@ -98,7 +98,7 @@ use disruptor::{build_single_producer, Producer, Sequence};
 use self::ring::{AdaptiveWaitStrategy, RingEvent};
 
 use crate::auth::Credentials;
-use crate::config::FpssFlushMode;
+use crate::config::{FpssFlushMode, ReconnectPolicy};
 use crate::error::Error;
 use tdbe::codec::fit::{apply_deltas, FitReader};
 use tdbe::types::enums::{RemoveReason, StreamMsgType, StreamResponseType};
@@ -226,6 +226,16 @@ pub enum FpssControl {
     ServerError { message: String },
     /// Server disconnected us (code 12).
     Disconnected { reason: RemoveReason },
+    /// Auto-reconnect is about to attempt reconnection.
+    ///
+    /// Emitted before sleeping for the delay. `attempt` is 1-based.
+    Reconnecting {
+        reason: RemoveReason,
+        attempt: u32,
+        delay_ms: u64,
+    },
+    /// Auto-reconnect succeeded -- connection is live again.
+    Reconnected,
     /// Protocol-level parse error.
     Error { message: String },
 }
@@ -329,11 +339,14 @@ impl FpssClient {
     ///
     /// `hosts` is the FPSS server list from [`DirectConfig::fpss_hosts`].
     /// Servers are tried in order until one connects.
+    ///
+    /// `policy` controls auto-reconnect behavior after involuntary disconnect.
     pub fn connect<F>(
         creds: &Credentials,
         hosts: &[(String, u16)],
         ring_size: usize,
         flush_mode: FpssFlushMode,
+        policy: ReconnectPolicy,
         handler: F,
     ) -> Result<Self, Error>
     where
@@ -345,9 +358,11 @@ impl FpssClient {
             creds,
             stream,
             server_addr,
+            hosts.to_vec(),
             ring_size,
             true,
             flush_mode,
+            policy,
             handler,
         )
     }
@@ -360,11 +375,14 @@ impl FpssClient {
     /// eliminating one extra event per trade.
     ///
     /// `hosts` is the FPSS server list from [`DirectConfig::fpss_hosts`].
+    ///
+    /// `policy` controls auto-reconnect behavior after involuntary disconnect.
     pub fn connect_no_ohlcvc<F>(
         creds: &Credentials,
         hosts: &[(String, u16)],
         ring_size: usize,
         flush_mode: FpssFlushMode,
+        policy: ReconnectPolicy,
         handler: F,
     ) -> Result<Self, Error>
     where
@@ -376,21 +394,29 @@ impl FpssClient {
             creds,
             stream,
             server_addr,
+            hosts.to_vec(),
             ring_size,
             false,
             flush_mode,
+            policy,
             handler,
         )
     }
 
     /// Connect using a pre-established stream (for testing with mock sockets).
+    ///
+    /// `hosts` is the full FPSS server list, needed for auto-reconnect to try
+    /// all servers. Pass an empty slice to disable reconnection to other servers.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn connect_with_stream<F>(
         creds: &Credentials,
         mut stream: connection::FpssStream,
         server_addr: String,
+        hosts: Vec<(String, u16)>,
         ring_size: usize,
         derive_ohlcvc: bool,
         flush_mode: FpssFlushMode,
+        policy: ReconnectPolicy,
         handler: F,
     ) -> Result<Self, Error>
     where
@@ -450,6 +476,8 @@ impl FpssClient {
         let io_authenticated = Arc::clone(&authenticated);
         let io_contract_map = Arc::clone(&contract_map);
         let io_server_addr = server_addr.clone();
+        let io_creds = creds.clone();
+        let io_hosts = hosts.clone();
 
         let io_handle = thread::Builder::new()
             .name("fpss-io".to_owned())
@@ -466,6 +494,9 @@ impl FpssClient {
                     io_server_addr,
                     derive_ohlcvc,
                     flush_mode,
+                    policy,
+                    io_creds,
+                    io_hosts,
                 );
             })
             .map_err(|e| Error::Fpss(format!("failed to spawn fpss-io thread: {e}")))?;
@@ -909,11 +940,18 @@ fn wait_for_login(stream: &mut connection::FpssStream) -> Result<LoginResult, Er
 // I/O thread: blocking read + Disruptor publish + command drain
 // ---------------------------------------------------------------------------
 
+/// Maximum number of consecutive reconnection attempts before giving up.
+const MAX_RECONNECT_ATTEMPTS: u32 = 5;
+
 /// The I/O thread owns the TLS stream. It does three things in a loop:
 ///
 /// 1. Attempt a blocking read (with short timeout) for incoming frames
 /// 2. Drain the command channel for outgoing writes (subscribe, ping, etc.)
 /// 3. Publish decoded events into the Disruptor ring
+///
+/// On involuntary disconnect, the reconnection policy determines whether
+/// to automatically re-establish the connection within this same thread
+/// (no new threads spawned).
 ///
 /// This thread IS the Disruptor producer. Events flow directly from the TLS
 /// socket into the ring buffer with zero intermediate channels.
@@ -930,6 +968,9 @@ fn io_loop<F>(
     _server_addr: String,
     derive_ohlcvc: bool,
     flush_mode: FpssFlushMode,
+    policy: ReconnectPolicy,
+    creds: Credentials,
+    hosts: Vec<(String, u16)>,
 ) where
     F: FnMut(&FpssEvent) + Send + 'static,
 {
@@ -956,114 +997,275 @@ fn io_loop<F>(
     });
 
     // Split the stream into buffered read + buffered write.
-    // BufReader: efficient small reads (FPSS frames are tiny: 2-257 bytes).
-    // BufWriter: batches small writes (pings, subscribe frames). Only flushed
-    // on PING frames, matching the Java terminal's behavior.
     let mut reader = BufReader::new(stream);
 
-    // Track consecutive read timeouts to detect the 10s overall timeout.
-    // With 50ms per attempt, 200 consecutive timeouts = 10 seconds.
-    let max_consecutive_timeouts = (protocol::READ_TIMEOUT_MS / 50).max(1);
-    let mut consecutive_timeouts: u64 = 0;
-
     // Per-contract delta state for FIT decompression.
-    // Key: (msg_type_code, contract_id), Value: previous absolute tick fields.
-    // Each tick type has its own field count:
-    //   Quote=11, Trade=16, OpenInterest=3, Ohlcvc=9
     let mut delta_state: DeltaState = DeltaState::new();
 
-    // Reusable frame payload buffer — avoids per-frame heap allocation.
-    // Capacity grows to the largest frame seen and stays there.
+    // Reusable frame payload buffer.
     let mut frame_buf: Vec<u8> = Vec::with_capacity(framing::MAX_PAYLOAD_LEN);
 
-    loop {
-        if shutdown.load(Ordering::Relaxed) {
-            break;
-        }
+    // Outer reconnection loop: each iteration runs one connection session.
+    // On involuntary disconnect, the policy decides whether to reconnect.
+    let mut reconnect_attempt: u32 = 0;
 
-        // --- Phase 1: Try to read a frame (short blocking read) ---
-        match read_frame_into(&mut reader, &mut frame_buf) {
-            Ok(Some((code, payload_len))) => {
-                consecutive_timeouts = 0;
+    'session: loop {
+        // Track consecutive read timeouts to detect the 10s overall timeout.
+        let max_consecutive_timeouts = (protocol::READ_TIMEOUT_MS / 50).max(1);
+        let mut consecutive_timeouts: u64 = 0;
 
-                let (primary, secondary) = decode_frame(
-                    code,
-                    &frame_buf[..payload_len],
-                    &authenticated,
-                    &contract_map,
-                    &shutdown,
-                    &mut delta_state,
-                    derive_ohlcvc,
-                );
-
-                if let Some(evt) = primary {
-                    producer.publish(|slot| {
-                        slot.event = Some(evt);
-                    });
-                }
-                if let Some(evt) = secondary {
-                    producer.publish(|slot| {
-                        slot.event = Some(evt);
-                    });
-                }
+        // --- Inner read/write loop for one connection session ---
+        // When the inner loop breaks, `disconnect_reason` holds the reason.
+        let disconnect_reason: RemoveReason = 'inner: loop {
+            if shutdown.load(Ordering::Relaxed) {
+                break 'session;
             }
-            Ok(None) => {
-                // Clean EOF
-                tracing::warn!("FPSS connection closed by server");
-                producer.publish(|slot| {
-                    slot.event = Some(FpssEvent::Control(FpssControl::Disconnected {
-                        reason: RemoveReason::Unspecified,
-                    }));
-                });
-                authenticated.store(false, Ordering::Release);
-                break;
-            }
-            Err(ref e) if is_read_timeout(e) => {
-                // Read timeout -- this is expected with our 50ms timeout.
-                // Check if we've exceeded the overall 10s threshold.
-                consecutive_timeouts += 1;
-                if consecutive_timeouts >= max_consecutive_timeouts {
-                    tracing::warn!(
-                        timeout_ms = protocol::READ_TIMEOUT_MS,
-                        "FPSS read timed out (no data for {}ms)",
-                        consecutive_timeouts * 50
+
+            // --- Phase 1: Try to read a frame (short blocking read) ---
+            match read_frame_into(&mut reader, &mut frame_buf) {
+                Ok(Some((code, payload_len))) => {
+                    consecutive_timeouts = 0;
+                    // Reset reconnect counter on successful data reception.
+                    reconnect_attempt = 0;
+
+                    let (primary, secondary) = decode_frame(
+                        code,
+                        &frame_buf[..payload_len],
+                        &authenticated,
+                        &contract_map,
+                        &shutdown,
+                        &mut delta_state,
+                        derive_ohlcvc,
                     );
+
+                    if let Some(evt) = primary {
+                        producer.publish(|slot| {
+                            slot.event = Some(evt);
+                        });
+                    }
+                    if let Some(evt) = secondary {
+                        producer.publish(|slot| {
+                            slot.event = Some(evt);
+                        });
+                    }
+                }
+                Ok(None) => {
+                    // Clean EOF
+                    tracing::warn!("FPSS connection closed by server");
                     producer.publish(|slot| {
                         slot.event = Some(FpssEvent::Control(FpssControl::Disconnected {
-                            reason: RemoveReason::TimedOut,
+                            reason: RemoveReason::Unspecified,
                         }));
                     });
                     authenticated.store(false, Ordering::Release);
-                    break;
+                    break 'inner RemoveReason::Unspecified;
                 }
-                // Otherwise, fall through to drain commands.
+                Err(ref e) if is_read_timeout(e) => {
+                    consecutive_timeouts += 1;
+                    if consecutive_timeouts >= max_consecutive_timeouts {
+                        tracing::warn!(
+                            timeout_ms = protocol::READ_TIMEOUT_MS,
+                            "FPSS read timed out (no data for {}ms)",
+                            consecutive_timeouts * 50
+                        );
+                        producer.publish(|slot| {
+                            slot.event = Some(FpssEvent::Control(FpssControl::Disconnected {
+                                reason: RemoveReason::TimedOut,
+                            }));
+                        });
+                        authenticated.store(false, Ordering::Release);
+                        break 'inner RemoveReason::TimedOut;
+                    }
+                    // Otherwise, fall through to drain commands.
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "FPSS read error");
+                    producer.publish(|slot| {
+                        slot.event = Some(FpssEvent::Control(FpssControl::Disconnected {
+                            reason: RemoveReason::Unspecified,
+                        }));
+                    });
+                    authenticated.store(false, Ordering::Release);
+                    break 'inner RemoveReason::Unspecified;
+                }
             }
-            Err(e) => {
-                tracing::error!(error = %e, "FPSS read error");
-                producer.publish(|slot| {
-                    slot.event = Some(FpssEvent::Control(FpssControl::Disconnected {
-                        reason: RemoveReason::Unspecified,
-                    }));
-                });
-                authenticated.store(false, Ordering::Release);
-                break;
+
+            // --- Phase 2: Drain command channel (non-blocking) ---
+            loop {
+                match cmd_rx.try_recv() {
+                    Ok(IoCommand::WriteFrame { code, payload }) => {
+                        let writer = reader.get_mut();
+                        let result = if code == StreamMsgType::Ping
+                            || flush_mode == FpssFlushMode::Immediate
+                        {
+                            write_raw_frame(writer, code, &payload)
+                        } else {
+                            write_raw_frame_no_flush(writer, code, &payload)
+                        };
+                        if let Err(e) = result {
+                            tracing::warn!(error = %e, "failed to write frame");
+                        }
+                    }
+                    Ok(IoCommand::Shutdown) => {
+                        let stop_payload = protocol::build_stop_payload();
+                        let writer = reader.get_mut();
+                        let _ = write_raw_frame(writer, StreamMsgType::Stop, &stop_payload);
+                        tracing::debug!("sent STOP, I/O thread exiting");
+                        shutdown.store(true, Ordering::Release);
+                        break;
+                    }
+                    Err(std_mpsc::TryRecvError::Empty) => break,
+                    Err(std_mpsc::TryRecvError::Disconnected) => {
+                        tracing::debug!("command channel disconnected, I/O thread exiting");
+                        shutdown.store(true, Ordering::Release);
+                        break;
+                    }
+                }
             }
+        }; // end 'inner loop (yields RemoveReason)
+
+        // If shutdown was requested (explicit or channel disconnect), exit entirely.
+        if shutdown.load(Ordering::Relaxed) {
+            break 'session;
         }
 
-        // --- Phase 2: Drain command channel (non-blocking) ---
-        // Process all pending write commands.
-        // Writes go through the underlying stream (via BufReader::get_mut).
-        // We rely on write_raw_frame / write_raw_frame_no_flush for
-        // flush discipline: only PING frames trigger a flush, batching
-        // other writes for better throughput.
+        // --- Reconnection decision ---
+        let reason = disconnect_reason;
+        reconnect_attempt += 1;
+
+        let delay = match &policy {
+            ReconnectPolicy::Manual => {
+                tracing::info!(reason = ?reason, "manual reconnect policy -- not reconnecting");
+                break 'session;
+            }
+            ReconnectPolicy::Auto => {
+                if reconnect_attempt > MAX_RECONNECT_ATTEMPTS {
+                    tracing::error!(
+                        attempts = reconnect_attempt - 1,
+                        "max reconnect attempts reached, giving up"
+                    );
+                    break 'session;
+                }
+                match reconnect_delay(reason) {
+                    Some(ms) => Duration::from_millis(ms),
+                    None => {
+                        tracing::error!(reason = ?reason, "permanent disconnect -- not reconnecting");
+                        break 'session;
+                    }
+                }
+            }
+            ReconnectPolicy::Custom(f) => match f(reason, reconnect_attempt) {
+                Some(d) => d,
+                None => {
+                    tracing::info!(reason = ?reason, "custom policy returned None -- not reconnecting");
+                    break 'session;
+                }
+            },
+        };
+
+        // Emit Reconnecting event before sleeping.
+        let delay_ms = delay.as_millis() as u64;
+        tracing::info!(
+            reason = ?reason,
+            attempt = reconnect_attempt,
+            delay_ms,
+            "auto-reconnecting FPSS"
+        );
+        metrics::counter!("thetadatadx.fpss.reconnects").increment(1);
+        producer.publish(|slot| {
+            slot.event = Some(FpssEvent::Control(FpssControl::Reconnecting {
+                reason,
+                attempt: reconnect_attempt,
+                delay_ms,
+            }));
+        });
+
+        thread::sleep(delay);
+
+        if shutdown.load(Ordering::Relaxed) {
+            break 'session;
+        }
+
+        // --- Attempt new TLS connection and re-authenticate ---
+        let new_stream = {
+            let borrowed: Vec<(&str, u16)> = hosts.iter().map(|(h, p)| (h.as_str(), *p)).collect();
+            connection::connect_to_servers(&borrowed)
+        };
+
+        let mut new_stream = match new_stream {
+            Ok((s, addr)) => {
+                tracing::info!(server = %addr, "reconnected to FPSS server");
+                s
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "reconnection failed, will retry");
+                // Loop around to try again (reconnect_attempt is already incremented).
+                continue 'session;
+            }
+        };
+
+        // Re-authenticate on the new stream.
+        let cred_payload = build_credentials_payload(&creds.email, &creds.password);
+        let frame = Frame::new(StreamMsgType::Credentials, cred_payload);
+        if let Err(e) = write_frame(&mut new_stream, &frame) {
+            tracing::warn!(error = %e, "failed to send credentials on reconnect");
+            continue 'session;
+        }
+
+        let login_result = match wait_for_login(&mut new_stream) {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(error = %e, "login failed on reconnect");
+                continue 'session;
+            }
+        };
+
+        let new_permissions = match login_result {
+            LoginResult::Success(p) => {
+                tracing::info!(permissions = %p, "re-authenticated on reconnect");
+                p
+            }
+            LoginResult::Disconnected(reason) => {
+                tracing::warn!(reason = ?reason, "server rejected login on reconnect");
+                continue 'session;
+            }
+        };
+
+        // Set the short I/O read timeout on the new stream.
+        let io_read_timeout = Duration::from_millis(50);
+        if let Err(e) = new_stream.sock.set_read_timeout(Some(io_read_timeout)) {
+            tracing::warn!(error = %e, "failed to set read timeout on reconnect");
+            continue 'session;
+        }
+
+        // Clear delta state -- fresh connection means fresh deltas.
+        delta_state.clear();
+        contract_map
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
+
+        authenticated.store(true, Ordering::Release);
+
+        // Publish reconnection events.
+        producer.publish(|slot| {
+            slot.event = Some(FpssEvent::Control(FpssControl::LoginSuccess {
+                permissions: new_permissions,
+            }));
+        });
+        producer.publish(|slot| {
+            slot.event = Some(FpssEvent::Control(FpssControl::Reconnected));
+        });
+
+        // Replace the reader with the new stream.
+        reader = BufReader::new(new_stream);
+
+        // Drain any commands that queued up during reconnection (subscribe, ping, etc.)
+        // and send them over the new connection to re-establish subscriptions.
         loop {
             match cmd_rx.try_recv() {
                 Ok(IoCommand::WriteFrame { code, payload }) => {
-                    // Get mutable access to the underlying stream through BufReader.
                     let writer = reader.get_mut();
-                    // Flush discipline: in Batched mode, only PING frames
-                    // trigger a flush (matching the Java terminal). In Immediate
-                    // mode, every frame is flushed for lowest latency.
                     let result =
                         if code == StreamMsgType::Ping || flush_mode == FpssFlushMode::Immediate {
                             write_raw_frame(writer, code, &payload)
@@ -1071,32 +1273,30 @@ fn io_loop<F>(
                             write_raw_frame_no_flush(writer, code, &payload)
                         };
                     if let Err(e) = result {
-                        tracing::warn!(error = %e, "failed to write frame");
-                        // Don't break the read loop for write errors -- the read
-                        // loop will detect the broken connection on the next read.
+                        tracing::warn!(error = %e, "failed to write queued frame on reconnect");
                     }
                 }
                 Ok(IoCommand::Shutdown) => {
-                    // Send STOP to server before exiting.
                     let stop_payload = protocol::build_stop_payload();
                     let writer = reader.get_mut();
                     let _ = write_raw_frame(writer, StreamMsgType::Stop, &stop_payload);
-                    tracing::debug!("sent STOP, I/O thread exiting");
-                    // Signal shutdown so the outer loop exits.
                     shutdown.store(true, Ordering::Release);
-                    // Break inner drain loop.
                     break;
                 }
                 Err(std_mpsc::TryRecvError::Empty) => break,
                 Err(std_mpsc::TryRecvError::Disconnected) => {
-                    // All senders dropped -- client was dropped without calling shutdown.
-                    tracing::debug!("command channel disconnected, I/O thread exiting");
                     shutdown.store(true, Ordering::Release);
                     break;
                 }
             }
         }
-    }
+
+        if shutdown.load(Ordering::Relaxed) {
+            break 'session;
+        }
+
+        // Continue 'session loop: the inner read/write loop will run on the new stream.
+    } // end 'session loop
 
     // Producer drop joins the Disruptor consumer thread and drains remaining events.
     tracing::debug!("fpss-io thread exiting");
@@ -1832,6 +2032,7 @@ fn ping_loop(
 /// On `ACCOUNT_ALREADY_CONNECTED`: do NOT reconnect (permanent error).
 ///
 /// Source: `FPSSClient.java` reconnection logic in the main loop.
+#[allow(clippy::too_many_arguments)]
 pub fn reconnect<F>(
     creds: &Credentials,
     hosts: &[(String, u16)],
@@ -1840,6 +2041,7 @@ pub fn reconnect<F>(
     delay_ms: u64,
     ring_size: usize,
     flush_mode: FpssFlushMode,
+    policy: ReconnectPolicy,
     handler: F,
 ) -> Result<FpssClient, Error>
 where
@@ -1848,7 +2050,7 @@ where
     tracing::info!(delay_ms, "waiting before FPSS reconnection");
     thread::sleep(Duration::from_millis(delay_ms));
 
-    let client = FpssClient::connect(creds, hosts, ring_size, flush_mode, handler)?;
+    let client = FpssClient::connect(creds, hosts, ring_size, flush_mode, policy, handler)?;
 
     // Re-subscribe all previous per-contract subscriptions with req_id = -1
     // Source: FPSSClient.java -- reconnect logic uses req_id = -1 for re-subscriptions
@@ -1970,6 +2172,67 @@ mod tests {
     #[test]
     fn fpss_event_default_exists() {
         let _evt: FpssEvent = Default::default();
+    }
+
+    #[test]
+    fn reconnect_policy_default_is_auto() {
+        let policy: ReconnectPolicy = Default::default();
+        assert!(matches!(policy, ReconnectPolicy::Auto));
+    }
+
+    #[test]
+    fn reconnect_policy_custom_works() {
+        let policy = ReconnectPolicy::Custom(std::sync::Arc::new(|reason, attempt| {
+            if attempt > 3 {
+                return None;
+            }
+            match reason {
+                RemoveReason::TooManyRequests => Some(Duration::from_secs(60)),
+                _ => Some(Duration::from_secs(1)),
+            }
+        }));
+        if let ReconnectPolicy::Custom(f) = &policy {
+            assert_eq!(f(RemoveReason::TimedOut, 1), Some(Duration::from_secs(1)));
+            assert_eq!(
+                f(RemoveReason::TooManyRequests, 2),
+                Some(Duration::from_secs(60))
+            );
+            assert_eq!(f(RemoveReason::TimedOut, 4), None);
+        } else {
+            panic!("expected Custom");
+        }
+    }
+
+    #[test]
+    fn fpss_control_reconnecting_variant() {
+        let evt = FpssEvent::Control(FpssControl::Reconnecting {
+            reason: RemoveReason::ServerRestarting,
+            attempt: 1,
+            delay_ms: 2000,
+        });
+        if let FpssEvent::Control(FpssControl::Reconnecting {
+            reason,
+            attempt,
+            delay_ms,
+        }) = &evt
+        {
+            assert_eq!(*reason, RemoveReason::ServerRestarting);
+            assert_eq!(*attempt, 1);
+            assert_eq!(*delay_ms, 2000);
+        } else {
+            panic!("expected Reconnecting");
+        }
+    }
+
+    #[test]
+    fn fpss_control_reconnected_variant() {
+        let evt = FpssEvent::Control(FpssControl::Reconnected);
+        assert!(matches!(&evt, FpssEvent::Control(FpssControl::Reconnected)));
+    }
+
+    #[test]
+    fn max_reconnect_attempts_is_5() {
+        assert_eq!(MAX_RECONNECT_ATTEMPTS, 5);
     }
 
     #[test]

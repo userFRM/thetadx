@@ -564,8 +564,18 @@ fn fpss_event_to_ffi(event: &thetadatadx::fpss::FpssEvent) -> FfiBufferedEvent {
                 FpssControl::MarketClose => (4, 0, None),
                 FpssControl::ServerError { message } => (5, 0, Some(message.clone())),
                 FpssControl::Disconnected { reason } => (6, 0, Some(format!("{reason:?}"))),
-                FpssControl::Error { message } => (7, 0, Some(message.clone())),
-                _ => (8, 0, None), // unknown control
+                FpssControl::Reconnecting {
+                    reason,
+                    attempt,
+                    delay_ms,
+                } => (
+                    8,
+                    *attempt as i32,
+                    Some(format!("{reason:?} delay={delay_ms}ms")),
+                ),
+                FpssControl::Reconnected => (9, 0, None),
+                FpssControl::Error { message } => (10, 0, Some(message.clone())),
+                _ => (99, 0, None), // unknown control
             };
             let cstring = detail_str.and_then(|s| CString::new(s).ok());
             let detail_ptr = cstring.as_ref().map_or(ptr::null(), |cs| cs.as_ptr());
@@ -724,6 +734,22 @@ pub unsafe extern "C" fn tdx_config_set_flush_mode(config: *mut TdxConfig, mode:
     config.inner.fpss_flush_mode = match mode {
         1 => thetadatadx::FpssFlushMode::Immediate,
         _ => thetadatadx::FpssFlushMode::Batched,
+    };
+}
+
+/// Set FPSS reconnect policy on a config handle.
+///
+/// - `policy = 0`: Auto (default) -- auto-reconnect matching Java terminal behavior
+/// - `policy = 1`: Manual -- no auto-reconnect, user calls reconnect explicitly
+#[no_mangle]
+pub unsafe extern "C" fn tdx_config_set_reconnect_policy(config: *mut TdxConfig, policy: i32) {
+    if config.is_null() {
+        return;
+    }
+    let config = unsafe { &mut *config };
+    config.inner.reconnect_policy = match policy {
+        1 => thetadatadx::ReconnectPolicy::Manual,
+        _ => thetadatadx::ReconnectPolicy::Auto,
     };
 }
 
@@ -2499,6 +2525,7 @@ pub unsafe extern "C" fn tdx_fpss_connect(
         &config.inner.fpss_hosts,
         config.inner.fpss_ring_size,
         config.inner.fpss_flush_mode,
+        config.inner.reconnect_policy.clone(),
         move |event: &thetadatadx::fpss::FpssEvent| {
             let buffered = fpss_event_to_ffi(event);
             let _ = tx.send(buffered);

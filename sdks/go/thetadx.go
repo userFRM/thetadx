@@ -26,6 +26,8 @@ extern TdxConfig* tdx_config_production();
 extern TdxConfig* tdx_config_dev();
 extern TdxConfig* tdx_config_stage();
 extern void tdx_config_free(TdxConfig* config);
+extern void tdx_config_set_reconnect_policy(TdxConfig* config, int policy);
+extern void tdx_config_set_flush_mode(TdxConfig* config, int mode);
 
 // ── Client ──
 extern TdxClient* tdx_client_connect(const TdxCredentials* creds, const TdxConfig* config);
@@ -301,6 +303,20 @@ func DevConfig() *Config {
 // StageConfig returns the stage FPSS config (port 20100, testing, unstable).
 func StageConfig() *Config {
 	return &Config{handle: C.tdx_config_stage()}
+}
+
+// SetReconnectPolicy sets the FPSS auto-reconnect policy.
+//   - 0 = Auto (default): auto-reconnect matching Java terminal behavior.
+//   - 1 = Manual: no auto-reconnect, user calls reconnect explicitly.
+func (c *Config) SetReconnectPolicy(policy int) {
+	C.tdx_config_set_reconnect_policy(c.handle, C.int(policy))
+}
+
+// SetFlushMode sets the FPSS write flush mode.
+//   - 0 = Batched (default): flush only on PING every 100ms.
+//   - 1 = Immediate: flush after every frame write.
+func (c *Config) SetFlushMode(mode int) {
+	C.tdx_config_set_flush_mode(c.handle, C.int(mode))
 }
 
 // Close frees the config handle.

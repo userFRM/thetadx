@@ -230,6 +230,12 @@ public:
     /** Stage FPSS config (port 20100, testing, unstable). */
     static Config stage();
 
+    /** Set FPSS reconnect policy. 0=Auto (default), 1=Manual. */
+    void set_reconnect_policy(int policy) { tdx_config_set_reconnect_policy(handle_.get(), policy); }
+
+    /** Set FPSS flush mode. 0=Batched (default), 1=Immediate. */
+    void set_flush_mode(int mode) { tdx_config_set_flush_mode(handle_.get(), mode); }
+
     /** Get the raw handle. */
     TdxConfig* get() const { return handle_.get(); }
 

@@ -32,7 +32,53 @@
 //! Source: `FpssConnectionManager` in decompiled terminal — iterates through
 //! hosts on connection failure.
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use tdbe::types::enums::RemoveReason;
+
 use crate::error::Error;
+
+/// Controls FPSS reconnection behavior after a disconnect.
+///
+/// # Default
+///
+/// [`ReconnectPolicy::Auto`] matches the Java terminal's `handleInvoluntaryDisconnect()`:
+/// permanent errors stop immediately, `TooManyRequests` waits 130s, everything else
+/// waits 2s, up to 5 attempts.
+///
+/// # Custom
+///
+/// Supply a closure that receives the disconnect reason and attempt number (1-based)
+/// and returns `Some(delay)` to reconnect after that delay, or `None` to stop.
+#[derive(Clone, Default)]
+pub enum ReconnectPolicy {
+    /// Auto-reconnect matching Java terminal behavior (default).
+    ///
+    /// - Permanent errors (invalid credentials, account issues): no reconnect.
+    /// - `TooManyRequests`: 130s wait.
+    /// - All others: 2s wait.
+    /// - Up to 5 consecutive reconnect attempts before giving up.
+    #[default]
+    Auto,
+    /// No auto-reconnect. User calls `reconnect_streaming()` manually.
+    Manual,
+    /// User-provided function: `(reason, attempt_number) -> Option<Duration>`.
+    ///
+    /// Return `Some(delay)` to reconnect after `delay`, `None` to stop.
+    /// `attempt_number` starts at 1 and increments on each consecutive reconnect.
+    Custom(Arc<dyn Fn(RemoveReason, u32) -> Option<Duration> + Send + Sync>),
+}
+
+impl std::fmt::Debug for ReconnectPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "Auto"),
+            Self::Manual => write!(f, "Manual"),
+            Self::Custom(_) => write!(f, "Custom(...)"),
+        }
+    }
+}
 
 /// Controls when the FPSS write buffer is flushed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -171,6 +217,12 @@ pub struct DirectConfig {
     /// NOTE: Not automatically wired — caller should pass to `fpss::reconnect()`.
     pub reconnect_wait_rate_limited_ms: u64,
 
+    // -- Reconnection policy --
+    /// Controls FPSS auto-reconnection behavior after involuntary disconnect.
+    ///
+    /// Default: [`ReconnectPolicy::Auto`] — matches Java terminal behavior.
+    pub reconnect_policy: ReconnectPolicy,
+
     // -- Threading --
     /// Number of tokio worker threads. `None` = tokio default (number of CPU cores).
     ///
@@ -226,6 +278,9 @@ impl DirectConfig {
             // Source: FPSSClient.RECONNECT_DELAY_MS = 2000 in decompiled terminal
             reconnect_wait_ms: 2_000,
             reconnect_wait_rate_limited_ms: 130_000, // FPSSClient: 130s for TooManyRequests
+
+            // Auto-reconnect matches Java terminal behavior by default
+            reconnect_policy: ReconnectPolicy::Auto,
 
             // Default: use all CPU cores
             tokio_worker_threads: None,
@@ -554,6 +609,10 @@ mod config_file {
                 reconnect_wait_ms: cf.fpss.reconnect_wait,
                 reconnect_wait_rate_limited_ms: cf.fpss.reconnect_wait_rate_limited,
 
+                // TOML config cannot express custom closures; default to Auto.
+                // Use the builder API to set Manual or Custom programmatically.
+                reconnect_policy: super::ReconnectPolicy::Auto,
+
                 tokio_worker_threads: None,
             })
         }
@@ -574,6 +633,20 @@ mod tests {
     fn production_has_four_fpss_hosts() {
         let config = DirectConfig::production();
         assert_eq!(config.fpss_hosts.len(), 4);
+    }
+
+    #[test]
+    fn production_default_reconnect_policy_is_auto() {
+        let config = DirectConfig::production();
+        assert!(matches!(config.reconnect_policy, ReconnectPolicy::Auto));
+    }
+
+    #[test]
+    fn reconnect_policy_debug_formats() {
+        assert_eq!(format!("{:?}", ReconnectPolicy::Auto), "Auto");
+        assert_eq!(format!("{:?}", ReconnectPolicy::Manual), "Manual");
+        let custom = ReconnectPolicy::Custom(Arc::new(|_, _| None));
+        assert_eq!(format!("{:?}", custom), "Custom(...)");
     }
 
     #[test]

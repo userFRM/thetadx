@@ -79,7 +79,7 @@ Last validated: 2026-04-04 against live MDDS production.
 
 | Endpoint | Tier | Status |
 |----------|------|--------|
-| `interest_rate_history_eod()` | Standard | Not tested |
+| `interest_rate_history_eod(sym, start, end)` | Value | Not tested |
 | `calendar_year(year)` | Free | Verified |
 | `calendar_on_date(date)` | Free | Verified |
 | `calendar_open_today()` | Free | Verified |

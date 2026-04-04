@@ -15,6 +15,8 @@ const HEADER_ALIASES: &[(&str, &str)] = &[
     ("date", "created"),
     // option_list_contracts returns "symbol" where the schema says "root"
     ("root", "symbol"),
+    // v3 uses "implied_vol" where the schema says "implied_volatility"
+    ("implied_volatility", "implied_vol"),
 ];
 
 /// Helper: find a column index by name, with alias fallback.
@@ -483,14 +485,27 @@ fn change_price_type(price: i32, from_type: i32, to_type: i32) -> i32 {
 
 /// Helper to get an f64 from a row at a given column index, defaulting to 0.0.
 ///
-/// Greeks and implied volatility columns use `Number` (f64) values in the DataTable,
-/// not `Price` cells. This helper extracts the raw f64 value.
+/// Handles both `Number` cells (raw f64) and `Price` cells (value + price_type
+/// encoding). The v3 MDDS server sends Greeks, IV, and other f64 fields as
+/// Price-encoded values.
 pub(crate) fn row_float(row: &proto::DataValueList, idx: usize) -> f64 {
     row.values
         .get(idx)
         .and_then(|dv| dv.data_type.as_ref())
         .and_then(|dt| match dt {
             proto::data_value::DataType::Number(n) => Some(*n as f64),
+            proto::data_value::DataType::Price(p) => {
+                if p.r#type == 0 {
+                    Some(0.0)
+                } else {
+                    let exp = p.r#type - 10;
+                    if exp >= 0 {
+                        Some(p.value as f64 * 10f64.powi(exp))
+                    } else {
+                        Some(p.value as f64 / 10f64.powi(-exp))
+                    }
+                }
+            }
             _ => None,
         })
         .unwrap_or(0.0)
@@ -922,7 +937,7 @@ pub fn parse_option_contracts_v3(table: &crate::proto::DataTable) -> Vec<OptionC
 }
 
 /// Parse an ISO date string "2026-04-13" to YYYYMMDD integer 20260413.
-fn parse_iso_date(s: &str) -> i32 {
+pub(crate) fn parse_iso_date(s: &str) -> i32 {
     // Fast path: already numeric (YYYYMMDD)
     if let Ok(n) = s.parse::<i32>() {
         return n;

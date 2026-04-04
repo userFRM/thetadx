@@ -477,7 +477,7 @@ fn generate_parser(out: &mut String, type_name: &str, def: &TickTypeDef) {
     // Contract identification fields (injected when contract_id = true).
     if def.contract_id {
         out.push_str(
-            "                expiration: _cid_exp_idx.map(|i| row_number(row, i)).unwrap_or(0),\n",
+            "                expiration: _cid_exp_idx.map(|i| { let n = row_number(row, i); if n != 0 { n } else { let s = row_text(row, i); parse_iso_date(&s) } }).unwrap_or(0),\n",
         );
         out.push_str("                strike: match _cid_strike_idx {\n");
         out.push_str(

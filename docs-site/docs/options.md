@@ -33,7 +33,7 @@ print(exps[:10])  # ["20240419", "20240517", ...]
 ```rust [Rust]
 let strikes = client.option_list_strikes("SPY", "20240419").await?;
 println!("{} strikes available", strikes.len());
-// Strikes are scaled integers: "500000" = $500.00
+// v3 returns strikes as dollar values
 ```
 ```python [Python]
 strikes = client.option_list_strikes("SPY", "20240419")
@@ -43,32 +43,31 @@ print(f"{len(strikes)} strikes for 2024-04-19")
 
 ### Step 3: Fetch Chain Data
 
+Use wildcards to fetch the entire chain in a single call -- no looping required:
+
 ::: code-group
 ```rust [Rust]
-for strike in &strikes {
-    let call_quotes = client.option_snapshot_quote(
-        "SPY", "20240419", strike, "C"
-    ).await?;
-    let put_quotes = client.option_snapshot_quote(
-        "SPY", "20240419", strike, "P"
-    ).await?;
+// One call: all strikes, both calls and puts
+let chain = client.option_snapshot_quote(
+    "SPY", "20240419", "*", "both"
+).await?;
 
-    if let (Some(c), Some(p)) = (call_quotes.first(), put_quotes.first()) {
-        println!("Strike {}: Call bid={} ask={} | Put bid={} ask={}",
-            strike, c.bid_price(), c.ask_price(),
-            p.bid_price(), p.ask_price());
+for q in &chain {
+    if q.has_contract_id() {
+        println!("{} {} {:.2}: bid={:.2} ask={:.2}",
+            q.expiration, q.right_str(), q.strike_price(),
+            q.bid_f64(), q.ask_f64());
     }
 }
 ```
 ```python [Python]
-for strike in strikes[:10]:
-    call = client.option_snapshot_quote("SPY", "20240419", strike, "C")
-    put = client.option_snapshot_quote("SPY", "20240419", strike, "P")
-    if call and put:
-        c, p = call[0], put[0]
-        print(f"Strike {strike}: "
-              f"Call bid={c['bid']:.2f} ask={c['ask']:.2f} | "
-              f"Put bid={p['bid']:.2f} ask={p['ask']:.2f}")
+# One call: all strikes, both calls and puts
+chain = client.option_snapshot_quote("SPY", "20240419", "*", "both")
+
+for q in chain:
+    if "expiration" in q:
+        print(f"{q['expiration']} {q['right']} {q['strike']:.2f}: "
+              f"bid={q['bid']:.2f} ask={q['ask']:.2f}")
 ```
 :::
 
@@ -78,29 +77,29 @@ for strike in strikes[:10]:
 ```rust [Rust]
 // All Greeks snapshot for a contract
 let greeks = client.option_snapshot_greeks_all(
-    "SPY", "20240419", "500000", "C"
+    "SPY", "20240419", "500", "C"
 ).await?;
 
 // Historical EOD Greeks over a date range
 let greeks_eod = client.option_history_greeks_eod(
-    "SPY", "20240419", "500000", "C", "20240101", "20240301"
+    "SPY", "20240419", "500", "C", "20240101", "20240301"
 ).await?;
 
 // Greeks on each individual trade
 let trade_greeks = client.option_history_trade_greeks_all(
-    "SPY", "20240419", "500000", "C", "20240315"
+    "SPY", "20240419", "500", "C", "20240315"
 ).await?;
 ```
 ```python [Python]
 # All Greeks snapshot for a contract
-greeks = client.option_snapshot_greeks_all("SPY", "20240419", "500000", "C")
+greeks = client.option_snapshot_greeks_all("SPY", "20240419", "500", "C")
 
 # Historical EOD Greeks
-greeks_eod = client.option_history_greeks_eod("SPY", "20240419", "500000", "C",
+greeks_eod = client.option_history_greeks_eod("SPY", "20240419", "500", "C",
                                                "20240101", "20240301")
 
 # Greeks on each individual trade
-trade_greeks = client.option_history_trade_greeks_all("SPY", "20240419", "500000", "C",
+trade_greeks = client.option_history_trade_greeks_all("SPY", "20240419", "500", "C",
                                                        "20240315")
 ```
 :::
@@ -117,22 +116,13 @@ tdx = ThetaDataDx(creds, Config.production())
 exps = tdx.option_list_expirations("SPY")
 exp = exps[0]
 
-# Get all strikes
-strikes = tdx.option_list_strikes("SPY", exp)
+# Fetch EOD for all calls in one request using wildcard strike
+chain = tdx.option_history_eod("SPY", exp, "*", "C",
+                                "20240301", "20240301")
 
-# Fetch EOD data for all calls
-chain = []
-for strike in strikes:
-    eod = tdx.option_history_eod("SPY", exp, strike, "C",
-                                    "20240301", "20240301")
-    if eod:
-        eod[0]["strike"] = strike
-        chain.append(eod[0])
-
-# Convert to DataFrame
-from thetadatadx import to_dataframe
-df = to_dataframe(chain)
-print(df[["strike", "close", "volume"]].head(20))
+# Each row has contract ID fields (expiration, strike, right)
+for row in chain[:5]:
+    print(f"strike={row['strike']:.2f} close={row['close']:.2f} vol={row['volume']}")
 ```
 
 ---

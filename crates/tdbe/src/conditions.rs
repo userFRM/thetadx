@@ -12,6 +12,7 @@
 pub struct TradeCondition {
     pub code: i32,
     pub name: &'static str,
+    pub description: &'static str,
     pub cancel: bool,
     pub late_report: bool,
     pub auto_executed: bool,
@@ -27,6 +28,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 0,
         name: "REGULAR",
+        description: "Regular Trade",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -39,6 +41,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 1,
         name: "FORMT",
+        description: "Form T. Before and After Regular Hours. note: NYSE/AMEX previously used code 'T' for BurstBasket.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -51,6 +54,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 2,
         name: "OUTOFSEQ",
+        description: "Report was sent Out Of Sequence. Updates last if it becomes only trade (if the trade reports before it are canceled, for example).",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -63,6 +67,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 3,
         name: "AVGPRC",
+        description: "Average Price for a trade. NYSE/AMEX stocks. Nasdaq uses AvgPrc_Nasdaq-- main difference is NYSE/AMEX does not conditionally set high/low/last.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -75,6 +80,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 4,
         name: "AVGPRC_NASDAQ",
+        description: "Average Price. Nasdaq stocks. Similar to AvgPrc, but does not set high/low/last.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -87,6 +93,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 5,
         name: "OPENREPORTLATE",
+        description: "NYSE/AMEX. Market opened Late. Here is the report. It may not be in sequence. Nasdaq uses OpenReportOutOfSeq. *update last if only trade.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -99,6 +106,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 6,
         name: "OPENREPORTOUTOFSEQ",
+        description: "Report IS out of sequence. Market was open, and now this report is just getting to us.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -111,6 +119,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 7,
         name: "OPENREPORTINSEQ",
+        description: "Opening report. This is the first price.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -123,6 +132,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 8,
         name: "PRIORREFERENCEPRICE",
+        description: "Trade references price established earlier. *Update last if this is the only trade report.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -135,6 +145,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 9,
         name: "NEXTDAYSALE",
+        description: "NYSE/AMEX:Next Day Clearing. Nasdaq: Delivery of Securities and payment one to four days later. * As of September 5, 2017, the NYSE will no longer accept orders with Cash, Next Day or Seller's Option instructions . [URL1: https://www.nyse.com/trader-update/history#110000073055]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -147,6 +158,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 10,
         name: "BUNCHED",
+        description: "Aggregate of 2 or more Regular trades at same price within 60 seconds and each trade size not greater than 10,000.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -159,6 +171,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 11,
         name: "CASHSALE",
+        description: "Delivery of securities and payment on the same day. * As of September 5, 2017, the NYSE will no longer accept orders with Cash, Next Day or Seller's Option instructions . [URL1: https://www.nyse.com/trader-update/history#110000073055]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -171,6 +184,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 12,
         name: "SELLER",
+        description: "Stock can be delivered up to 60 days later as specified by the seller. After 1995, the number of days can be greater than 60. note: delivery of 3 days would be considered a regular trade. * As of September 5, 2017, the NYSE will no longer accept orders with Cash, Next Day or Seller's Option instructions . [URL1: https://www.nyse.com/trader-update/history#110000073055]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -183,6 +197,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 13,
         name: "SOLDLAST",
+        description: "Late Reporting. *Sets Consolidated Last if no other qualifying Last, or same Exchange set previous Trade, or Exchange is Listed Exchange.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -195,6 +210,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 14,
         name: "RULE127",
+        description: "NYSE only. Rule 127 basically denotes the trade was executed as a block trade.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -207,6 +223,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 15,
         name: "BUNCHEDSOLD",
+        description: "Several trades were bunched into one trade report, and the report is late. *Update last if this is first trade.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -219,6 +236,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 16,
         name: "NONBOARDLOT",
+        description: "Size of trade is less than a board lot (oddlot). A board lot is usually 1,00 shares. Note this is Canadian markets.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -231,6 +249,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 17,
         name: "POSIT",
+        description: "POSIT Canada is an electronic order matching system that prices trades at the mid-point of the bid and ask in the continuous market.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -243,6 +262,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 18,
         name: "AUTOEXECUTION",
+        description: "Transaction executed electronically. Soley for information. Only found in OPRA -- options trades, and quite common.",
         cancel: false,
         late_report: false,
         auto_executed: true,
@@ -255,6 +275,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 19,
         name: "HALT",
+        description: "Temporary halt in trading in a particular security for one or more participants.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -267,6 +288,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 20,
         name: "DELAYED",
+        description: "Indicates a delayed opening",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -279,6 +301,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 21,
         name: "REOPEN",
+        description: "Reopening of a contract that was previously halted.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -291,6 +314,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 22,
         name: "ACQUISITION",
+        description: "Transaction on exchange as a result of an Exchange Acquisition",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -303,6 +327,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 23,
         name: "CASHMARKET",
+        description: "Cash only Market. All trade reports for this session will be settled in cash. note: differs from CashSale in that the trade marked as CashSale is an exception -- that is, most trades are settled using regular conditions.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -315,6 +340,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 24,
         name: "NEXTDAYMARKET",
+        description: "Next Day Only Market. All trades reports for this session will be settled the next day. Note: differs from NextDay in that the trade marked as NextDay is an exception -- that is, most trades are settled using regular conditions.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -327,6 +353,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 25,
         name: "BURSTBASKET",
+        description: "Specialist bought or sold this stock as part of an execution of a specific basket of stocks.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -339,6 +366,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 26,
         name: "OPENDETAIL",
+        description: "107-113, 130, 160 Deleted an existing Sale Condition (Note: the code may be repurposed at a future date): 'G' - 'Opening/Reopening Trade Detail' This trade is one of several trades that made up the open report trade. Often the open report has a large size which was made up of orders placed overnight. After trading has commenced, the individual trades of the open report trade are sent with this condition. Note it doesn't update volume, high, low, or last because it's already been accounted for in the open report.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -351,6 +379,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 27,
         name: "INTRADETAIL",
+        description: "This trade is one of several trades that made up a previous trade. Similar to OpenDetail but refers to a trade report that was not the opening trade report.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -363,6 +392,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 28,
         name: "BASKETONCLOSE",
+        description: "A trade consisting of a paired basket order to be executed based on the closing value of an index. These trades are reported after the close when the index closing value is known.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -375,6 +405,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 29,
         name: "RULE155",
+        description: "AMEX only rule 155. Sale of block at one clean-up price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -387,6 +418,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 30,
         name: "DISTRIBUTION",
+        description: "Sale of a large block of stock in a way that price is not adversely affected.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -399,6 +431,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 31,
         name: "SPLIT",
+        description: "Execution in 2 markets when the specialist or MM in the market first receiving the order agrees to execute a portion of it at whatever price is realized in another market to which the balance of the order is forwarded for execution.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -411,6 +444,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 32,
         name: "REGULARSETTLE",
+        description: "RegularSettle",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -423,6 +457,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 33,
         name: "CUSTOMBASKETCROSS",
+        description: "One of two types: 2 paired but seperate orders in which a market maker or member facilitates both sides of a remaining portion of a basket. A split basket plus an entire basket where the market maker or member facilitates the remaining shares of the split basket.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -435,6 +470,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 34,
         name: "ADJTERMS",
+        description: "Terms have been adjusted to reflect stock split/dividend or similar event.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -447,6 +483,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 35,
         name: "SPREAD",
+        description: "Spread between 2 options in the same options class.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -459,6 +496,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 36,
         name: "STRADDLE",
+        description: "Straddle between 2 options in the same options class.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -471,6 +509,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 37,
         name: "BUYWRITE",
+        description: "This is the option part of a covered call.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -483,6 +522,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 38,
         name: "COMBO",
+        description: "A buy and a sell in 2 or more options in the same class.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -495,6 +535,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 39,
         name: "STPD",
+        description: "Traded at price agreed upon by the floor following a non-stopped trade of the same series at the same price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -507,6 +548,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 40,
         name: "CANC",
+        description: "Cancel a previously reported trade - it will not be the first or last trade record. note: If the most recent report is Out of seq, SoldLast, or a type that does not qualify to set the last, that report can be considered in processing the cancel.",
         cancel: true,
         late_report: false,
         auto_executed: false,
@@ -519,6 +561,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 41,
         name: "CANCLAST",
+        description: "Cancel the most recent trade report that is qualified to set the last.",
         cancel: true,
         late_report: false,
         auto_executed: false,
@@ -531,6 +574,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 42,
         name: "CANCOPEN",
+        description: "Cancel the opening trade report.",
         cancel: true,
         late_report: false,
         auto_executed: false,
@@ -543,6 +587,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 43,
         name: "CANCONLY",
+        description: "Cancel the only trade report. There is only one trade report, cancel it.",
         cancel: true,
         late_report: false,
         auto_executed: false,
@@ -555,6 +600,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 44,
         name: "CANCSTPD",
+        description: "Cancel the trade report that has the condition STPD.",
         cancel: true,
         late_report: false,
         auto_executed: false,
@@ -567,6 +613,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 45,
         name: "MATCHCROSS",
+        description: "CTS and UTP: Cross Trade A Cross Trade a trade transaction resulting from a market center's crossing session.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -579,6 +626,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 46,
         name: "FASTMARKET",
+        description: "Term used to define unusually hectic market conditions.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -591,6 +639,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 47,
         name: "NOMINAL",
+        description: "Nominal price. A calculated price primarily generated to represent the fair market value of an inactive instrument for the purpose of determining margin requirements and evaluating position risk. Common in futures and futures options.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -603,6 +652,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 48,
         name: "CABINET",
+        description: "A trade in a deep out-of-the-money option priced at one-half the tick value. Used by options traders to liquidate positions.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -615,6 +665,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 49,
         name: "BLANKPRICE",
+        description: "Sent by an exchange to blank out the associated price (bid, ask or trade).",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -627,6 +678,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 50,
         name: "NOTSPECIFIED",
+        description: "An unspecified (generalized) condition.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -639,6 +691,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 51,
         name: "MCOFFICIALCLOSE",
+        description: "The Official closing value as determined by a Market Center.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -651,6 +704,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 52,
         name: "SPECIALTERMS",
+        description: "Indicates that all trades executed will be settled in other than the regular manner.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -663,6 +717,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 53,
         name: "CONTINGENTORDER",
+        description: "The result of an order placed by a Participating Organization on behalf of a client for one security and contingent on the execution of a second order placed by the same client for an offsetting volume of a related security.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -675,6 +730,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 54,
         name: "INTERNALCROSS",
+        description: "A cross between two client accounts of a Participating Organization which are managed by a single firm acting as portfolio manager with discretionary authority to manage the investment portfolio granted by each of the clients. This was originally from Toronto Stock Exchange (TSX). Information located here. [URL1: http://tmx.complinet.com/fr/display/display.html?rbid=2073&element_id=421&record_id=681&print=1]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -687,6 +743,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 55,
         name: "STOPPEDREGULAR",
+        description: "Stopped Stock  Regular Trade.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -699,6 +756,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 56,
         name: "STOPPEDSOLDLAST",
+        description: "Stopped Stock  SoldLast Trade",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -711,6 +769,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 57,
         name: "STOPPEDOUTOFSEQ",
+        description: "Stopped Stock -- Out of Sequence.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -723,6 +782,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 58,
         name: "BASIS",
+        description: "A transaction involving a basket of securities or an index participation unit that is transacted at prices achieved through the execution of related exchange-traded derivative instruments, which may include index futures, index options and index participation units in an amount that will correspond to an equivalent market exposure.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -735,6 +795,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 59,
         name: "VWAP",
+        description: "Volume Weighted Average Price. A transaction for the purpose of executing trades at a volume-weighted average price of the security traded for a continuous period on or during a trading day on the exchange.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -747,6 +808,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 60,
         name: "SPECIALSESSION",
+        description: "Occurs when an order is placed by a purchase order on behalf of a client for execution in the Special Trading Session at the last sale price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -759,6 +821,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 61,
         name: "NANEXADMIN",
+        description: "Used to make volume and price corrections to match official exchange values.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -771,6 +834,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 62,
         name: "OPENREPORT",
+        description: "Indicates an opening trade report.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -783,6 +847,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 63,
         name: "MARKETONCLOSE",
+        description: "The Official closing value as determined by a Market Center.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -795,6 +860,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 64,
         name: "SETTLEPRICE",
+        description: "Settlement Price",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -807,6 +873,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 65,
         name: "OUTOFSEQPREMKT",
+        description: "An out of sequence trade that exectuted in pre or post market -- a combination of FormT and OutOfSeq.",
         cancel: false,
         late_report: true,
         auto_executed: false,
@@ -819,6 +886,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 66,
         name: "MCOFFICIALOPEN",
+        description: "Indicates the 'Official' opening value as determined by a Market Center. This transaction report will contain the market center generated opening price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -831,6 +899,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 67,
         name: "FUTURESSPREAD",
+        description: "Execution was part of a spread with another futures contract.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -843,6 +912,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 68,
         name: "OPENRANGE",
+        description: "Two trade prices are used to indicate an opening range representing the high and low prices during the first 30 seconds or so of trading.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -855,6 +925,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 69,
         name: "CLOSERANGE",
+        description: "Two trade prices are used to indicate an opening range representing the high and low prices during the last 30 seconds or so of trading.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -867,6 +938,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 70,
         name: "NOMINALCABINET",
+        description: "Nominal Cabinet",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -879,6 +951,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 71,
         name: "CHANGINGTRANS",
+        description: "Changing Transaction",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -891,6 +964,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 72,
         name: "CHANGINGTRANSCAB",
+        description: "Changing Cabinet Transaction",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -903,6 +977,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 73,
         name: "NOMINALUPDATE",
+        description: "Nominal price update",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -915,6 +990,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 74,
         name: "PITSETTLEMENT",
+        description: "Sent with a \"pit session\" settlement price to the electronic session, for the purpose of computing net change from the next day electronic session and the prior session settlement price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -927,6 +1003,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 75,
         name: "BLOCKTRADE",
+        description: "An executed trade of a large number of shares, typically 10,000 shares or more.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -939,6 +1016,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 76,
         name: "EXGFORPHYSICAL",
+        description: "Exchange Future for Physical",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -951,6 +1029,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 77,
         name: "VOLUMEADJUSTMENT",
+        description: "An adjustment made to the cumulative trading volume for a trading session.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -963,6 +1042,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 78,
         name: "VOLATILITYTRADE",
+        description: "Volatility trade",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -975,6 +1055,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 79,
         name: "YELLOWFLAG",
+        description: "Appears when reporting exchnge may be experiencing technical difficulties.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -987,6 +1068,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 80,
         name: "FLOORPRICE",
+        description: "Distinguishes a floor Bid/Ask from a member Bid Ask on LME",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -999,6 +1081,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 81,
         name: "OFFICIALPRICE",
+        description: "Official bid/ask price used by LME.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1011,6 +1094,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 82,
         name: "UNOFFICIALPRICE",
+        description: "Unofficial bid/ask price used by LME.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1023,6 +1107,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 83,
         name: "MIDBIDASKPRICE",
+        description: "A price halfway between the bid and ask on LME.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1035,6 +1120,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 84,
         name: "ENDSESSIONHIGH",
+        description: "End of Session High Price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1047,6 +1133,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 85,
         name: "ENDSESSIONLOW",
+        description: "End of Session Low Price.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1059,6 +1146,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 86,
         name: "BACKWARDATION",
+        description: "A condition where the immediate delivery price is higher than the future delivery price. Opposite of Contango.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1071,6 +1159,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 87,
         name: "CONTANGO",
+        description: "A condition where the future delivery price is higher than the immediate delivery price. Opposite of Backwardation.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1083,6 +1172,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 88,
         name: "HOLIDAY",
+        description: "In Development",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1095,6 +1185,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 89,
         name: "PREOPENING",
+        description: "The period of time prior to the market opening time (7:00 A.M. - 9:30 A.M.) during which orders are entered into the market for the Opening.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1107,6 +1198,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 90,
         name: "POSTFULL",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1119,6 +1211,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 91,
         name: "POSTRESTRICTED",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1131,6 +1224,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 92,
         name: "CLOSINGAUCTION",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1143,6 +1237,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 93,
         name: "BATCH",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1155,6 +1250,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 94,
         name: "TRADING",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1167,6 +1263,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 95,
         name: "INTERMARKETSWEEP",
+        description: "A trade resulting from an Intermarket Sweep Order Execution. For more information on intermarket sweeps, please see the SEC NMS regulation (June 29, 2005 - PDF) . From that report: \"The intermarket sweep exception enables trading centers that receive sweep orders to execute those orders immediately, without waiting for betterpriced quotations in other markets to be updated.\" [URL1: https://www.sec.gov/rules/final/34-51808fr.pdf]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1179,6 +1276,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 96,
         name: "DERIVATIVE",
+        description: "Derivatively priced.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1191,6 +1289,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 97,
         name: "REOPENING",
+        description: "Market center re-opening prints.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1203,6 +1302,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 98,
         name: "CLOSING",
+        description: "Market center closing prints. Can be used to get closing auction information for exchanges that report it, such as NYSE.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1215,6 +1315,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 99,
         name: "CAPELECTION",
+        description: "CTA Docs 78, 110, 111, 113 & 136 Redefined: Existing code 'I' in the Sale Condition field to denote the following change in value: From - Cap Election Trade To - Odd Lot Trade A trade resulting from an sweep execution where CAP orders were elected and executed outside the best bid or affer and appear as repeat trades. [URL1: https://www.ctaplan.com/publicdocs/ctaplan/notifications/announcements/trader-update/5871.pdf]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1227,6 +1328,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 100,
         name: "SPOTSETTLEMENT",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1239,6 +1341,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 101,
         name: "BASISHIGH",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1251,6 +1354,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 102,
         name: "BASISLOW",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1263,6 +1367,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 103,
         name: "YIELD",
+        description: "Applies to bid and ask yield updates for Cantor Treasuries",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1275,6 +1380,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 104,
         name: "PRICEVARIATION",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1287,6 +1393,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 105,
         name: "CONTINGENTTRADEFORMERLYSTOCKOPTION",
+        description: "Effective July 2015 ~ A Sale Condition used to identify a transaction where the execution of the transaction is contingent upon some event. SIAC Trader Update: February 25, 2015 (PDF) Previously: StockOption [URL1: https://www.ctaplan.com/publicdocs/ctaplan/notifications/announcements/trader-update/6113.pdf]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1299,6 +1406,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 106,
         name: "STOPPEDIM",
+        description: "Transaction order which was stopped at a price that did not constitute a Trade-Through on another market. Valid trade do not update last",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1311,6 +1419,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 107,
         name: "BENCHMARK",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1323,6 +1432,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 108,
         name: "TRADETHRUEXEMPT",
+        description: "This condition will be assigned for Tapes A/B and UTP when no Trade Through Exempt reason is given, and the Trade Through Exempt indicator is set. For Tapes A/B and UTP, these trades are eligible to update O/H/L/L/V. For OPRA, these trades only update volume.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1335,6 +1445,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 109,
         name: "IMPLIED",
+        description: "These trades are result of a spread trade. The exchange sends a leg price on each future for spread transactions. These trades do not update O/H/L/L but they update volume. We are now sending these spread trades for Globex exchanges: CME, NYMEX, COMEX, CBOT, MGE, KCBT and DME.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1347,6 +1458,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 110,
         name: "OTC",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1359,6 +1471,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 111,
         name: "MKTSUPERVISION",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1371,6 +1484,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 112,
         name: "RESERVED_77",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1383,6 +1497,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 113,
         name: "RESERVED_91",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1395,6 +1510,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 114,
         name: "CONTINGENTUTP",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1407,6 +1523,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 115,
         name: "ODDLOT",
+        description: "This indicates any trade with size between 1-99.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1419,6 +1536,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 116,
         name: "RESERVED_89",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1431,6 +1549,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 117,
         name: "CORRECTEDCSLAST",
+        description: "This allows for a mechanism to correct the official close on the consolidated tape.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1443,6 +1562,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 118,
         name: "OPRAEXTHOURS",
+        description: "OPRA extended trading hours session. Equivalent to the OPRA \"Session Indicator\" with ASCII value of 'X' (Pre-Market extended hours trading session)(Obselete, see condition 148).",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1455,6 +1575,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 119,
         name: "RESERVED_78",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1467,6 +1588,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 120,
         name: "RESERVED_81",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1479,6 +1601,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 121,
         name: "RESERVED_84",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1491,6 +1614,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 122,
         name: "RESERVED_878",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1503,6 +1627,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 123,
         name: "RESERVED_90",
+        description: "",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1515,6 +1640,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 124,
         name: "QUALIFIEDCONTINGENTTRADE",
+        description: "Effective July 2015 ~ A transaction consisting of two or more component orders, executed as agent or principal, that meets each of the following elements: At least one component order is for an NMS stock. All components are effected with a product or price contingency that either has been agreed to by the respective counterparties or arranged for by a broker-dealer as principal or agent. The execution of one component is contingent upon the execution of all other components at or near the same time. The specific relationship between the component orders ( e.g. the spread between the prices of the component orders) is determined at the time the contingent order is placed. The component orders bear a derivative relationship to one another, represent different classes of shares of the same issuer, or involve the securities of participants in mergers or with intentions to merge that have been announced or since cancelled. 25 The Exempted NMS Stock Transaction is fully hedged (without regard to any prior existing position) as a result of the other components of the contingent trade. 26 [URL1: https://www.sec.gov/divisions/marketreg/nmsfaq610-11.htm#P318_53173] [URL2: https://www.sec.gov/divisions/marketreg/nmsfaq610-11.htm#P319_53923]",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1527,6 +1653,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 125,
         name: "SINGLELEGAUCTIONNONISO",
+        description: "Transaction was the execution of an electronic order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure period. Such auctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1539,6 +1666,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 126,
         name: "SINGLELEGAUCTIONISO",
+        description: "Transaction was the execution of an Intermarket Sweep electronic order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure period. Suchauctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism marked as ISO.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1551,6 +1679,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 127,
         name: "SINGLELEGCROSSNONISO",
+        description: "Transaction was the execution of an electronic order which was \"stopped\" at a price and traded in a two sided crossing mechanism that does not go through an exposure period. Such crossing mechanisms include and not limited to Customer to Customer Cross and QCC with a single option leg.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1563,6 +1692,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 128,
         name: "SINGLELEGCROSSISO",
+        description: "Transaction was the execution of an Intermarket Sweep electronic order which was \"stopped\" at a price and traded in a two sided crossing mechanism that does not go through an exposure period. Such crossing mechanisms include and not limited to Customer to Customer Cross.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1575,6 +1705,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 129,
         name: "SINGLELEGFLOORTRADE",
+        description: "Transaction represents a non-electronic trade executed on a trading floor. Execution of Paired and Non-Paired Auctions and Cross orders on an exchange floor are also included in this category.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1587,6 +1718,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 130,
         name: "MULTILEGAUTOELECTRONICTRADE",
+        description: "Transactionrepresents an electronic execution of a multi leg order traded in a complex order book.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1599,6 +1731,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 131,
         name: "MULTILEGAUCTION",
+        description: "Transaction was the execution of an electronic multi leg order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure period in a complex order book. Such auctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1611,6 +1744,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 132,
         name: "MULTILEGCROSS",
+        description: "Transaction was the execution of an electronic multi leg order which was \"stopped\" at a price and traded in a two sided crossing mechanism that does not go through an exposure period. Such crossing mechanisms include and not limited to Customer to Customer Cross and QCC with two or more options legs.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1623,6 +1757,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 133,
         name: "MULTILEGFLOORTRADE",
+        description: "Transaction represents a non-electronic multi leg order trade executed against other multi-leg order(s) on a trading floor. Execution of Paired and Non-Paired Auctions and Cross orders on an exchange floor are also included in this category.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1635,6 +1770,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 134,
         name: "MULTILEGAUTOELECTRADEAGAINSTSINGLELEG",
+        description: "Transaction represents an electronic execution of a multi Leg order traded against single leg orders/quotes.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1647,6 +1783,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 135,
         name: "STOCKOPTIONSAUCTION",
+        description: "Transaction was the execution of an electronic multi leg stock/options order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure period in a complex order book. Such auctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1659,6 +1796,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 136,
         name: "MULTILEGAUCTIONAGAINSTSINGLELEG",
+        description: "Transaction was the execution of an electronic multi leg order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure period and trades against single leg orders/ quotes. Such auctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1671,6 +1809,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 137,
         name: "MULTILEGFLOORTRADEAGAINSTSINGLELEG",
+        description: "Transaction represents a non-electronic multi leg order trade executed on a trading floor against single leg orders/ quotes. Execution of Paired and Non-Paired Auctions on an exchange floor are also included in this category.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1683,6 +1822,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 138,
         name: "STOCKOPTIONSAUTOELECTRADE",
+        description: "Transaction represents an electronic execution of a multi leg stock/options order traded in a complex order book.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1695,6 +1835,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 139,
         name: "STOCKOPTIONSCROSS",
+        description: "Transaction was the execution of an electronic multi leg stock/options order which was \"stopped\" at a price and traded in a two sided crossing mechanism that does not go through an exposure period. Such crossing mechanisms include and not limited to Customer to Customer Cross.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1707,6 +1848,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 140,
         name: "STOCKOPTIONSFLOORTRADE",
+        description: "Transaction represents a non-electronic multi leg order stock/options trade executed on a trading floor in a Complex order book. Execution of Paired and Non-Paired Auctions and Cross orders on an exchange floor are also included in this category.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1719,6 +1861,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 141,
         name: "STOCKOPTIONSAUTOELECTRADEAGAINSTSINGLELEG",
+        description: "Transaction represents an electronic execution of a multi Leg stock/options order traded against single leg orders/quotes.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1731,6 +1874,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 142,
         name: "STOCKOPTIONSAUCTIONAGAINSTSINGLELEG",
+        description: "Transaction was the execution of an electronic multi leg stock/options order which was \"stopped\" at a price and traded in a two sided auction mechanism that goes through an exposure periodand trades against single leg orders/ quotes. Such auctions mechanisms include and not limited to Price Improvement, Facilitation or Solicitation Mechanism.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1743,6 +1887,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 143,
         name: "STOCKOPTIONSFLOORTRADEAGAINSTSINGLELEG",
+        description: "Transaction represents a non-electronic multi leg stock/options order trade executed on a trading floor against single leg orders/ quotes. Execution of Paired and Non-Paired Auctions on an exchange floor are also included in this category.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1755,6 +1900,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 144,
         name: "MULTILEGFLOORTRADEOFPROPRIETARYPRODUCTS",
+        description: "Transaction represents execution of a proprietary product non-electronic multi leg order with at least 3 legs. The trade price may be outside the current NBBO.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1767,6 +1913,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 145,
         name: "BIDAGGRESSOR",
+        description: "Aggressor of the trade is on the buy side.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1779,6 +1926,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 146,
         name: "ASKAGGRESSOR",
+        description: "Aggressor of the trade is on the sell side.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1791,6 +1939,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 147,
         name: "MULTILATERALCOMPRESSIONTRADEOFPROPRIETARYDATAPRODUCTS",
+        description: "Transaction represents an execution in a proprietary product done as part of a multilateral compression. Trades are executed outside of regular trading hours at prices derived from end of day markets.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1803,6 +1952,7 @@ pub const TRADE_CONDITIONS: [TradeCondition; 149] = [
     TradeCondition {
         code: 148,
         name: "EXTENDEDHOURSTRADE",
+        description: "Transaction represents a trade that was executed outside of regular market hours.",
         cancel: false,
         late_report: false,
         auto_executed: false,
@@ -1823,6 +1973,19 @@ pub fn condition_name(code: i32) -> &'static str {
         TRADE_CONDITIONS[code as usize].name
     } else {
         "UNKNOWN"
+    }
+}
+
+/// Look up the description for a trade condition code.
+///
+/// Returns `""` for codes outside the known range.
+/// O(1) array-index lookup.
+#[inline]
+pub fn condition_description(code: i32) -> &'static str {
+    if code >= 0 && (code as usize) < TRADE_CONDITIONS.len() {
+        TRADE_CONDITIONS[code as usize].description
+    } else {
+        ""
     }
 }
 
@@ -1855,6 +2018,7 @@ pub fn updates_volume(code: i32) -> bool {
 pub struct QuoteCondition {
     pub code: i32,
     pub name: &'static str,
+    pub description: &'static str,
     pub firm: bool,
     pub halted: bool,
 }
@@ -1864,450 +2028,525 @@ pub const QUOTE_CONDITIONS: [QuoteCondition; 75] = [
     QuoteCondition {
         code: 0,
         name: "REGULAR",
+        description: "Regular two-sided quote",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 1,
         name: "BID_ASK_AUTO_EXEC",
+        description: "Bid/Ask automatically executable",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 2,
         name: "ROTATION",
+        description: "Market rotation (opening/closing)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 3,
         name: "SPECIALIST_ASK",
+        description: "Specialist ask side only",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 4,
         name: "SPECIALIST_BID",
+        description: "Specialist bid side only",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 5,
         name: "LOCKED",
+        description: "Bid equals ask across markets",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 6,
         name: "FAST_MARKET",
+        description: "Fast market -- quotes may not reflect current state",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 7,
         name: "SPECIALIST_BID_ASK",
+        description: "Specialist bid and ask",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 8,
         name: "ONE_SIDE",
+        description: "One-sided quote (bid or ask only)",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 9,
         name: "OPENING_QUOTE",
+        description: "Opening quote for the trading session",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 10,
         name: "CLOSING_QUOTE",
+        description: "Closing quote for the trading session",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 11,
         name: "MARKET_MAKER_CLOSED",
+        description: "Market maker has closed their quote",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 12,
         name: "DEPTH_ON_ASK",
+        description: "Depth indicated on the ask side",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 13,
         name: "DEPTH_ON_BID",
+        description: "Depth indicated on the bid side",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 14,
         name: "DEPTH_ON_BID_ASK",
+        description: "Depth indicated on both bid and ask sides",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 15,
         name: "TIER_3",
+        description: "Tier 3 quote (OTC Bulletin Board)",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 16,
         name: "CROSSED",
+        description: "Bid exceeds ask across markets",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 17,
         name: "HALTED",
+        description: "Trading halted",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 18,
         name: "OPERATIONAL_HALT",
+        description: "Halt due to operational issues at the exchange",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 19,
         name: "NEWS_OUT",
+        description: "Halted -- news has been released",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 20,
         name: "NEWS_PENDING",
+        description: "Halted -- news is pending",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 21,
         name: "NON_FIRM",
+        description: "Quote is non-firm (indicative only)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 22,
         name: "DUE_TO_RELATED",
+        description: "Halted due to related security",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 23,
         name: "RESUME",
+        description: "Trading has resumed",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 24,
         name: "NO_MARKET_MAKERS",
+        description: "No market makers in the security",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 25,
         name: "ORDER_IMBALANCE",
+        description: "Halted due to order imbalance",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 26,
         name: "ORDER_INFLUX",
+        description: "Halted due to large influx of orders",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 27,
         name: "INDICATED",
+        description: "Halted -- indicated price only",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 28,
         name: "PRE_OPEN",
+        description: "Pre-open period before regular trading",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 29,
         name: "IN_VIEW_OF_COMMON",
+        description: "Halted in view of common stock trading",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 30,
         name: "RELATED_NEWS_PENDING",
+        description: "Halted -- news pending on a related security",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 31,
         name: "RELATED_NEWS_OUT",
+        description: "Halted -- news released on a related security",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 32,
         name: "ADDITIONAL_INFO",
+        description: "Halted -- additional information requested by exchange",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 33,
         name: "RELATED_ADD_INFO",
+        description: "Halted -- additional information requested for related security",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 34,
         name: "NO_OPEN_RESUME",
+        description: "Halted -- no open/no resume",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 35,
         name: "DELETED",
+        description: "Quote has been deleted",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 36,
         name: "REGULATORY_HALT",
+        description: "Regulatory halt imposed",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 37,
         name: "SEC_SUSPENSION",
+        description: "SEC trading suspension",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 38,
         name: "NON_COMLIANCE",
+        description: "Non-compliance with listing requirements",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 39,
         name: "FILINGS_NOT_CURRENT",
+        description: "Issuer filings not current",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 40,
         name: "CATS_HALTED",
+        description: "CATS halted",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 41,
         name: "CATS",
+        description: "CATS session",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 42,
         name: "EX_DIV_OR_SPLIT",
+        description: "Ex-dividend or ex-split",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 43,
         name: "UNASSIGNED",
+        description: "Unassigned condition code",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 44,
         name: "INSIDE_OPEN",
+        description: "Inside market is open",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 45,
         name: "INSIDE_CLOSED",
+        description: "Inside market is closed",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 46,
         name: "OFFER_WANTED",
+        description: "Offer wanted -- seeking sellers",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 47,
         name: "BID_WANTED",
+        description: "Bid wanted -- seeking buyers",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 48,
         name: "CASH",
+        description: "Cash-only settlement",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 49,
         name: "INACTIVE",
+        description: "Inactive security or market",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 50,
         name: "NATIONAL_BBO",
+        description: "National best bid and offer",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 51,
         name: "NOMINAL",
+        description: "Nominal (calculated) quote",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 52,
         name: "CABINET",
+        description: "Cabinet trade quote (deep OTM options)",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 53,
         name: "NOMINAL_CABINET",
+        description: "Nominal cabinet quote",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 54,
         name: "BLANK_PRICE",
+        description: "Blank price -- no quote available",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 55,
         name: "SLOW_BID_ASK",
+        description: "Slow quote on both bid and ask sides",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 56,
         name: "SLOW_LIST",
+        description: "Slow quote due to LRP or gap condition",
         firm: true,
         halted: false,
     },
     QuoteCondition {
         code: 57,
         name: "SLOW_BID",
+        description: "Slow quote on the bid side",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 58,
         name: "SLOW_ASK",
+        description: "Slow quote on the ask side",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 59,
         name: "BID_OFFER_WANTED",
+        description: "Both bid and offer wanted",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 60,
         name: "SUBPENNY",
+        description: "Sub-penny trading increment",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 61,
         name: "NON_BBO",
+        description: "Non-BBO quote (not best bid/offer)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 62,
         name: "SPECIAL_OPEN",
+        description: "Special opening quote",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 63,
         name: "BENCHMARK",
+        description: "Benchmark quote",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 64,
         name: "IMPLIED",
+        description: "Implied quote (derived from related instruments)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 65,
         name: "EXCHANGE_BEST",
+        description: "Exchange best bid/offer",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 66,
         name: "MKT_WIDE_HALT_1",
+        description: "Market-wide circuit breaker halt -- Level 1",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 67,
         name: "MKT_WIDE_HALT_2",
+        description: "Market-wide circuit breaker halt -- Level 2",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 68,
         name: "MKT_WIDE_HALT_3",
+        description: "Market-wide circuit breaker halt -- Level 3",
         firm: false,
         halted: true,
     },
     QuoteCondition {
         code: 69,
         name: "ON_DEMAND_AUCTION",
+        description: "On-demand auction",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 70,
         name: "NON_FIRM_BID",
+        description: "Bid side is non-firm (indicative only)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 71,
         name: "NON_FIRM_ASK",
+        description: "Ask side is non-firm (indicative only)",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 72,
         name: "RETAIL_BID",
+        description: "Retail interest on bid side",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 73,
         name: "RETAIL_ASK",
+        description: "Retail interest on ask side",
         firm: false,
         halted: false,
     },
     QuoteCondition {
         code: 74,
         name: "RETAIL_QTE",
+        description: "Retail interest on both sides",
         firm: false,
         halted: false,
     },
@@ -2322,6 +2561,19 @@ pub fn quote_condition_name(code: i32) -> &'static str {
         QUOTE_CONDITIONS[code as usize].name
     } else {
         "UNKNOWN"
+    }
+}
+
+/// Look up the description for a quote condition code.
+///
+/// Returns `""` for codes outside the known range.
+/// O(1) array-index lookup.
+#[inline]
+pub fn quote_condition_description(code: i32) -> &'static str {
+    if code >= 0 && (code as usize) < QUOTE_CONDITIONS.len() {
+        QUOTE_CONDITIONS[code as usize].description
+    } else {
+        ""
     }
 }
 
@@ -2365,6 +2617,19 @@ mod tests {
     }
 
     #[test]
+    fn trade_condition_description_valid() {
+        assert_eq!(condition_description(0), "Regular Trade");
+        assert!(condition_description(13).contains("Sets Consolidated Last"));
+        assert!(condition_description(5).contains("update last if only trade"));
+    }
+
+    #[test]
+    fn trade_condition_description_out_of_range() {
+        assert_eq!(condition_description(-1), "");
+        assert_eq!(condition_description(149), "");
+    }
+
+    #[test]
     fn trade_is_cancel() {
         assert!(!is_cancel(0));
         assert!(is_cancel(40));
@@ -2393,6 +2658,11 @@ mod tests {
         }
     }
 
+    #[test]
+    fn all_149_trade_conditions_present() {
+        assert_eq!(TRADE_CONDITIONS.len(), 149);
+    }
+
     // Quote condition tests
     #[test]
     fn quote_condition_name_valid() {
@@ -2406,6 +2676,19 @@ mod tests {
     fn quote_condition_name_out_of_range() {
         assert_eq!(quote_condition_name(-1), "UNKNOWN");
         assert_eq!(quote_condition_name(75), "UNKNOWN");
+    }
+
+    #[test]
+    fn quote_condition_description_valid() {
+        assert_eq!(quote_condition_description(0), "Regular two-sided quote");
+        assert_eq!(quote_condition_description(17), "Trading halted");
+        assert!(quote_condition_description(66).contains("Level 1"));
+    }
+
+    #[test]
+    fn quote_condition_description_out_of_range() {
+        assert_eq!(quote_condition_description(-1), "");
+        assert_eq!(quote_condition_description(75), "");
     }
 
     #[test]
@@ -2428,6 +2711,36 @@ mod tests {
                 qc.code as usize, i,
                 "Quote condition at index {} has code {}",
                 i, qc.code
+            );
+        }
+    }
+
+    #[test]
+    fn all_75_quote_conditions_present() {
+        assert_eq!(QUOTE_CONDITIONS.len(), 75);
+    }
+
+    #[test]
+    fn all_trade_descriptions_have_content_where_expected() {
+        // Codes that must have non-empty descriptions (key market-critical ones)
+        let must_have_desc = [0, 1, 2, 5, 13, 40, 95, 148];
+        for &code in &must_have_desc {
+            assert!(
+                !condition_description(code).is_empty(),
+                "Trade condition {} should have a description",
+                code
+            );
+        }
+    }
+
+    #[test]
+    fn all_quote_descriptions_have_content() {
+        for (i, qc) in QUOTE_CONDITIONS.iter().enumerate() {
+            assert!(
+                !qc.description.is_empty(),
+                "Quote condition {} ({}) should have a description",
+                i,
+                qc.name
             );
         }
     }

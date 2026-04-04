@@ -92,6 +92,7 @@ impl ThetaDataDx {
             &config.fpss_hosts,
             config.fpss_ring_size,
             config.fpss_flush_mode,
+            config.reconnect_policy.clone(),
             handler,
         )?;
         *guard = Some(client);
@@ -113,6 +114,7 @@ impl ThetaDataDx {
             &config.fpss_hosts,
             config.fpss_ring_size,
             config.fpss_flush_mode,
+            config.reconnect_policy.clone(),
             handler,
         )?;
         *guard = Some(client);

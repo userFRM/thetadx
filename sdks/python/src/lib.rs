@@ -107,6 +107,34 @@ impl Config {
         }
     }
 
+    /// Set the FPSS reconnect policy.
+    ///
+    /// - "auto" (default): auto-reconnect matching Java terminal behavior.
+    /// - "manual": no auto-reconnect, user calls reconnect explicitly.
+    #[setter]
+    fn set_reconnect_policy(&mut self, policy: &str) -> PyResult<()> {
+        self.inner.reconnect_policy = match policy.to_lowercase().as_str() {
+            "manual" => config::ReconnectPolicy::Manual,
+            "auto" => config::ReconnectPolicy::Auto,
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "unknown reconnect_policy: {other:?} (expected \"auto\" or \"manual\")"
+                )))
+            }
+        };
+        Ok(())
+    }
+
+    /// Get the current reconnect policy as a string.
+    #[getter]
+    fn get_reconnect_policy(&self) -> &str {
+        match self.inner.reconnect_policy {
+            config::ReconnectPolicy::Auto => "auto",
+            config::ReconnectPolicy::Manual => "manual",
+            config::ReconnectPolicy::Custom(_) => "custom",
+        }
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "Config(mdds={}:{}, fpss_hosts={})",

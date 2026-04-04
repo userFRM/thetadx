@@ -386,6 +386,20 @@ TdxConfig* tdx_config_stage(void);
 /** Free a config handle. */
 void tdx_config_free(TdxConfig* config);
 
+/**
+ * Set FPSS reconnect policy on a config handle.
+ *   policy=0: Auto (default) -- auto-reconnect matching Java terminal behavior.
+ *   policy=1: Manual -- no auto-reconnect.
+ */
+void tdx_config_set_reconnect_policy(TdxConfig* config, int policy);
+
+/**
+ * Set FPSS flush mode on a config handle.
+ *   mode=0: Batched (default) -- flush only on PING every 100ms.
+ *   mode=1: Immediate -- flush after every frame write.
+ */
+void tdx_config_set_flush_mode(TdxConfig* config, int mode);
+
 /* ── Client ── */
 
 /** Connect to ThetaData servers. Returns NULL on connection/auth failure. */

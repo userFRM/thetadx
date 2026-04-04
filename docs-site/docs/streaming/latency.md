@@ -43,7 +43,7 @@ graph LR
 The network transit segment (red) dominates total latency. The SDK decode time (green) is sub-microsecond and negligible.
 
 ::: danger Production only
-Latency can only be measured meaningfully on the **production** FPSS server (`DirectConfig::production()`, port 20000) **during live market hours** (9:30 AM - 4:00 PM ET). The dev server (port 20200) replays historical data from a past trading day at maximum speed -- the exchange timestamps are from the past, so `received_at_ns` minus the event's original timestamp produces values that are months or years, not real latency. The dev server is for functional testing only, not latency benchmarking.
+Latency can only be measured meaningfully on the **production** FPSS server (`DirectConfig::production()`, port 20000) **during live trading sessions** (pre-market 4:00 AM, regular 9:30 AM - 4:00 PM, after-hours until 8:00 PM ET). The dev server (port 20200) replays historical data from a past trading day at maximum speed -- the exchange timestamps are from the past, so `received_at_ns` minus the event's original timestamp produces values that are months or years, not real latency. The dev server is for functional testing only, not latency benchmarking.
 :::
 
 ## `tdbe::latency::latency_ns()`

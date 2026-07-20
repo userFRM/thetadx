@@ -292,6 +292,12 @@ pub enum ShardBand {
         start_time: String,
         /// Inclusive band end (`HH:MM:SS.mmm`).
         end_time: String,
+        /// Contract-side override for an option-chain fan-out: `Some("call")`
+        /// / `Some("put")` restricts the band to half the chain so the
+        /// server assembles half the contracts per band (the chain's real
+        /// cost). `None` for every non-chain band, which leaves the
+        /// query's own `right` untouched.
+        right: Option<String>,
     },
 }
 
@@ -613,6 +619,15 @@ fn chain_cross_product(q: &ShardQuery) -> bool {
             || q.right.as_deref() != Some("call") && q.right.as_deref() != Some("put"))
 }
 
+/// Whether a chain query spans both option rights, so splitting it into a
+/// `call` band and a `put` band actually halves the contract set. A chain
+/// already pinned to one right (`right = "call"` / `"put"` with a strike
+/// wildcard, or a multi-expiration single-right pull) has nothing to split
+/// on this axis and takes the time split instead.
+fn splittable_by_right(q: &ShardQuery) -> bool {
+    chain_cross_product(q) && matches!(q.right.as_deref(), None | Some("both"))
+}
+
 /// Pick the shard axis for a query shape, if any.
 ///
 /// Priority mirrors the balance the axes deliver: a multi-day range cuts
@@ -649,12 +664,13 @@ fn select_axis(q: &ShardQuery) -> Option<ShardAxis> {
 /// stream's row count exactly on full-day chain pulls. The first band
 /// starts at the query's own `start_time` and the last ends at its
 /// `end_time`; band durations differ by at most 1 ms.
-fn time_bands(start_ms: i64, end_ms: i64, n: i64) -> Vec<ShardBand> {
+fn time_bands(start_ms: i64, end_ms: i64, n: i64, right: Option<&str>) -> Vec<ShardBand> {
     let window = end_ms - start_ms + 1;
     (0..n)
         .map(|k| ShardBand::Time {
             start_time: format_hms(start_ms + window * k / n),
             end_time: format_hms(start_ms + window * (k + 1) / n - 1),
+            right: right.map(str::to_owned),
         })
         .collect()
 }
@@ -828,6 +844,23 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                     }
                 }
             }
+            // A chain cross-product's cost is contract assembly, not
+            // transfer: splitting the requested window by time makes every
+            // band re-enumerate the whole chain. Split it by `right`
+            // instead — each band assembles half the contracts (calls or
+            // puts) — then spend the rest of the tier's lanes on time bands
+            // per half. Bands are emitted all-calls-then-all-puts, each half
+            // in time order, so the ordered merge (which groups by contract
+            // and keeps band order within a contract) restores the exact
+            // single-stream chain order.
+            if splittable_by_right(q) {
+                let time_n = ((end_ms - start_ms + 1) / MIN_SHARD_BAND_MS)
+                    .min(width / 2)
+                    .max(1);
+                let mut bands = time_bands(start_ms, end_ms, time_n, Some("call"));
+                bands.extend(time_bands(start_ms, end_ms, time_n, Some("put")));
+                return Ok(ShardPlan { bands });
+            }
             // Equal-duration bands, capped so each spans at least
             // `MIN_SHARD_BAND_MS`; a window too narrow for two such
             // bands stays on the single stream.
@@ -836,7 +869,7 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                 return Err(ShardDecline::NarrowWindow);
             }
             Ok(ShardPlan {
-                bands: time_bands(start_ms, end_ms, n),
+                bands: time_bands(start_ms, end_ms, n, None),
             })
         }
         ShardAxis::Date => {
@@ -884,9 +917,12 @@ impl MarketDataClient {
     /// one history query, without running the pull.
     ///
     /// Manual-mode entry point: apply each returned [`ShardBand`] to a
-    /// clone of the same builder call (band fields override, everything
-    /// else stays as issued) and run the sub-requests under your own
-    /// concurrency. Ignores the configured [`BulkFetchPolicy`], so the
+    /// clone of the same builder call — its time or date window via the
+    /// matching setter, and, for a chain band that carries one, its
+    /// `right` (call / put) via `.right()`; everything else stays as
+    /// issued — and run the sub-requests under your own concurrency.
+    /// Applying only the window of a chain band leaves every band pulling
+    /// both rights, doubling the result. Ignores the configured [`BulkFetchPolicy`], so the
     /// plan stays available with `bulk_fetch = Off`. `endpoint` is the
     /// builder method name (for example `"option_history_quote"`).
     ///
@@ -921,7 +957,13 @@ pub(crate) fn band_span(band: &ShardBand) -> tracing::Span {
         ShardBand::Time {
             start_time,
             end_time,
-        } => tracing::debug_span!("shard_band", band_start = %start_time, band_end = %end_time),
+            right,
+        } => tracing::debug_span!(
+            "shard_band",
+            band_start = %start_time,
+            band_end = %end_time,
+            band_right = ?right,
+        ),
     }
 }
 
@@ -1638,36 +1680,158 @@ mod tests {
         }
     }
 
-    #[test]
-    fn plan_cuts_a_chain_day_into_equal_time_bands() {
-        let plan = plan_query("option_history_quote", &chain_day_query(), 8)
-            .expect("full-day chain must shard");
-        assert_eq!(plan.bands.len(), 8);
-        let windows: Vec<(i64, i64)> = plan.bands.iter().map(band_window_ms).collect();
-        assert_eq!(windows[0].0, parse_ms_of_day("09:30:00").unwrap());
-        assert_eq!(
-            windows.last().unwrap().1,
-            parse_ms_of_day("16:00:00").unwrap()
-        );
-        for w in windows.windows(2) {
-            assert_eq!(w[1].0, w[0].1 + 1, "bands must abut at +1 ms");
+    /// The `right` override a band carries (`None` for a plain time band).
+    fn band_right(b: &ShardBand) -> Option<&str> {
+        match b {
+            ShardBand::Time { right, .. } => right.as_deref(),
+            ShardBand::Date { .. } => None,
         }
     }
 
     #[test]
-    fn narrow_window_reduces_band_count_or_declines() {
-        // Too narrow for two minimum-width bands: single stream.
-        let mut query = chain_day_query();
-        query.end_time = Some("09:36:00".into());
+    fn plan_cuts_a_chain_day_into_call_put_time_bands() {
+        // A both-rights chain's cost is contract assembly, so it splits by
+        // `right` first — halving the contracts per band — then spends the
+        // tier's remaining lanes on time bands per half. At width 8 that is
+        // call x 4 time bands followed by put x 4, all-calls-then-all-puts
+        // so the ordered merge restores the single-stream chain order.
+        let plan = plan_query("option_history_quote", &chain_day_query(), 8)
+            .expect("full-day chain must shard");
+        assert_eq!(plan.bands.len(), 8);
         assert_eq!(
-            plan_query("option_history_quote", &query, 8),
+            plan.bands.iter().map(band_right).collect::<Vec<_>>(),
+            vec![
+                Some("call"),
+                Some("call"),
+                Some("call"),
+                Some("call"),
+                Some("put"),
+                Some("put"),
+                Some("put"),
+                Some("put"),
+            ]
+        );
+        // Each half's four time bands quarter the session, abutting at
+        // +1 ms, first band at the query start and last at its end.
+        for half in [&plan.bands[0..4], &plan.bands[4..8]] {
+            let w: Vec<(i64, i64)> = half.iter().map(band_window_ms).collect();
+            assert_eq!(w[0].0, parse_ms_of_day("09:30:00").unwrap());
+            assert_eq!(w.last().unwrap().1, parse_ms_of_day("16:00:00").unwrap());
+            for pair in w.windows(2) {
+                assert_eq!(pair[1].0, pair[0].1 + 1, "bands abut within a right");
+            }
+        }
+    }
+
+    #[test]
+    fn narrow_window_declines_concrete_but_still_splits_a_chain_by_right() {
+        // A concrete contract too narrow for two time bands stays on the
+        // single stream — there is nothing to split.
+        let mut concrete = chain_day_query();
+        concrete.expiration = Some("20260710".into());
+        concrete.strike = Some("6000".into());
+        concrete.right = Some("call".into());
+        concrete.end_time = Some("09:36:00".into());
+        assert_eq!(
+            plan_query("option_history_quote", &concrete, 8),
             Err(ShardDecline::NarrowWindow)
         );
-        // Wide enough for exactly two: two bands, not the full width.
-        let mut query = chain_day_query();
-        query.end_time = Some("09:41:00".into());
-        let plan = plan_query("option_history_quote", &query, 8).expect("two bands fit");
+        // A both-rights chain over the same narrow window still has
+        // contracts to divide, so it fans out into one call band and one
+        // put band (no time split fits, so one full-window band each).
+        let mut chain = chain_day_query();
+        chain.end_time = Some("09:36:00".into());
+        let plan = plan_query("option_history_quote", &chain, 8).expect("chain splits by right");
         assert_eq!(plan.bands.len(), 2);
+        assert_eq!(
+            plan.bands.iter().map(band_right).collect::<Vec<_>>(),
+            vec![Some("call"), Some("put")]
+        );
+    }
+
+    #[test]
+    fn single_right_chain_takes_the_time_split_not_the_right_split() {
+        // A strike wildcard already pinned to calls has nothing to divide
+        // by right, so it falls back to equal time bands carrying no right
+        // override.
+        let mut query = chain_day_query();
+        query.right = Some("call".into());
+        let plan = plan_query("option_history_quote", &query, 8).expect("shards on time");
+        assert_eq!(plan.bands.len(), 8);
+        assert!(plan.bands.iter().all(|b| band_right(b).is_none()));
+    }
+
+    #[test]
+    fn chain_band_override_rewrites_contract_spec_right_on_the_wire() {
+        // Regression for the seam the plan/merge tests skip: a call/put
+        // override must actually reach the wire. `right` lives inside
+        // `contract_spec` (the top-level `right` slot is the empty legacy
+        // field), so `shard_apply_field!` has to rewrite
+        // `contract_spec.right`. An arm keyed on a non-existent top-level
+        // `right` field never expands, leaving the call and put bands
+        // byte-identical and doubling every row of a both-rights chain.
+        use crate::proto;
+        fn query() -> proto::OptionHistoryQuoteRequestQuery {
+            proto::OptionHistoryQuoteRequestQuery {
+                contract_spec: Some(proto::ContractSpec {
+                    symbol: "SPXW".into(),
+                    expiration: "20260717".into(),
+                    strike: Some("*".into()),
+                    right: Some("both".into()),
+                }),
+                start_time: Some("09:30:00.000".into()),
+                end_time: Some("16:00:00.000".into()),
+                ..Default::default()
+            }
+        }
+
+        // Bands are applied by reference, exactly as the fan-out does.
+        let call_band = ShardBand::Time {
+            start_time: "09:30:00.000".into(),
+            end_time: "12:44:59.999".into(),
+            right: Some("call".into()),
+        };
+        let plain_band = ShardBand::Time {
+            start_time: "12:45:00.000".into(),
+            end_time: "16:00:00.000".into(),
+            right: None,
+        };
+        let date_band = ShardBand::Date {
+            start_date: "20260101".into(),
+            end_date: "20260131".into(),
+        };
+
+        // A call-carrying time band rewrites right -> "call" AND the window.
+        let mut q = query();
+        let band = &call_band;
+        shard_apply_field!(q, band, contract_spec);
+        shard_apply_field!(q, band, start_time);
+        shard_apply_field!(q, band, end_time);
+        assert_eq!(
+            q.contract_spec.as_ref().unwrap().right.as_deref(),
+            Some("call"),
+            "call band must rewrite contract_spec.right on the wire"
+        );
+        assert_eq!(q.start_time.as_deref(), Some("09:30:00.000"));
+        assert_eq!(q.end_time.as_deref(), Some("12:44:59.999"));
+
+        // A time band with no right override leaves it as issued.
+        let mut q2 = query();
+        let band = &plain_band;
+        shard_apply_field!(q2, band, contract_spec);
+        assert_eq!(
+            q2.contract_spec.as_ref().unwrap().right.as_deref(),
+            Some("both")
+        );
+
+        // A date band never carries a right and never touches contract_spec.
+        let mut q3 = query();
+        let band = &date_band;
+        shard_apply_field!(q3, band, contract_spec);
+        assert_eq!(
+            q3.contract_spec.as_ref().unwrap().right.as_deref(),
+            Some("both")
+        );
     }
 
     #[test]
@@ -1986,6 +2150,7 @@ mod tests {
             ShardBand::Time {
                 start_time,
                 end_time,
+                ..
             } => (
                 parse_ms_of_day(start_time).unwrap(),
                 parse_ms_of_day(end_time).unwrap(),
@@ -1998,7 +2163,7 @@ mod tests {
     fn time_bands_partition_the_window_exactly() {
         let start = parse_ms_of_day("09:30:00").unwrap();
         let end = parse_ms_of_day("16:00:00").unwrap();
-        let bands = time_bands(start, end, 4);
+        let bands = time_bands(start, end, 4, None);
         assert_eq!(bands.len(), 4);
         // First band starts at the query start, last ends at the query
         // end, and adjacent inclusive bands abut at exactly +1 ms so every
@@ -2024,17 +2189,19 @@ mod tests {
     fn time_bands_format_wire_canonical_times() {
         let start = parse_ms_of_day("09:30:00").unwrap();
         let end = parse_ms_of_day("16:00:00").unwrap();
-        let bands = time_bands(start, end, 2);
+        let bands = time_bands(start, end, 2, None);
         assert_eq!(
             bands,
             vec![
                 ShardBand::Time {
                     start_time: "09:30:00.000".into(),
                     end_time: "12:44:59.999".into(),
+                    right: None,
                 },
                 ShardBand::Time {
                     start_time: "12:45:00.000".into(),
                     end_time: "16:00:00.000".into(),
+                    right: None,
                 },
             ]
         );
@@ -2357,6 +2524,44 @@ mod tests {
             tick(20260710, 100.0, 'P', 1000),
             tick(20260710, 200.0, 'C', 1000),
             tick(20260710, 200.0, 'P', 4000),
+        ];
+        assert_eq!(merged.as_slice(), expected.as_slice());
+    }
+
+    #[test]
+    fn merge_restores_canonical_order_from_call_put_time_bands() {
+        // The chain fan-out emits all-calls-then-all-puts, each right
+        // sliced into time bands. With two strikes and two time bands per
+        // right, the merge must interleave C before P within each strike
+        // and keep time order within each contract — the exact
+        // single-stream canonical order, independent of the right x time
+        // band split.
+        let call_t1 = chain_band(vec![
+            tick(20260710, 100.0, 'C', 1000),
+            tick(20260710, 200.0, 'C', 1200),
+        ]);
+        let call_t2 = chain_band(vec![
+            tick(20260710, 100.0, 'C', 5000),
+            tick(20260710, 200.0, 'C', 5200),
+        ]);
+        let put_t1 = chain_band(vec![
+            tick(20260710, 100.0, 'P', 1100),
+            tick(20260710, 200.0, 'P', 1300),
+        ]);
+        let put_t2 = chain_band(vec![
+            tick(20260710, 100.0, 'P', 5100),
+            tick(20260710, 200.0, 'P', 5300),
+        ]);
+        let merged = merge_typed_in_order(vec![call_t1, call_t2, put_t1, put_t2]).unwrap();
+        let expected = [
+            tick(20260710, 100.0, 'C', 1000),
+            tick(20260710, 100.0, 'C', 5000),
+            tick(20260710, 100.0, 'P', 1100),
+            tick(20260710, 100.0, 'P', 5100),
+            tick(20260710, 200.0, 'C', 1200),
+            tick(20260710, 200.0, 'C', 5200),
+            tick(20260710, 200.0, 'P', 1300),
+            tick(20260710, 200.0, 'P', 5300),
         ];
         assert_eq!(merged.as_slice(), expected.as_slice());
     }

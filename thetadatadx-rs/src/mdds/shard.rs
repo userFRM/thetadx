@@ -410,13 +410,21 @@ pub(crate) fn set_wire_str<T: WireParam>(field: &mut T, v: &str) {
 /// single-stream path.
 ///
 /// The defining property is machine-checkable against the endpoint
-/// registry: an endpoint belongs here exactly when its registry entry
-/// has a `history*` subcategory AND carries the intraday
-/// `start_time` / `end_time` window filters (the daily-only families —
-/// EOD, open interest, greeks-EOD — have no intraday window to band).
-/// `shardable_set_matches_registry_intraday_history` in this module's
-/// tests enforces that equality, so a new intraday history endpoint
-/// added to `endpoint_surface.toml` cannot silently never-shard.
+/// registry. An endpoint belongs here when either:
+/// - its registry entry has a `history*` subcategory AND carries the
+///   intraday `start_time` / `end_time` window filters (bands split the
+///   window); or
+/// - its registry entry has an `at_time` subcategory over a date range
+///   with no per-contract identity — a whole-market as-of series whose
+///   per-day server compute parallelizes across date bands (bands split
+///   the range). Single-contract option at_time carries a contract
+///   identity, is sparse over a wide range, and is excluded.
+///
+/// The daily-only families — EOD, open interest, greeks-EOD — have no
+/// intraday window to band and return <= 1 row/day, so they are absent.
+/// `shardable_set_matches_registry_bandable` in this module's tests
+/// enforces the equality, so a new bandable endpoint added to
+/// `endpoint_surface.toml` cannot silently never-shard.
 const SHARDABLE_HISTORY_ENDPOINTS: &[&str] = &[
     "option_history_trade",
     "option_history_ohlc",
@@ -438,6 +446,11 @@ const SHARDABLE_HISTORY_ENDPOINTS: &[&str] = &[
     "stock_history_quote",
     "index_history_price",
     "index_history_ohlc",
+    // Whole-market as-of over a date range: per-day compute parallelizes
+    // across date bands (measured ~10x on a one-year stock at_time pull).
+    "stock_at_time_trade",
+    "stock_at_time_quote",
+    "index_at_time_price",
 ];
 
 /// Whether the generated endpoint method named `endpoint` may shard.
@@ -1726,6 +1739,101 @@ mod tests {
     }
 
     #[test]
+    fn concrete_contract_tick_shards_eight_ways_the_uncatchable_residual() {
+        // One concrete contract, full session, trade-anchored (no `interval`
+        // field, so `interval_ms` never bounds a grid): 8 equal time bands
+        // regardless of how many rows the contract actually traded. Correct
+        // for a liquid contract — the same shape on a dense NBBO returns
+        // hundreds of thousands of rows and wins — and the irreducible
+        // over-shard for an illiquid one that traded a handful of times. The
+        // realized count is absent from the request shape, so nothing short
+        // of the removed sizing probe separates them. Pinned so a future gate
+        // change cannot quietly decline the liquid winner while chasing the
+        // illiquid loser.
+        let concrete = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("20260717".into()),
+            strike: Some("6000".into()),
+            right: Some("call".into()),
+            date: Some("20260717".into()),
+            start_time: Some("09:30:00".into()),
+            end_time: Some("16:00:00".into()),
+            interval: None,
+            ..ShardQuery::default()
+        };
+        let plan = plan_query("option_history_trade", &concrete, 8)
+            .expect("concrete-contract tick pull shards on the time axis");
+        assert_eq!(plan.bands.len(), 8);
+    }
+
+    #[test]
+    fn daily_only_families_decline_first_class_over_a_wide_range() {
+        // eod / open_interest return <= 1 row/day/contract and carry no
+        // intraday window, so they are absent from the allowlist and decline
+        // via UnlistedEndpoint before an axis is ever selected — even over a
+        // wide, date-shardable-LOOKING one-year range. The allowlist is
+        // machine-tied to the registry by
+        // `shardable_set_matches_registry_bandable`; this pins the
+        // consequence at the plan level.
+        let stock_eod = ShardQuery {
+            symbol: Some("AAPL".into()),
+            start_date: Some("20250101".into()),
+            end_date: Some("20251231".into()),
+            ..ShardQuery::default()
+        };
+        assert_eq!(
+            plan_query("stock_history_eod", &stock_eod, 8),
+            Err(ShardDecline::UnlistedEndpoint)
+        );
+        let open_interest = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("20260117".into()),
+            strike: Some("6000".into()),
+            right: Some("call".into()),
+            start_date: Some("20250101".into()),
+            end_date: Some("20251231".into()),
+            ..ShardQuery::default()
+        };
+        assert_eq!(
+            plan_query("option_history_open_interest", &open_interest, 8),
+            Err(ShardDecline::UnlistedEndpoint)
+        );
+    }
+
+    #[test]
+    fn whole_market_at_time_shards_by_date_but_option_at_time_does_not() {
+        // Whole-market as-of over a date range: no per-contract identity,
+        // 1 row/day always present, and the per-day server compute
+        // parallelizes across date bands (measured ~10x on a one-year stock
+        // pull). No interval, so the date axis bands the range.
+        let stock_at_time = ShardQuery {
+            symbol: Some("AAPL".into()),
+            start_date: Some("20250101".into()),
+            end_date: Some("20251231".into()),
+            ..ShardQuery::default()
+        };
+        let plan = plan_query("stock_at_time_trade", &stock_at_time, 8)
+            .expect("whole-market at_time shards on the date axis");
+        assert_eq!(plan.bands.len(), 8);
+        // Single-contract option at_time is sparse over a wide range (the
+        // contract lives only near expiry), so it is excluded and stays on
+        // the single stream.
+        let option_at_time = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("20260117".into()),
+            strike: Some("6000".into()),
+            right: Some("call".into()),
+            start_date: Some("20250101".into()),
+            end_date: Some("20251231".into()),
+            ..ShardQuery::default()
+        };
+        assert_eq!(
+            plan_query("option_at_time_trade", &option_at_time, 8),
+            Err(ShardDecline::UnlistedEndpoint)
+        );
+    }
+
+    #[test]
     fn date_axis_bounded_interval_gates_small_grids() {
         // Date-axis twin of the time-axis grid gate: a stock query at a
         // bounded bar interval over a multi-day range is capped at one
@@ -2050,30 +2158,34 @@ mod tests {
 
     /// Machine tie between [`SHARDABLE_HISTORY_ENDPOINTS`] and the
     /// endpoint registry generated from `endpoint_surface.toml`: the
-    /// shardable set must equal, exactly, the registry's intraday
-    /// history endpoints — subcategory `history*` AND the
-    /// `start_time` / `end_time` intraday window filters. That pair of
-    /// properties is what separates bandable tick / bar / greeks
-    /// history from the bounded-per-day EOD / open-interest /
-    /// greeks-EOD families (which carry a date range but no intraday
-    /// window) and from snapshots / lists / at-time queries (not
-    /// `history*`). A new intraday history endpoint added to the
-    /// registry fails this test until it is added to the shardable
-    /// set, so it can never silently never-shard; a stale entry fails
-    /// it from the other direction.
+    /// shardable set must equal, exactly, the registry's bandable
+    /// endpoints. Two families qualify:
+    /// - intraday `history*` endpoints carrying a `start_time` /
+    ///   `end_time` window — bands split the window;
+    /// - whole-market `at_time` endpoints (category not `option`, so no
+    ///   per-contract identity) — bands split the date range.
+    ///
+    /// Excluded: the bounded-per-day EOD / open-interest / greeks-EOD
+    /// families (a date range but no intraday window, <= 1 row/day),
+    /// single-contract option `at_time` (sparse over a wide range), and
+    /// snapshots / lists. A new bandable endpoint added to the registry
+    /// fails this test until it is added to the shardable set, so it can
+    /// never silently never-shard; a stale entry fails it from the other
+    /// direction.
     ///
     /// Gated on `__internal` because the registry table only exists
     /// under that feature; the CI test job enables it (via
     /// `__test-helpers`), so the tie is enforced on every CI run.
     #[cfg(feature = "__internal")]
     #[test]
-    fn shardable_set_matches_registry_intraday_history() {
+    fn shardable_set_matches_registry_bandable() {
         let mut derived: Vec<&str> = crate::mdds::registry::ENDPOINTS
             .iter()
             .filter(|e| {
-                e.subcategory.starts_with("history")
+                (e.subcategory.starts_with("history")
                     && e.params.iter().any(|p| p.name == "start_time")
-                    && e.params.iter().any(|p| p.name == "end_time")
+                    && e.params.iter().any(|p| p.name == "end_time"))
+                    || (e.subcategory == "at_time" && e.category != "option")
             })
             .map(|e| e.name)
             .collect();
@@ -2083,8 +2195,8 @@ mod tests {
         assert_eq!(
             listed, derived,
             "SHARDABLE_HISTORY_ENDPOINTS must equal the registry's \
-             intraday history set (subcategory `history*` with \
-             start_time/end_time filters)"
+             bandable set (intraday `history*` with start_time/end_time, \
+             plus non-option `at_time` over a date range)"
         );
     }
 
@@ -2095,8 +2207,7 @@ mod tests {
         assert!(is_shardable_history_endpoint("index_history_price"));
         // Daily-only history (EOD / open interest / greeks-EOD) is
         // bounded at one row per day, so it is not shardable and
-        // stays on the single stream, like snapshots, lists, and
-        // at-time queries.
+        // stays on the single stream, like snapshots and lists.
         assert!(!is_shardable_history_endpoint("option_history_eod"));
         assert!(!is_shardable_history_endpoint(
             "option_history_open_interest"
@@ -2105,7 +2216,11 @@ mod tests {
         assert!(!is_shardable_history_endpoint("index_history_eod"));
         assert!(!is_shardable_history_endpoint("stock_snapshot_quote"));
         assert!(!is_shardable_history_endpoint("option_list_contracts"));
-        assert!(!is_shardable_history_endpoint("stock_at_time_trade"));
+        // Whole-market at_time bands its date range; single-contract
+        // option at_time is sparse and stays on the single stream.
+        assert!(is_shardable_history_endpoint("stock_at_time_trade"));
+        assert!(is_shardable_history_endpoint("index_at_time_price"));
+        assert!(!is_shardable_history_endpoint("option_at_time_trade"));
     }
 
     // ── ordered merge ──

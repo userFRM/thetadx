@@ -452,11 +452,16 @@ const SHARDABLE_HISTORY_ENDPOINTS: &[&str] = &[
     "stock_history_quote",
     "index_history_price",
     "index_history_ohlc",
-    // Whole-market as-of over a date range: per-day compute parallelizes
-    // across date bands (measured ~10x on a one-year stock at_time pull).
+    // As-of over a date range: per-day compute parallelizes across date
+    // bands (measured ~10x on a one-year stock at_time pull). Whole-market
+    // stock / index carry no contract identity; the option families band
+    // the same way for a `*` chain, while a concrete single-contract option
+    // at_time is sparse and declined at runtime in `plan_query`.
     "stock_at_time_trade",
     "stock_at_time_quote",
     "index_at_time_price",
+    "option_at_time_trade",
+    "option_at_time_quote",
 ];
 
 /// Whether the generated endpoint method named `endpoint` may shard.
@@ -813,6 +818,16 @@ pub(crate) fn auto_plan(
 fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan, ShardDecline> {
     if !is_shardable_history_endpoint(endpoint) {
         return Err(ShardDecline::UnlistedEndpoint);
+    }
+    // A concrete-contract option at_time is sparse — the contract lives
+    // only near expiry, ~1 row/day — so a fan-out never pays; only a `*`
+    // chain at_time is dense enough to band. Endpoint-matched so concrete
+    // option HISTORY date-sharding stays intact, and stock / index at_time
+    // (no expiration) proceed via the grid gate through `chain_cross_product`.
+    if matches!(endpoint, "option_at_time_trade" | "option_at_time_quote")
+        && !chain_cross_product(q)
+    {
+        return Err(ShardDecline::SmallGrid);
     }
     let axis = select_axis(q).ok_or(ShardDecline::NoAxis)?;
     if width < 2 {
@@ -1965,11 +1980,10 @@ mod tests {
     }
 
     #[test]
-    fn whole_market_at_time_shards_by_date_but_option_at_time_does_not() {
-        // Whole-market as-of over a date range: no per-contract identity,
-        // 1 row/day always present, and the per-day server compute
-        // parallelizes across date bands (measured ~10x on a one-year stock
-        // pull). No interval, so the date axis bands the range.
+    fn at_time_shards_by_date_for_whole_market_and_option_chains_not_concrete() {
+        // As-of over a date range: the per-day server compute parallelizes
+        // across date bands (measured ~10x on a one-year stock pull). No
+        // interval, so the date axis bands the range.
         let stock_at_time = ShardQuery {
             symbol: Some("AAPL".into()),
             start_date: Some("20250101".into()),
@@ -1979,10 +1993,23 @@ mod tests {
         let plan = plan_query("stock_at_time_trade", &stock_at_time, 8)
             .expect("whole-market at_time shards on the date axis");
         assert_eq!(plan.bands.len(), 8);
-        // Single-contract option at_time is sparse over a wide range (the
-        // contract lives only near expiry), so it is excluded and stays on
-        // the single stream.
-        let option_at_time = ShardQuery {
+        // A `*` chain option at_time is dense (every strike, as-of a time,
+        // each day) and bands the date range the same way.
+        let chain_at_time = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("*".into()),
+            strike: Some("*".into()),
+            start_date: Some("20250101".into()),
+            end_date: Some("20251231".into()),
+            ..ShardQuery::default()
+        };
+        let plan = plan_query("option_at_time_quote", &chain_at_time, 8)
+            .expect("a `*` chain at_time shards on the date axis");
+        assert_eq!(plan.bands.len(), 8);
+        // A concrete single-contract option at_time is sparse over a wide
+        // range (the contract lives only near expiry), so it declines and
+        // stays on the single stream.
+        let concrete_at_time = ShardQuery {
             symbol: Some("SPXW".into()),
             expiration: Some("20260117".into()),
             strike: Some("6000".into()),
@@ -1992,8 +2019,8 @@ mod tests {
             ..ShardQuery::default()
         };
         assert_eq!(
-            plan_query("option_at_time_trade", &option_at_time, 8),
-            Err(ShardDecline::UnlistedEndpoint)
+            plan_query("option_at_time_trade", &concrete_at_time, 8),
+            Err(ShardDecline::SmallGrid)
         );
     }
 
@@ -2352,7 +2379,7 @@ mod tests {
                 (e.subcategory.starts_with("history")
                     && e.params.iter().any(|p| p.name == "start_time")
                     && e.params.iter().any(|p| p.name == "end_time"))
-                    || (e.subcategory == "at_time" && e.category != "option")
+                    || e.subcategory == "at_time"
             })
             .map(|e| e.name)
             .collect();
@@ -2363,7 +2390,8 @@ mod tests {
             listed, derived,
             "SHARDABLE_HISTORY_ENDPOINTS must equal the registry's \
              bandable set (intraday `history*` with start_time/end_time, \
-             plus non-option `at_time` over a date range)"
+             plus every `at_time` family over a date range; a concrete \
+             option at_time is admitted here but declined at runtime)"
         );
     }
 
@@ -2383,11 +2411,13 @@ mod tests {
         assert!(!is_shardable_history_endpoint("index_history_eod"));
         assert!(!is_shardable_history_endpoint("stock_snapshot_quote"));
         assert!(!is_shardable_history_endpoint("option_list_contracts"));
-        // Whole-market at_time bands its date range; single-contract
-        // option at_time is sparse and stays on the single stream.
+        // Every at_time family bands its date range. A concrete option
+        // at_time is admitted here and declined at runtime in `plan_query`
+        // (sparse); a `*` chain option at_time shards.
         assert!(is_shardable_history_endpoint("stock_at_time_trade"));
         assert!(is_shardable_history_endpoint("index_at_time_price"));
-        assert!(!is_shardable_history_endpoint("option_at_time_trade"));
+        assert!(is_shardable_history_endpoint("option_at_time_trade"));
+        assert!(is_shardable_history_endpoint("option_at_time_quote"));
     }
 
     // ── ordered merge ──

@@ -29,7 +29,7 @@
   "devDependencies": {
     "@napi-rs/cli": "^3.6.2",
     "@types/node": "26.1.1",
-    "apache-arrow": "21.1.0",
+    "apache-arrow": "21.2.0",
     "typescript": "7.0.2"
   },
   "optionalDependencies": {

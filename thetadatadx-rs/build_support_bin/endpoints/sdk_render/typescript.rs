@@ -622,7 +622,7 @@ fn render_typescript_endpoint_stream_method(endpoint: &GeneratedEndpoint) -> Str
     let mut out = String::new();
 
     // Only shardable history endpoints can fan out (see `endpoint_can_fan_out`).
-    let fan_out = if super::endpoint_can_fan_out(&endpoint.name) {
+    let fan_out = if super::endpoint_can_fan_out(endpoint) {
         " Under `bulkFetch = \"auto\"` a large history pull may fan out \
          across concurrent sub-requests: every chunk is still delivered exactly \
          once, but chunks from different sub-requests interleave in arrival order \
@@ -934,12 +934,30 @@ mod tests {
 
     #[test]
     fn stream_doc_keeps_fan_out_note_for_shardable_history_endpoint() {
+        // The predicate is model-derived (same as the runtime shardable
+        // set): a `history*` endpoint carrying the intraday window.
         let mut ep = stock_history_eod_endpoint();
         ep.name = "stock_history_trade".to_string();
+        ep.params.push(method_param("start_time", "Time"));
+        ep.params.push(method_param("end_time", "Time"));
         let rendered = render_typescript_endpoint_stream_method(&ep);
         assert!(
             rendered.contains("may fan out"),
             "shardable history stream must keep the fan-out note"
+        );
+    }
+
+    #[test]
+    fn stream_doc_keeps_fan_out_note_for_at_time_endpoint() {
+        // The at_time families band their date range, so their stream
+        // docs must carry the same interleaving caveat.
+        let mut ep = stock_history_eod_endpoint();
+        ep.name = "stock_at_time_trade".to_string();
+        ep.subcategory = "at_time".to_string();
+        let rendered = render_typescript_endpoint_stream_method(&ep);
+        assert!(
+            rendered.contains("may fan out"),
+            "at_time stream must carry the fan-out note"
         );
     }
 }

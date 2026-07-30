@@ -612,16 +612,27 @@ fn date_span_days(q: &ShardQuery) -> Option<i64> {
     (e >= s).then_some(e - s + 1)
 }
 
-/// Whether the query spans more than one contract (an option-chain
-/// cross-product). Only chain pulls have an a-priori-unbounded row count
-/// per grid slot; a concrete contract — and every stock / index query —
-/// is capped at one row per bar for bounded intervals, which the
-/// small-pull gates in `plan_query` exploit.
+/// Whether the query spans an a-priori-unbounded contract set (an
+/// option-chain cross-product): a wildcard `*` expiration, or a
+/// wildcard / absent strike. Only such pulls have an unbounded row
+/// count per grid slot; a concrete expiration + strike — at most two
+/// known contracts, even with `right = "both"` — and every stock /
+/// index query are capped at one row per bar per contract for bounded
+/// intervals, which the small-pull gates in `plan_query` exploit.
+///
+/// `right` deliberately does not participate: a genuine wildcard on
+/// expiration or strike is what makes a chain. Were a concrete-strike
+/// `right = "both"` request counted as a chain, `splittable_by_right`
+/// would rewrite it into a `call` band and a `put` band — two fully
+/// concrete single-contract requests, whose responses MDDS sends
+/// WITHOUT the identity columns (the parser seeds `right = '\0'` for
+/// every row) — and the merged result could no longer tell the call
+/// rows from the put rows. The unsharded request keeps
+/// `right = "both"` on the wire and receives the identity column; so
+/// does every time / date band cut from it.
 fn chain_cross_product(q: &ShardQuery) -> bool {
     q.expiration.is_some()
-        && (q.expiration.as_deref() == Some("*")
-            || q.strike.as_deref().is_none_or(|s| s == "*")
-            || q.right.as_deref() != Some("call") && q.right.as_deref() != Some("put"))
+        && (q.expiration.as_deref() == Some("*") || q.strike.as_deref().is_none_or(|s| s == "*"))
 }
 
 /// Whether a chain query spans both option rights, so splitting it into a
@@ -2334,10 +2345,56 @@ mod tests {
         concrete.strike = Some("6000".into());
         concrete.right = Some("put".into());
         assert!(!chain_cross_product(&concrete));
+        // A concrete expiration + strike with both rights is two known
+        // contracts, never a cross-product: `right` alone cannot make a
+        // chain (right-splitting it would erase the response's identity
+        // columns — see `chain_cross_product`).
+        concrete.right = Some("both".into());
+        assert!(!chain_cross_product(&concrete));
+        concrete.right = None;
+        assert!(!chain_cross_product(&concrete));
+        // An absent strike is a wildcard: the pull spans every strike.
+        let mut no_strike = q();
+        no_strike.expiration = Some("20260710".into());
+        no_strike.right = Some("call".into());
+        assert!(chain_cross_product(&no_strike));
         // Stock / index queries carry no expiration and are never chains.
         let mut stock = q();
         stock.symbol = Some("AAPL".into());
         assert!(!chain_cross_product(&stock));
+    }
+
+    #[test]
+    fn concrete_strike_both_rights_keeps_its_right_on_every_band() {
+        // Sharded output must equal unsharded output. A concrete
+        // expiration + strike with `right = "both"` returns rows whose
+        // identity column distinguishes the call from the put; a
+        // right-split would issue two fully concrete child requests
+        // whose responses omit that column (the parser seeds
+        // `right = '\0'`), making the merged rows indistinguishable. The
+        // plan must therefore cut TIME bands that all leave the query's
+        // own `both` on the wire, never call / put bands.
+        let mut query = chain_day_query();
+        query.expiration = Some("20260710".into());
+        query.strike = Some("6000".into());
+        for right in [Some("both".to_string()), None] {
+            query.right = right;
+            let plan = plan_query("option_history_quote", &query, 8)
+                .expect("concrete-strike both-rights tick pull shards on the time axis");
+            assert_eq!(plan.bands.len(), 8);
+            assert!(
+                plan.bands.iter().all(|b| band_right(b).is_none()),
+                "no band may pin a right — the query's own `both` must reach the wire"
+            );
+        }
+        // At a bounded bar interval the same shape is provably small
+        // (<= one row per bar per contract, two contracts) and stays on
+        // the single stream.
+        query.interval = Some("1s".into());
+        assert_eq!(
+            plan_query("option_history_quote", &query, 8),
+            Err(ShardDecline::SmallGrid)
+        );
     }
 
     #[test]

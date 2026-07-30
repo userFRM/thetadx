@@ -37,21 +37,30 @@ use thetadatadx::wire::{
 use thetadatadx::{DirectConfig, Error, RetryPolicy, ShardBand};
 
 /// Tag-compatible mirror of the `StockHistoryTradeRequest` /
-/// `StockHistoryTradeRequestQuery` wire pair, trimmed to the one field
-/// the mock dispatches on. Protobuf decodes by field tag and skips
-/// unknown fields, so this reads any band request the client encodes
-/// without re-exporting the crate-internal request protos.
+/// `StockHistoryTradeRequestQuery` wire pair, trimmed to the band
+/// fields a shard override may rewrite. Protobuf decodes by field tag
+/// and skips unknown fields, so this reads any band request the client
+/// encodes without re-exporting the crate-internal request protos. The
+/// mock dispatches on `start_date` and records the whole probe, so the
+/// tests can assert the exact band window each request carried on the
+/// wire.
 #[derive(Clone, PartialEq, prost::Message)]
 struct BandRequestProbe {
     #[prost(message, optional, tag = "2")]
     params: Option<BandParamsProbe>,
 }
 
+/// Field tags from `StockHistoryTradeRequestQuery`.
 #[derive(Clone, PartialEq, prost::Message)]
 struct BandParamsProbe {
-    /// `start_date` — tag 6 on `StockHistoryTradeRequestQuery`.
+    #[prost(string, optional, tag = "3")]
+    start_time: Option<String>,
+    #[prost(string, optional, tag = "4")]
+    end_time: Option<String>,
     #[prost(string, optional, tag = "6")]
     start_date: Option<String>,
+    #[prost(string, optional, tag = "7")]
+    end_date: Option<String>,
 }
 
 // ─── Per-band scripting ──────────────────────────────────────────────────
@@ -101,8 +110,8 @@ struct BandScript {
 
 struct MockScript {
     bands: HashMap<String, BandScript>,
-    /// Every inbound request's band key, in arrival order.
-    requests: Mutex<Vec<String>>,
+    /// Every inbound request's decoded band fields, in arrival order.
+    requests: Mutex<Vec<BandParamsProbe>>,
 }
 
 impl MockScript {
@@ -129,8 +138,22 @@ impl MockScript {
     }
 
     fn seen_bands(&self) -> Vec<String> {
-        let mut seen = self.requests.lock().unwrap().clone();
+        let mut seen: Vec<String> = self
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|p| p.start_date.clone().unwrap_or_default())
+            .collect();
         seen.sort();
+        seen
+    }
+
+    /// Every request's full decoded band fields, sorted, so tests can
+    /// assert the exact windows the shard overrides put on the wire.
+    fn seen_requests(&self) -> Vec<BandParamsProbe> {
+        let mut seen = self.requests.lock().unwrap().clone();
+        seen.sort_by_key(|p| (p.start_date.clone(), p.start_time.clone()));
         seen
     }
 }
@@ -197,11 +220,9 @@ async fn handle_stream(
     // gRPC frame: 1-byte compressed flag + 4-byte length + payload.
     let payload = buf.get(5..).unwrap_or_default();
     let decoded = BandRequestProbe::decode(payload)?;
-    let band_key = decoded
-        .params
-        .and_then(|p| p.start_date)
-        .unwrap_or_default();
-    script.requests.lock().unwrap().push(band_key.clone());
+    let probe = decoded.params.unwrap_or_default();
+    let band_key = probe.start_date.clone().unwrap_or_default();
+    script.requests.lock().unwrap().push(probe);
 
     let band = script
         .bands
@@ -371,10 +392,17 @@ async fn buffered_sharded_pull_fans_out_and_merges_in_band_order() {
         .await
         .expect("sharded buffered pull");
 
-    // The fan-out issued exactly one request per band, one band per day.
+    // The fan-out issued exactly one request per band, one band per day,
+    // and each band request carried its full inclusive date window on
+    // the wire — not just the start bound.
+    let requests = script.seen_requests();
+    let windows: Vec<(Option<&str>, Option<&str>)> = requests
+        .iter()
+        .map(|p| (p.start_date.as_deref(), p.end_date.as_deref()))
+        .collect();
     assert_eq!(
-        script.seen_bands(),
-        vec![DAY1.to_string(), DAY2.to_string()]
+        windows,
+        vec![(Some(DAY1), Some(DAY1)), (Some(DAY2), Some(DAY2))]
     );
     // The merge concatenates the bands in band order — the single-stream
     // row order for a stock pull (bands partition the date axis).
@@ -566,6 +594,93 @@ async fn streaming_sharded_pull_retries_a_band_that_fails_before_delivery() {
     let mut rows = std::mem::take(&mut *sink.lock().unwrap());
     rows.sort_unstable();
     assert_eq!(rows, vec![101, 102, 201, 202]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn time_banded_pull_applies_each_bands_window_on_the_wire() {
+    // A single-day tick pull with an intraday window at pool width 2
+    // cuts two time bands. Each band request must carry its own
+    // inclusive window on the wire — abutting at +1 ms, tiling the
+    // query window — with the query's date range forwarded verbatim.
+    // Pins the band time overrides end to end: were they silently not
+    // applied, both requests would carry the full window and every row
+    // would arrive twice. (The mock answers both bands from the DAY1
+    // script regardless of window, so only the recorded wire shape is
+    // asserted here.)
+    let script = MockScript::new(vec![(DAY1, vec![BandResponse::ok(vec![day1_rows()])])]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock(&mock, 2).await;
+
+    client
+        .stock_history_trade("AAPL")
+        .start_date(DAY1)
+        .end_date(DAY1)
+        .start_time("09:30:00")
+        .end_time("16:00:00")
+        .stream(|_ticks: &[thetadatadx::TradeTick]| {})
+        .await
+        .expect("time-banded pull");
+
+    assert_eq!(
+        script.seen_requests(),
+        vec![
+            BandParamsProbe {
+                start_time: Some("09:30:00.000".into()),
+                end_time: Some("12:44:59.999".into()),
+                start_date: Some(DAY1.into()),
+                end_date: Some(DAY1.into()),
+            },
+            BandParamsProbe {
+                start_time: Some("12:45:00.000".into()),
+                end_time: Some("16:00:00.000".into()),
+                start_date: Some(DAY1.into()),
+                end_date: Some(DAY1.into()),
+            },
+        ]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn empty_keepalive_chunk_does_not_arm_the_no_resume_guard() {
+    // A headers-only zero-row chunk hands the handler no rows, so a
+    // transient AFTER it must still replay the band from chunk zero —
+    // nothing delivered means nothing can duplicate. Only a non-empty
+    // chunk arms the no-resume guard. Drives the real delivery path's
+    // `delivered` gating over the wire: attempt 1 streams one empty
+    // chunk and dies with a transient, attempt 2 serves the band.
+    let script = MockScript::new(vec![
+        (DAY1, vec![BandResponse::ok(vec![day1_rows()])]),
+        (
+            DAY2,
+            vec![
+                BandResponse::unavailable_after(vec![vec![]]),
+                BandResponse::ok(vec![day2_rows()]),
+            ],
+        ),
+    ]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock(&mock, 2).await;
+
+    let sink: Arc<Mutex<Vec<i64>>> = Arc::new(Mutex::new(Vec::new()));
+    let seen = Arc::clone(&sink);
+    client
+        .stock_history_trade("AAPL")
+        .start_date(DAY1)
+        .end_date(DAY2)
+        .stream(move |ticks| {
+            seen.lock().unwrap().extend(prices(ticks));
+        })
+        .await
+        .expect("post-empty-chunk transient replays within the retry budget");
+
+    assert_eq!(
+        script.attempts(DAY2),
+        2,
+        "an empty chunk must not make the transient terminal"
+    );
+    let mut rows = std::mem::take(&mut *sink.lock().unwrap());
+    rows.sort_unstable();
+    assert_eq!(rows, vec![101, 102, 201, 202], "full band exactly once");
 }
 
 // ─── Same-client requests from inside a delivery handler ─────────────────

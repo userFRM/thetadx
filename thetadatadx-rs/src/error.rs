@@ -964,7 +964,10 @@ mod tests {
             text.contains("20240116..20240116") && text.ends_with(", and 4 more"),
             "expected 16 listed windows and a folded remainder, got: {text}"
         );
-        assert!(!text.contains("20240117"), "remainder must not be listed: {text}");
+        assert!(
+            !text.contains("20240117"),
+            "remainder must not be listed: {text}"
+        );
     }
 
     #[test]

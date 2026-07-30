@@ -2332,7 +2332,10 @@ mod tests {
         // The snap moves each seam by less than one bar from the even
         // cut: 11:07:30 → 11:08:00, 12:45:00 stays, 14:22:30 → 14:23:00.
         assert_eq!(
-            bands.iter().map(|b| band_window_ms(b).0).collect::<Vec<_>>(),
+            bands
+                .iter()
+                .map(|b| band_window_ms(b).0)
+                .collect::<Vec<_>>(),
             vec![
                 start,
                 parse_ms_of_day("11:08:00").unwrap(),

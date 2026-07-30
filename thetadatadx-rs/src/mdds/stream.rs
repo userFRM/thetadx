@@ -391,6 +391,11 @@ impl MarketDataClient {
         HFut: Future<Output = ()> + Send,
     {
         let mut decode_error: Option<Error> = None;
+        // Marks the user handler await below as this client's delivery
+        // scope, so a same-client request awaited inside the handler
+        // fails fast instead of waiting on permits this pull holds (see
+        // `acquire_request_permit`).
+        let sem_addr = std::sync::Arc::as_ptr(&self.request_semaphore) as usize;
         let drain_result = self
             .for_each_chunk_async_control(stream, |headers, rows| {
                 // Synchronous section: parse the chunk. The handler runs
@@ -431,7 +436,9 @@ impl MarketDataClient {
                         // before running the handler, keeping peak memory
                         // at one chunk per stream.
                         drop(ticks);
-                        user_fut.await;
+                        super::client::DELIVERY_HANDLER_SEMAPHORE
+                            .scope(sem_addr, user_fut)
+                            .await;
                     }
                     if stop_stream {
                         ControlFlow::Break(())
@@ -469,6 +476,8 @@ impl MarketDataClient {
         HFut: Future<Output = ()> + Send,
     {
         let mut decode_error: Option<Error> = None;
+        // Same delivery-scope marker as `deliver_chunk_slices_async`.
+        let sem_addr = std::sync::Arc::as_ptr(&self.request_semaphore) as usize;
         let drain_result = self
             .for_each_chunk_async_control(stream, |headers, rows| {
                 let mut stop_stream = decode_error.is_some();
@@ -499,7 +508,9 @@ impl MarketDataClient {
                         if delivered_nonempty {
                             delivered.store(true, std::sync::atomic::Ordering::Relaxed);
                         }
-                        user_fut.await;
+                        super::client::DELIVERY_HANDLER_SEMAPHORE
+                            .scope(sem_addr, user_fut)
+                            .await;
                     }
                     if stop_stream {
                         ControlFlow::Break(())

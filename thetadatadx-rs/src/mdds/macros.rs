@@ -679,8 +679,7 @@ macro_rules! list_endpoint_impl_body {
             tracing::debug!(endpoint = stringify!($name), "gRPC request");
             metrics::counter!("thetadatadx.grpc.requests", "endpoint" => stringify!($name)).increment(1);
             let _metrics_start = std::time::Instant::now();
-            let _permit = client.request_semaphore.acquire().await
-                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+            let _permit = client.acquire_request_permit().await?;
             let policy = client.config().retry;
             let table: proto::DataTable = $crate::mdds::macros::run_unary_retry_loop(
                 client.session(),
@@ -858,8 +857,7 @@ macro_rules! sharded_stream_fanout {
                 let band_started = std::time::Instant::now();
                 let shard_delivered = std::sync::atomic::AtomicBool::new(false);
                 let outcome = async {
-                    let _permit = $client.request_semaphore.acquire().await
-                        .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                    let _permit = $client.acquire_request_permit().await?;
                     // Per-shard no-resume guard: a shard that has handed a
                     // non-empty chunk to the handler must not replay from
                     // chunk zero, while a sibling's delivery leaves this
@@ -1108,8 +1106,7 @@ macro_rules! parsed_endpoint {
                             )?;
                         }
                         None => {
-                            let _permit = client.request_semaphore.acquire().await
-                                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                            let _permit = client.acquire_request_permit().await?;
                             let policy = client.config().retry;
                             // Set once a chunk reaches `handler`: it makes a later
                             // transient terminal so the no-resume restart never
@@ -1205,8 +1202,7 @@ macro_rules! parsed_endpoint {
                             )?;
                         }
                         None => {
-                            let _permit = client.request_semaphore.acquire().await
-                                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                            let _permit = client.acquire_request_permit().await?;
                             let policy = client.config().retry;
                             let delivered = std::sync::atomic::AtomicBool::new(false);
                             let delivered = &delivered;
@@ -1257,6 +1253,19 @@ macro_rules! parsed_endpoint {
             /// Python SDK's `*_stream_async` terminal uses this to offload
             /// its GIL-bound user handler onto a blocking-pool task without
             /// parking a shared async worker.
+            ///
+            /// # Same-client calls from the handler
+            ///
+            /// The pull holds its request permit(s) until the handler
+            /// returns, so a same-client request awaited INSIDE the
+            /// handler cannot wait for one: with pool headroom (e.g.
+            /// `shard_concurrency` below the pool size) it is admitted
+            /// on a free permit, otherwise it fails fast with
+            /// [`Error::HandlerReentrancy`](crate::Error::HandlerReentrancy)
+            /// instead of deadlocking the stream, and it never fans
+            /// out. To combine streaming with blocking same-client
+            /// calls, spawn the request onto its own task and await it
+            /// outside the handler, or use a second client.
             ///
             /// # Errors
             ///
@@ -1321,8 +1330,7 @@ macro_rules! parsed_endpoint {
                             )?;
                         }
                         None => {
-                            let _permit = client.request_semaphore.acquire().await
-                                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                            let _permit = client.acquire_request_permit().await?;
                             let policy = client.config().retry;
                             let delivered = std::sync::atomic::AtomicBool::new(false);
                             let delivered = &delivered;
@@ -1414,8 +1422,7 @@ macro_rules! parsed_endpoint {
                             )?;
                         }
                         None => {
-                            let _permit = client.request_semaphore.acquire().await
-                                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                            let _permit = client.acquire_request_permit().await?;
                             let policy = client.config().retry;
                             let delivered = std::sync::atomic::AtomicBool::new(false);
                             let delivered = &delivered;
@@ -1517,6 +1524,11 @@ macro_rules! parsed_endpoint {
                                     let band_span = $crate::mdds::shard::band_span(band);
                                     tasks.push($crate::mdds::shard::spawn_shard(tracing::Instrument::instrument(async move {
                                         let band_started = std::time::Instant::now();
+                                        // Plain wait, not `acquire_request_permit`:
+                                        // `auto_plan` declines any pull issued
+                                        // inside a delivery handler, so a band
+                                        // only ever waits on permits whose
+                                        // holders make independent progress.
                                         let _permit = dispatch.semaphore.acquire().await
                                             .map_err(|_| Error::config_internal("request semaphore closed"))?;
                                         let dispatch = &dispatch;
@@ -1582,8 +1594,7 @@ macro_rules! parsed_endpoint {
                                 // response is parsed — same permit lifetime
                                 // as always.
                                 let table: proto::DataTable = {
-                                    let _permit = client.request_semaphore.acquire().await
-                                        .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                                    let _permit = client.acquire_request_permit().await?;
                                     let policy = client.config().retry;
                                     $crate::mdds::macros::run_unary_retry_loop(
                                         client.session(),

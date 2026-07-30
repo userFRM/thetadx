@@ -27,6 +27,21 @@ use crate::FlatFiles;
 /// Version string sent in `QueryInfo.terminal_version`.
 const TERMINAL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+tokio::task_local! {
+    /// Address of the request semaphore whose streaming delivery
+    /// handler the current task is executing, scoped by the async chunk
+    /// deliverers around every user handler await (`deliver_chunk_slices_async`
+    /// / `deliver_chunk_ticks_async` in [`super::stream`]).
+    ///
+    /// Same-client requests issued inside that scope must not block on
+    /// the request pool — the pull whose handler is running holds its
+    /// permits until the handler returns, so the wait can never end.
+    /// [`MarketDataClient::acquire_request_permit`] reads this to fail
+    /// such an acquire fast, and `auto_plan` reads it to keep a
+    /// handler-issued pull off the fan-out path.
+    pub(crate) static DELIVERY_HANDLER_SEMAPHORE: usize;
+}
+
 /// MDDS client for `ThetaData` server access.
 ///
 /// Connects to MDDS (gRPC, historical data) without requiring the JVM
@@ -281,6 +296,48 @@ impl MarketDataClient {
     /// shard plan may fan out.
     pub(crate) fn pool_size(&self) -> usize {
         self.channels.size()
+    }
+
+    /// Whether the current task is inside one of THIS client's streaming
+    /// delivery handlers (the async chunk deliverers scope
+    /// [`DELIVERY_HANDLER_SEMAPHORE`] around every user handler await).
+    /// Keyed on the request semaphore's address so a handler driving a
+    /// different client is not confused with re-entry into this one.
+    pub(crate) fn in_delivery_handler(&self) -> bool {
+        DELIVERY_HANDLER_SEMAPHORE
+            .try_with(|addr| *addr == Arc::as_ptr(&self.request_semaphore) as usize)
+            .unwrap_or(false)
+    }
+
+    /// One tier permit for a top-level request.
+    ///
+    /// A request awaited inline from inside this client's own streaming
+    /// delivery handler must never WAIT here: the active pull holds its
+    /// permit(s) until the handler returns, and its sibling bands queue
+    /// on the handler lock while holding theirs, so a full pool can
+    /// only refill after the handler completes — waiting is a cycle
+    /// that never resolves. Inside a handler the acquire is therefore
+    /// non-blocking: a free permit (the pool has headroom, e.g.
+    /// `shard_concurrency` below the pool size) is taken and the call
+    /// proceeds as normal; an exhausted pool fails fast with
+    /// [`Error::HandlerReentrancy`] instead of deadlocking the stream.
+    /// Outside a handler this is the plain semaphore wait.
+    pub(crate) async fn acquire_request_permit(
+        &self,
+    ) -> Result<tokio::sync::SemaphorePermit<'_>, Error> {
+        if self.in_delivery_handler() {
+            return match self.request_semaphore.try_acquire() {
+                Ok(permit) => Ok(permit),
+                Err(tokio::sync::TryAcquireError::NoPermits) => Err(Error::HandlerReentrancy),
+                Err(tokio::sync::TryAcquireError::Closed) => {
+                    Err(Error::config_internal("request semaphore closed"))
+                }
+            };
+        }
+        self.request_semaphore
+            .acquire()
+            .await
+            .map_err(|_| Error::config_internal("request semaphore closed"))
     }
 
     /// Deterministically tear the market-data client down.

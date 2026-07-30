@@ -557,6 +557,28 @@ pub enum Error {
         /// order.
         failed: Vec<crate::ShardBand>,
     },
+
+    /// A request was awaited inline inside one of this client's own
+    /// streaming delivery handlers (a `.stream*` chunk callback) while
+    /// the client's request pool was fully committed.
+    ///
+    /// The active pull holds its request permit(s) until the handler
+    /// returns — under a bulk-fetch fan-out, every concurrent band —
+    /// so waiting for a permit inside the handler is a cycle that can
+    /// never resolve; this error surfaces immediately instead of
+    /// hanging the stream. The handler-issued request was not sent.
+    ///
+    /// To make blocking same-client calls from streamed data, spawn
+    /// the request onto its own task and await it outside the handler,
+    /// run it on a second client, or leave pool headroom by configuring
+    /// `shard_concurrency` below the tier's pool size (a free permit
+    /// admits the inline call).
+    #[error(
+        "request issued inside a streaming delivery handler while the client's request pool is \
+         fully committed by the active pull; waiting would deadlock the stream. Spawn the request \
+         onto its own task, use a second client, or set shard_concurrency below the pool size"
+    )]
+    HandlerReentrancy,
 }
 
 impl Error {

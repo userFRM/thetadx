@@ -298,6 +298,16 @@ fn trade_chunk(rows: &[Row]) -> ResponseData {
 /// two-band plan for a two-day range. Retry backoff is shrunk to keep
 /// the recovery tests fast; the budget (3 attempts) stays real.
 async fn client_for_mock(mock: &BandMockServer, width: usize) -> MarketDataClient {
+    client_for_mock_with(mock, width, None).await
+}
+
+/// [`client_for_mock`] with an explicit `shard_concurrency` cap, for the
+/// tests that need the fan-out narrower than the pool (permit headroom).
+async fn client_for_mock_with(
+    mock: &BandMockServer,
+    width: usize,
+    shard_concurrency: Option<u32>,
+) -> MarketDataClient {
     let mut channels = Vec::with_capacity(width);
     for _ in 0..width {
         channels.push(
@@ -314,6 +324,7 @@ async fn client_for_mock(mock: &BandMockServer, width: usize) -> MarketDataClien
     retry.max_attempts = 3;
     retry.jitter = false;
     cfg.retry = retry;
+    cfg.market_data.shard_concurrency = shard_concurrency;
     let sem = Arc::new(Semaphore::new(width));
     MarketDataClient::for_endpoint_routing_test(cfg, pool, sem)
 }
@@ -322,6 +333,9 @@ async fn client_for_mock(mock: &BandMockServer, width: usize) -> MarketDataClien
 /// date band per day at pool width 2.
 const DAY1: &str = "20240101";
 const DAY2: &str = "20240102";
+/// Extra band key for the pulls the reentrancy tests issue from inside
+/// a handler, distinct from the outer pull's own bands.
+const DAY3: &str = "20240103";
 
 fn day1_rows() -> Vec<Row> {
     vec![(34_200_000, 101, 20_240_101), (34_200_500, 102, 20_240_101)]
@@ -329,6 +343,10 @@ fn day1_rows() -> Vec<Row> {
 
 fn day2_rows() -> Vec<Row> {
     vec![(34_200_250, 201, 20_240_102), (34_201_000, 202, 20_240_102)]
+}
+
+fn day3_rows() -> Vec<Row> {
+    vec![(34_200_100, 301, 20_240_103)]
 }
 
 fn prices(ticks: &[thetadatadx::TradeTick]) -> Vec<i64> {
@@ -548,6 +566,176 @@ async fn streaming_sharded_pull_retries_a_band_that_fails_before_delivery() {
     let mut rows = std::mem::take(&mut *sink.lock().unwrap());
     rows.sort_unstable();
     assert_eq!(rows, vec![101, 102, 201, 202]);
+}
+
+// ─── Same-client requests from inside a delivery handler ─────────────────
+
+/// Result slot for the handler-issued inner call: `None` until the
+/// handler fires, then the inner pull's row count or error.
+type InnerResult = Arc<Mutex<Option<Result<usize, Error>>>>;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_inline_call_fails_fast_when_the_pool_is_committed() {
+    // Pool size 1: the streaming pull holds the only permit for its
+    // whole drain, so a same-client request awaited inline inside the
+    // async handler can never acquire one. It must surface
+    // `Error::HandlerReentrancy` immediately — not wait on the
+    // semaphore, which would deadlock the stream forever — and the
+    // stream must keep delivering afterwards.
+    let script = MockScript::new(vec![(
+        DAY1,
+        vec![BandResponse::ok(vec![
+            vec![(34_200_000, 101, 20_240_101)],
+            vec![(34_200_500, 102, 20_240_101)],
+        ])],
+    )]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock(&mock, 1).await;
+
+    let inner: InnerResult = Arc::new(Mutex::new(None));
+    let inner_slot = Arc::clone(&inner);
+    let rows: Arc<Mutex<Vec<i64>>> = Arc::new(Mutex::new(Vec::new()));
+    let rows_sink = Arc::clone(&rows);
+    let client_ref = &client;
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        client
+            .stock_history_trade("AAPL")
+            .start_date(DAY1)
+            .end_date(DAY1)
+            .stream_async(move |ticks: &[thetadatadx::TradeTick]| {
+                rows_sink.lock().unwrap().extend(prices(ticks));
+                let inner_slot = Arc::clone(&inner_slot);
+                async move {
+                    let fire = inner_slot.lock().unwrap().is_none();
+                    if fire {
+                        let res = client_ref
+                            .stock_history_trade("AAPL")
+                            .start_date(DAY2)
+                            .end_date(DAY2)
+                            .await;
+                        *inner_slot.lock().unwrap() = Some(res.map(|t| t.len()));
+                    }
+                }
+            }),
+    )
+    .await
+    .expect("an inline same-client call must not hang the stream")
+    .expect("outer pull completes");
+
+    match inner.lock().unwrap().take() {
+        Some(Err(Error::HandlerReentrancy)) => {}
+        other => panic!("expected HandlerReentrancy for the inline call, got {other:?}"),
+    }
+    assert_eq!(
+        *rows.lock().unwrap(),
+        vec![101, 102],
+        "delivery continues after the refused inline call"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_inline_call_succeeds_on_pool_headroom() {
+    // `shard_concurrency = 1` keeps the outer pull on a single stream
+    // holding one of the two pooled permits, so the same inline call is
+    // admitted on the free permit and completes: the guard refuses only
+    // to WAIT on the pool, never a safe acquire.
+    let script = MockScript::new(vec![
+        (DAY1, vec![BandResponse::ok(vec![day1_rows()])]),
+        (DAY2, vec![BandResponse::ok(vec![day2_rows()])]),
+    ]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock_with(&mock, 2, Some(1)).await;
+
+    let inner: InnerResult = Arc::new(Mutex::new(None));
+    let inner_slot = Arc::clone(&inner);
+    let client_ref = &client;
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        client
+            .stock_history_trade("AAPL")
+            .start_date(DAY1)
+            .end_date(DAY2)
+            .stream_async(move |_ticks: &[thetadatadx::TradeTick]| {
+                let inner_slot = Arc::clone(&inner_slot);
+                async move {
+                    let fire = inner_slot.lock().unwrap().is_none();
+                    if fire {
+                        let res = client_ref
+                            .stock_history_trade("AAPL")
+                            .start_date(DAY2)
+                            .end_date(DAY2)
+                            .await;
+                        *inner_slot.lock().unwrap() = Some(res.map(|t| t.len()));
+                    }
+                }
+            }),
+    )
+    .await
+    .expect("inline call with headroom must not hang")
+    .expect("outer pull completes");
+
+    match inner.lock().unwrap().take() {
+        Some(Ok(2)) => {}
+        other => panic!("expected the admitted inline call to return 2 rows, got {other:?}"),
+    };
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sharded_pull_with_a_reentrant_handler_never_hangs() {
+    // The full-width fan-out shape: both permits belong to the pull's
+    // own bands while chunks deliver. Depending on how the bands race,
+    // an inline same-client call from the handler is either refused
+    // (siblings still hold every permit) or admitted (a band already
+    // finished and freed its permit) — but the pull must always run to
+    // completion and deliver every row; the refusal is what prevents
+    // the permanent handler-vs-band deadlock.
+    let script = MockScript::new(vec![
+        (DAY1, vec![BandResponse::ok(vec![day1_rows()])]),
+        (DAY2, vec![BandResponse::ok(vec![day2_rows()])]),
+        (DAY3, vec![BandResponse::ok(vec![day3_rows()])]),
+    ]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock(&mock, 2).await;
+
+    let inner: InnerResult = Arc::new(Mutex::new(None));
+    let inner_slot = Arc::clone(&inner);
+    let rows: Arc<Mutex<Vec<i64>>> = Arc::new(Mutex::new(Vec::new()));
+    let rows_sink = Arc::clone(&rows);
+    let client_ref = &client;
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        client
+            .stock_history_trade("AAPL")
+            .start_date(DAY1)
+            .end_date(DAY2)
+            .stream_async(move |ticks: &[thetadatadx::TradeTick]| {
+                rows_sink.lock().unwrap().extend(prices(ticks));
+                let inner_slot = Arc::clone(&inner_slot);
+                async move {
+                    let fire = inner_slot.lock().unwrap().is_none();
+                    if fire {
+                        let res = client_ref
+                            .stock_history_trade("AAPL")
+                            .start_date(DAY3)
+                            .end_date(DAY3)
+                            .await;
+                        *inner_slot.lock().unwrap() = Some(res.map(|t| t.len()));
+                    }
+                }
+            }),
+    )
+    .await
+    .expect("a reentrant handler must not hang the fan-out")
+    .expect("outer pull completes");
+
+    match inner.lock().unwrap().take() {
+        Some(Ok(1)) | Some(Err(Error::HandlerReentrancy)) => {}
+        other => panic!("expected the inline call to be admitted or refused, got {other:?}"),
+    }
+    let mut delivered = std::mem::take(&mut *rows.lock().unwrap());
+    delivered.sort_unstable();
+    assert_eq!(delivered, vec![101, 102, 201, 202]);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

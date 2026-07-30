@@ -490,6 +490,11 @@ pub(crate) enum ShardDecline {
     SmallGrid,
     /// Window too narrow for two bands of [`MIN_SHARD_BAND_MS`].
     NarrowWindow,
+    /// Pull issued from inside this client's own streaming delivery
+    /// handler: the outer pull holds the request pool until the handler
+    /// returns, so extra bands could only queue behind permits that
+    /// cannot free while the handler waits on them.
+    InsideDeliveryHandler,
 }
 
 impl ShardDecline {
@@ -501,6 +506,7 @@ impl ShardDecline {
             Self::MalformedWindow => "band window does not parse",
             Self::SmallGrid => "bar grid provably small",
             Self::NarrowWindow => "window too narrow for two bands",
+            Self::InsideDeliveryHandler => "issued inside the client's streaming delivery handler",
         }
     }
 }
@@ -812,7 +818,16 @@ pub(crate) fn auto_plan(
         client.config().market_data.shard_concurrency,
         client.pool_size(),
     );
-    match plan_query(endpoint, q, width) {
+    // A pull issued from inside this client's own delivery handler
+    // never fans out — its single-stream permit acquire then fails
+    // fast instead of waiting (`acquire_request_permit`) whenever the
+    // outer pull has the pool committed.
+    let planned = if client.in_delivery_handler() {
+        Err(ShardDecline::InsideDeliveryHandler)
+    } else {
+        plan_query(endpoint, q, width)
+    };
+    match planned {
         Ok(p) => {
             let axis = match p.bands.first() {
                 Some(ShardBand::Time { .. }) => "time",

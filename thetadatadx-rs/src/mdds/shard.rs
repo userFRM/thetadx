@@ -669,7 +669,7 @@ fn select_axis(q: &ShardQuery) -> Option<ShardAxis> {
     None
 }
 
-/// Materialize `n` equal-duration time bands over the inclusive window
+/// Materialize up to `n` time bands over the inclusive window
 /// `[start_ms, end_ms]`. Caller guarantees `1 <= n <= window_ms`.
 ///
 /// Bands are inclusive `[start, end]` wire windows at millisecond
@@ -679,13 +679,42 @@ fn select_axis(q: &ShardQuery) -> Option<ShardAxis> {
 /// adjacent inclusive bands built this way reproduce the single
 /// stream's row count exactly on full-day chain pulls. The first band
 /// starts at the query's own `start_time` and the last ends at its
-/// `end_time`; band durations differ by at most 1 ms.
-fn time_bands(start_ms: i64, end_ms: i64, n: i64, right: Option<&str>) -> Vec<ShardBand> {
+/// `end_time`.
+///
+/// A tick query (`interval` = `None`) cuts `n` equal-duration bands
+/// (within the 1 ms division remainder). A bounded-interval query cuts
+/// on the BAR GRID: the server anchors interval bars at each request's
+/// own `start_time`, so a band seam off the grid would restart a
+/// shifted grid mid-window and every seam would emit partial /
+/// duplicated bars — the sharded pull would no longer match the
+/// unsharded one. Each interior seam therefore snaps to the nearest
+/// multiple of `interval` from the query's `start_time`; seams that
+/// snap together or past the window are dropped, so a coarse interval
+/// can yield fewer than `n` bands (down to one).
+fn time_bands(
+    start_ms: i64,
+    end_ms: i64,
+    n: i64,
+    interval: Option<i64>,
+    right: Option<&str>,
+) -> Vec<ShardBand> {
     let window = end_ms - start_ms + 1;
-    (0..n)
-        .map(|k| ShardBand::Time {
-            start_time: format_hms(start_ms + window * k / n),
-            end_time: format_hms(start_ms + window * (k + 1) / n - 1),
+    let mut cuts: Vec<i64> = Vec::with_capacity(usize::try_from(n).unwrap_or(0) + 1);
+    cuts.push(start_ms);
+    for k in 1..n {
+        let mut cut = start_ms + window * k / n;
+        if let Some(ivl) = interval.filter(|&ivl| ivl > 0) {
+            cut = start_ms + ((cut - start_ms + ivl / 2) / ivl) * ivl;
+        }
+        if cut > *cuts.last().expect("cuts starts non-empty") && cut <= end_ms {
+            cuts.push(cut);
+        }
+    }
+    cuts.push(end_ms + 1);
+    cuts.windows(2)
+        .map(|w| ShardBand::Time {
+            start_time: format_hms(w[0]),
+            end_time: format_hms(w[1] - 1),
             right: right.map(str::to_owned),
         })
         .collect()
@@ -856,13 +885,17 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
             if end_ms <= start_ms {
                 return Err(window);
             }
+            // Bounded bar width, `None` for tick. Gates the small-pull
+            // check below and anchors every band seam to the bar grid in
+            // `time_bands`.
+            let ivl = q.interval.as_deref().and_then(interval_ms);
             // Request-shape small-pull gate: a single-contract (or stock
             // / index) query at a bounded bar interval cannot exceed one
             // row per grid slot, so a provably-small pull never pays a
             // fan-out. Chain cross-products and tick-interval pulls are
             // unbounded a priori and shard on the window alone.
             if !chain_cross_product(q) {
-                if let Some(ivl) = q.interval.as_deref().and_then(interval_ms) {
+                if let Some(ivl) = ivl {
                     let grid_rows =
                         u64::try_from((end_ms - start_ms) / ivl.max(1) + 1).unwrap_or(0);
                     if grid_rows < SHARD_MIN_GRID_ROWS {
@@ -883,20 +916,23 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                 let time_n = ((end_ms - start_ms + 1) / MIN_SHARD_BAND_MS)
                     .min(width / 2)
                     .max(1);
-                let mut bands = time_bands(start_ms, end_ms, time_n, Some("call"));
-                bands.extend(time_bands(start_ms, end_ms, time_n, Some("put")));
+                let mut bands = time_bands(start_ms, end_ms, time_n, ivl, Some("call"));
+                bands.extend(time_bands(start_ms, end_ms, time_n, ivl, Some("put")));
                 return Ok(ShardPlan { bands });
             }
-            // Equal-duration bands, capped so each spans at least
+            // Equal-span bands, capped so each spans at least
             // `MIN_SHARD_BAND_MS`; a window too narrow for two such
-            // bands stays on the single stream.
+            // bands stays on the single stream, as does one whose bar
+            // grid is too coarse for two grid-aligned bands.
             let n = ((end_ms - start_ms + 1) / MIN_SHARD_BAND_MS).min(width);
             if n < 2 {
                 return Err(ShardDecline::NarrowWindow);
             }
-            Ok(ShardPlan {
-                bands: time_bands(start_ms, end_ms, n, None),
-            })
+            let bands = time_bands(start_ms, end_ms, n, ivl, None);
+            if bands.len() < 2 {
+                return Err(ShardDecline::NarrowWindow);
+            }
+            Ok(ShardPlan { bands })
         }
         ShardAxis::Date => {
             let start_ord = Ymd::from_yyyymmdd(q.start_date.as_deref().ok_or(window)?)
@@ -2201,7 +2237,7 @@ mod tests {
     fn time_bands_partition_the_window_exactly() {
         let start = parse_ms_of_day("09:30:00").unwrap();
         let end = parse_ms_of_day("16:00:00").unwrap();
-        let bands = time_bands(start, end, 4, None);
+        let bands = time_bands(start, end, 4, None, None);
         assert_eq!(bands.len(), 4);
         // First band starts at the query start, last ends at the query
         // end, and adjacent inclusive bands abut at exactly +1 ms so every
@@ -2227,7 +2263,7 @@ mod tests {
     fn time_bands_format_wire_canonical_times() {
         let start = parse_ms_of_day("09:30:00").unwrap();
         let end = parse_ms_of_day("16:00:00").unwrap();
-        let bands = time_bands(start, end, 2, None);
+        let bands = time_bands(start, end, 2, None, None);
         assert_eq!(
             bands,
             vec![
@@ -2242,6 +2278,113 @@ mod tests {
                     right: None,
                 },
             ]
+        );
+    }
+
+    /// Assert `bands` tile `[start, end]` exactly — first band at
+    /// `start`, last at `end`, adjacent bands abutting at +1 ms — and
+    /// that every band boundary past the first lands on the `ivl` grid
+    /// anchored at `start`.
+    fn assert_bands_tile_on_grid(bands: &[ShardBand], start: i64, end: i64, ivl: i64) {
+        assert_eq!(band_window_ms(&bands[0]).0, start);
+        assert_eq!(band_window_ms(bands.last().unwrap()).1, end);
+        for w in bands.windows(2) {
+            assert_eq!(band_window_ms(&w[1]).0, band_window_ms(&w[0]).1 + 1);
+        }
+        for band in &bands[1..] {
+            let seam = band_window_ms(band).0;
+            assert_eq!(
+                (seam - start) % ivl,
+                0,
+                "seam {seam} is off the {ivl} ms bar grid anchored at {start}"
+            );
+        }
+    }
+
+    #[test]
+    fn interval_time_bands_snap_every_seam_to_the_bar_grid() {
+        // The server anchors interval bars at the request's own
+        // start_time. An even split of 09:30–16:00 into 4 puts the first
+        // seam at 11:07:30 — off the 1 m grid — so the next band would
+        // restart a shifted grid and every seam would emit partial /
+        // duplicated bars. Seams must land on whole minutes from 09:30
+        // while the bands still tile the window exactly.
+        let start = parse_ms_of_day("09:30:00").unwrap();
+        let end = parse_ms_of_day("16:00:00").unwrap();
+        let bands = time_bands(start, end, 4, Some(60_000), None);
+        assert_eq!(bands.len(), 4);
+        assert_bands_tile_on_grid(&bands, start, end, 60_000);
+        // The snap moves each seam by less than one bar from the even
+        // cut: 11:07:30 → 11:08:00, 12:45:00 stays, 14:22:30 → 14:23:00.
+        assert_eq!(
+            bands.iter().map(|b| band_window_ms(b).0).collect::<Vec<_>>(),
+            vec![
+                start,
+                parse_ms_of_day("11:08:00").unwrap(),
+                parse_ms_of_day("12:45:00").unwrap(),
+                parse_ms_of_day("14:23:00").unwrap(),
+            ]
+        );
+    }
+
+    #[test]
+    fn interval_time_bands_collapse_rather_than_cut_off_grid() {
+        // A bar grid coarser than the even cut: only the grid-aligned
+        // seams survive, so the plan yields fewer bands — never a seam
+        // off the grid, never a gap or overlap. 09:30–16:00 at 4 h bars
+        // has exactly one interior grid point (13:30).
+        let start = parse_ms_of_day("09:30:00").unwrap();
+        let end = parse_ms_of_day("16:00:00").unwrap();
+        let bands = time_bands(start, end, 4, Some(14_400_000), None);
+        assert_eq!(bands.len(), 2);
+        assert_bands_tile_on_grid(&bands, start, end, 14_400_000);
+    }
+
+    #[test]
+    fn interval_chain_plan_snaps_both_right_halves_to_the_grid() {
+        // The empirical failure shape: a multi-strike bounded-interval
+        // chain right-splits into call and put time bands; every band
+        // seam in each half must sit on the query's bar grid, and the
+        // two halves must carry identical windows so the merge's
+        // band-order stability holds.
+        let mut query = chain_day_query();
+        query.interval = Some("1m".into());
+        let plan =
+            plan_query("option_history_quote", &query, 8).expect("interval chain still shards");
+        let (calls, puts): (Vec<_>, Vec<_>) = plan
+            .bands
+            .iter()
+            .partition(|b| band_right(b) == Some("call"));
+        assert_eq!(calls.len(), puts.len());
+        let start = parse_ms_of_day("09:30:00").unwrap();
+        let end = parse_ms_of_day("16:00:00").unwrap();
+        for half in [&calls, &puts] {
+            let windows: Vec<ShardBand> = half
+                .iter()
+                .map(|b| match b {
+                    ShardBand::Time {
+                        start_time,
+                        end_time,
+                        ..
+                    } => ShardBand::Time {
+                        start_time: start_time.clone(),
+                        end_time: end_time.clone(),
+                        right: None,
+                    },
+                    ShardBand::Date { .. } => panic!("expected time bands"),
+                })
+                .collect();
+            assert_bands_tile_on_grid(&windows, start, end, 60_000);
+        }
+        // A bar grid wider than the whole window leaves no interior
+        // seam: a single-right chain (the plain time-band arm) then has
+        // nothing to fan out and stays on the single stream.
+        let mut coarse = chain_day_query();
+        coarse.right = Some("call".into());
+        coarse.interval = Some("7h".into());
+        assert_eq!(
+            plan_query("option_history_quote", &coarse, 8),
+            Err(ShardDecline::NarrowWindow)
         );
     }
 

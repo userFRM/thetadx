@@ -551,7 +551,11 @@ pub enum Error {
     /// budget spends out. A streaming pull where NO chunk reached the
     /// handler also fails wholesale with the underlying error, exactly
     /// like a single stream.
-    #[error("partial shard fetch: {} band window(s) failed; re-pull the listed windows", .failed.len())]
+    #[error(
+        "partial shard fetch: {} band window(s) failed; re-pull: {}",
+        .failed.len(),
+        format_shard_windows(.failed)
+    )]
     PartialShardFetch {
         /// Band windows whose data did not (fully) arrive, in band
         /// order.
@@ -579,6 +583,50 @@ pub enum Error {
          onto its own task, use a second client, or set shard_concurrency below the pool size"
     )]
     HandlerReentrancy,
+}
+
+/// Render the failed band windows for the [`Error::PartialShardFetch`]
+/// `Display`: `20240102..20240102` for a date band,
+/// `09:30:00.000..12:44:59.999 (call)` for a time band with a right
+/// override. The bindings surface this error as its string alone, so
+/// the windows must ride in the text for the documented targeted
+/// re-pull to be possible there. Bounded at [`MAX_LISTED_WINDOWS`]
+/// windows; the remainder folds to a count so a wide fan-out cannot
+/// balloon the message.
+fn format_shard_windows(bands: &[crate::ShardBand]) -> String {
+    use std::fmt::Write;
+    /// Windows listed verbatim before the remainder folds to a count.
+    /// Plans are capped at the tier pool size, so this covers every
+    /// realistic plan whole.
+    const MAX_LISTED_WINDOWS: usize = 16;
+    let mut out = String::new();
+    for (index, band) in bands.iter().take(MAX_LISTED_WINDOWS).enumerate() {
+        if index > 0 {
+            out.push_str(", ");
+        }
+        match band {
+            crate::ShardBand::Date {
+                start_date,
+                end_date,
+            } => {
+                let _ = write!(out, "{start_date}..{end_date}");
+            }
+            crate::ShardBand::Time {
+                start_time,
+                end_time,
+                right,
+            } => {
+                let _ = write!(out, "{start_time}..{end_time}");
+                if let Some(right) = right {
+                    let _ = write!(out, " ({right})");
+                }
+            }
+        }
+    }
+    if bands.len() > MAX_LISTED_WINDOWS {
+        let _ = write!(out, ", and {} more", bands.len() - MAX_LISTED_WINDOWS);
+    }
+    out
 }
 
 impl Error {
@@ -869,6 +917,54 @@ mod tests {
     fn error_is_send_sync_static() {
         fn assert_bounds<T: Send + Sync + 'static + std::error::Error>() {}
         assert_bounds::<Error>();
+    }
+
+    #[test]
+    fn partial_shard_fetch_display_names_the_failed_windows() {
+        // The message instructs the caller to re-pull the listed
+        // windows, and the non-Rust bindings only ever see this string —
+        // so the windows themselves must be in it: the date span of a
+        // date band, the time span (and right override) of a time band.
+        let err = Error::PartialShardFetch {
+            failed: vec![
+                crate::ShardBand::Date {
+                    start_date: "20240102".into(),
+                    end_date: "20240103".into(),
+                },
+                crate::ShardBand::Time {
+                    start_time: "09:30:00.000".into(),
+                    end_time: "12:44:59.999".into(),
+                    right: Some("call".into()),
+                },
+                crate::ShardBand::Time {
+                    start_time: "12:45:00.000".into(),
+                    end_time: "16:00:00.000".into(),
+                    right: None,
+                },
+            ],
+        };
+        assert_eq!(
+            err.to_string(),
+            "partial shard fetch: 3 band window(s) failed; re-pull: \
+             20240102..20240103, 09:30:00.000..12:44:59.999 (call), \
+             12:45:00.000..16:00:00.000"
+        );
+    }
+
+    #[test]
+    fn partial_shard_fetch_display_bounds_a_long_window_list() {
+        let failed: Vec<crate::ShardBand> = (1..=20)
+            .map(|day| crate::ShardBand::Date {
+                start_date: format!("202401{day:02}"),
+                end_date: format!("202401{day:02}"),
+            })
+            .collect();
+        let text = Error::PartialShardFetch { failed }.to_string();
+        assert!(
+            text.contains("20240116..20240116") && text.ends_with(", and 4 more"),
+            "expected 16 listed windows and a folded remainder, got: {text}"
+        );
+        assert!(!text.contains("20240117"), "remainder must not be listed: {text}");
     }
 
     #[test]

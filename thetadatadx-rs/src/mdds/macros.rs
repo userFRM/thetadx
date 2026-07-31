@@ -1524,54 +1524,65 @@ macro_rules! parsed_endpoint {
                                     let band_span = $crate::mdds::shard::band_span(band);
                                     tasks.push($crate::mdds::shard::spawn_shard(tracing::Instrument::instrument(async move {
                                         let band_started = std::time::Instant::now();
-                                        // Plain wait, not `acquire_request_permit`:
-                                        // `auto_plan` declines any pull issued
-                                        // inside a delivery handler, so a band
-                                        // only ever waits on permits whose
-                                        // holders make independent progress.
-                                        let _permit = dispatch.semaphore.acquire().await
-                                            .map_err(|_| Error::config_internal("request semaphore closed"))?;
-                                        let dispatch = &dispatch;
-                                        let banded = &banded;
-                                        let typed_band = $crate::mdds::macros::run_unary_retry_loop(
-                                            &dispatch.session,
-                                            &dispatch.retry,
-                                            stringify!($name),
-                                            |snap| async move {
-                                                let request = proto::$req {
-                                                    query_info: Some(dispatch.query_info(snap.uuid)),
-                                                    params: Some(banded.clone()),
-                                                };
-                                                // Bind the lease to a local so it
-                                                // lives across the await — see the
-                                                // single-stream arm below.
-                                                let lease = dispatch.channel();
-                                                let stream = $crate::proto::beta_theta_terminal::$grpc(
-                                                    &lease,
-                                                    request,
-                                                )
-                                                .await
-                                                .map_err(|e| -> Error { e.into() })?;
-                                                // Parse each chunk into typed
-                                                // rows while it is decode-hot;
-                                                // the band never materializes a
-                                                // proto table. The accumulator
-                                                // lives inside this attempt
-                                                // closure, so a replayed attempt
-                                                // — a band re-fetched from
-                                                // scratch after a mid-collect
-                                                // transient — starts from an
-                                                // empty band, which is what
-                                                // makes the replay dedup-free.
-                                                $crate::mdds::stream::collect_stream_typed(stream, $parser).await
-                                            },
-                                        ).await?;
-                                        tracing::debug!(
-                                            rows = typed_band.rows.len(),
-                                            elapsed_ms = band_started.elapsed().as_millis() as u64,
-                                            "shard band finished"
-                                        );
-                                        Ok(typed_band)
+                                        // Cross-attempt row flag: set as soon as any
+                                        // chunk parses to rows, surviving the
+                                        // attempt-local buffer's discard, so the
+                                        // join can refuse to fold a
+                                        // rows-then-NotFound band to empty.
+                                        let band_produced = std::sync::atomic::AtomicBool::new(false);
+                                        let outcome = async {
+                                            // Plain wait, not `acquire_request_permit`:
+                                            // `auto_plan` declines any pull issued
+                                            // inside a delivery handler, so a band
+                                            // only ever waits on permits whose
+                                            // holders make independent progress.
+                                            let _permit = dispatch.semaphore.acquire().await
+                                                .map_err(|_| Error::config_internal("request semaphore closed"))?;
+                                            let dispatch = &dispatch;
+                                            let banded = &banded;
+                                            let band_produced = &band_produced;
+                                            $crate::mdds::macros::run_unary_retry_loop(
+                                                &dispatch.session,
+                                                &dispatch.retry,
+                                                stringify!($name),
+                                                |snap| async move {
+                                                    let request = proto::$req {
+                                                        query_info: Some(dispatch.query_info(snap.uuid)),
+                                                        params: Some(banded.clone()),
+                                                    };
+                                                    // Bind the lease to a local so it
+                                                    // lives across the await — see the
+                                                    // single-stream arm below.
+                                                    let lease = dispatch.channel();
+                                                    let stream = $crate::proto::beta_theta_terminal::$grpc(
+                                                        &lease,
+                                                        request,
+                                                    )
+                                                    .await
+                                                    .map_err(|e| -> Error { e.into() })?;
+                                                    // Parse each chunk into typed
+                                                    // rows while it is decode-hot;
+                                                    // the band never materializes a
+                                                    // proto table. The accumulator
+                                                    // lives inside this attempt
+                                                    // closure, so a replayed attempt
+                                                    // — a band re-fetched from
+                                                    // scratch after a mid-collect
+                                                    // transient — starts from an
+                                                    // empty band, which is what
+                                                    // makes the replay dedup-free.
+                                                    $crate::mdds::stream::collect_stream_typed(stream, $parser, band_produced).await
+                                                },
+                                            ).await
+                                        }.await;
+                                        if let Ok(typed_band) = &outcome {
+                                            tracing::debug!(
+                                                rows = typed_band.rows.len(),
+                                                elapsed_ms = band_started.elapsed().as_millis() as u64,
+                                                "shard band finished"
+                                            );
+                                        }
+                                        (band_produced.load(std::sync::atomic::Ordering::Relaxed), outcome)
                                     }, band_span)));
                                 }
                                 // Join in band order — an empty band

@@ -1039,7 +1039,7 @@ pub(crate) fn band_span(band: &ShardBand) -> tracing::Span {
 /// to every shard: dropping the driver aborts the tasks, each task's
 /// semaphore permit releases, and its `ServerStreaming` drops
 /// (RST_STREAM).
-pub(crate) struct ShardTask<R>(tokio::task::JoinHandle<Result<R, Error>>);
+pub(crate) struct ShardTask<R>(tokio::task::JoinHandle<R>);
 
 impl<R> Drop for ShardTask<R> {
     fn drop(&mut self) {
@@ -1054,10 +1054,17 @@ impl<R> Drop for ShardTask<R> {
 pub(crate) fn spawn_shard<R, F>(fut: F) -> ShardTask<R>
 where
     R: Send + 'static,
-    F: std::future::Future<Output = Result<R, Error>> + Send + 'static,
+    F: std::future::Future<Output = R> + Send + 'static,
 {
     ShardTask(tokio::spawn(fut))
 }
+
+/// One buffered band task's resolution: whether the band parsed any
+/// rows across its attempts (the buffered twin of the streaming
+/// `delivered` flag), and its outcome. The flag rides beside the
+/// `Result` because it matters exactly when the outcome is an error —
+/// the attempt-local row buffer is already discarded then.
+pub(crate) type BandOutcome<T> = (bool, Result<TypedBand<T>, Error>);
 
 /// Await every shard in band order and return their typed bands in that
 /// order.
@@ -1068,7 +1075,11 @@ where
 /// of failing the pull: the bands partition the query, and the union can
 /// have data even when one band is empty. Only when EVERY shard reports
 /// `NotFound` is the first such error propagated, matching what a single
-/// stream returns for a genuinely empty query.
+/// stream returns for a genuinely empty query. Only a band that produced
+/// NO rows folds: were a band ever to stream rows and then terminate
+/// `NotFound`, folding would silently drop the rows it proved exist, so
+/// it fails the pull like any other failed band — the same refusal the
+/// streaming join applies to a delivered band.
 ///
 /// A band that fails mid-collection recovers transparently BEFORE it
 /// reaches this join: each band runs inside its own
@@ -1083,23 +1094,37 @@ where
 /// missing a band cannot be represented — and dropping the remaining
 /// [`ShardTask`] guards aborts their in-flight requests.
 pub(crate) async fn join_shards<T>(
-    tasks: Vec<ShardTask<TypedBand<T>>>,
+    tasks: Vec<ShardTask<BandOutcome<T>>>,
 ) -> Result<Vec<TypedBand<T>>, Error> {
     let mut bands = Vec::with_capacity(tasks.len());
     let mut first_not_found: Option<Error> = None;
     for mut task in tasks {
         match (&mut task.0).await {
-            Ok(Ok(band)) => bands.push(band),
-            Ok(Err(
-                err @ Error::Grpc {
-                    kind: GrpcStatusKind::NotFound,
-                    ..
-                },
+            Ok((_, Ok(band))) => bands.push(band),
+            Ok((
+                produced,
+                Err(
+                    err @ Error::Grpc {
+                        kind: GrpcStatusKind::NotFound,
+                        ..
+                    },
+                ),
             )) => {
+                if produced {
+                    // The band parsed rows and the server then said "no
+                    // data" — folding would silently drop rows the band
+                    // proved exist. Fail the pull instead, like the
+                    // streaming join does for a delivered band.
+                    tracing::warn!(
+                        error = %err,
+                        "shard band produced rows then reported NotFound; failing the band instead of folding it to empty"
+                    );
+                    return Err(err);
+                }
                 tracing::debug!("empty shard band (NotFound) folded to zero rows");
                 first_not_found.get_or_insert(err);
             }
-            Ok(Err(err)) => return Err(err),
+            Ok((_, Err(err))) => return Err(err),
             Err(join_err) => {
                 return Err(Error::config_internal(format!(
                     "shard task terminated abnormally: {join_err}"
@@ -3007,8 +3032,8 @@ mod tests {
         // must contribute zero rows, not fail the pull.
         let with_data = chain_band(vec![tick(20260710, 100.0, 'C', 1)]);
         let tasks = vec![
-            spawn_shard(async move { Ok(with_data) }),
-            spawn_shard(async move { Err::<TypedBand<ChainTestTick>, _>(not_found()) }),
+            spawn_shard(async move { (true, Ok(with_data)) }),
+            spawn_shard(async move { (false, Err::<TypedBand<ChainTestTick>, _>(not_found())) }),
         ];
         let bands = join_shards(tasks).await.expect("sibling band has data");
         let merged = merge_typed_in_order(bands).unwrap();
@@ -3020,8 +3045,8 @@ mod tests {
         // All bands empty means the whole query is empty: surface the
         // same NotFound a single stream returns for it.
         let tasks = vec![
-            spawn_shard(async move { Err::<TypedBand<ChainTestTick>, _>(not_found()) }),
-            spawn_shard(async move { Err::<TypedBand<ChainTestTick>, _>(not_found()) }),
+            spawn_shard(async move { (false, Err::<TypedBand<ChainTestTick>, _>(not_found())) }),
+            spawn_shard(async move { (false, Err::<TypedBand<ChainTestTick>, _>(not_found())) }),
         ];
         let err = join_shards(tasks).await.unwrap_err();
         assert!(
@@ -3043,8 +3068,8 @@ mod tests {
         // rather than a spurious empty frame.
         let empty = chain_band(vec![]);
         let tasks = vec![
-            spawn_shard(async move { Err::<TypedBand<ChainTestTick>, _>(not_found()) }),
-            spawn_shard(async move { Ok(empty) }),
+            spawn_shard(async move { (false, Err::<TypedBand<ChainTestTick>, _>(not_found())) }),
+            spawn_shard(async move { (false, Ok(empty)) }),
         ];
         let err = join_shards(tasks).await.unwrap_err();
         assert!(
@@ -3065,13 +3090,16 @@ mod tests {
         // pull even when a sibling shard has data.
         let with_data = chain_band(vec![tick(20260710, 100.0, 'C', 1)]);
         let tasks = vec![
-            spawn_shard(async move { Ok(with_data) }),
+            spawn_shard(async move { (true, Ok(with_data)) }),
             spawn_shard(async move {
-                Err::<TypedBand<ChainTestTick>, _>(Error::Grpc {
-                    kind: GrpcStatusKind::PermissionDenied,
-                    message: String::new(),
-                    retry_after: None,
-                })
+                (
+                    false,
+                    Err::<TypedBand<ChainTestTick>, _>(Error::Grpc {
+                        kind: GrpcStatusKind::PermissionDenied,
+                        message: String::new(),
+                        retry_after: None,
+                    }),
+                )
             }),
         ];
         let err = join_shards(tasks).await.unwrap_err();
@@ -3084,6 +3112,31 @@ mod tests {
                 }
             ),
             "expected PermissionDenied, got {err:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn join_refuses_to_fold_a_band_that_produced_rows_then_not_found() {
+        // A band that parsed rows and then terminated NotFound proved
+        // data exists in its window; folding it to empty would silently
+        // drop those rows from the merged result. It must fail the pull
+        // like any other failed band — the same refusal the streaming
+        // join applies to a delivered band.
+        let with_data = chain_band(vec![tick(20260710, 100.0, 'C', 1)]);
+        let tasks = vec![
+            spawn_shard(async move { (true, Ok(with_data)) }),
+            spawn_shard(async move { (true, Err::<TypedBand<ChainTestTick>, _>(not_found())) }),
+        ];
+        let err = join_shards(tasks).await.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::Grpc {
+                    kind: GrpcStatusKind::NotFound,
+                    ..
+                }
+            ),
+            "the produced band's NotFound must surface as a failure, got {err:?}"
         );
     }
 

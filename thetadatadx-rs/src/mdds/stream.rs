@@ -613,7 +613,11 @@ pub(crate) async fn collect_stream_table(
 ///
 /// Runs inside a shard's `run_unary_retry_loop` attempt closure; all
 /// accumulation state is local to one call, so a replayed attempt
-/// starts from an empty band.
+/// starts from an empty band. `produced` is the band's cross-attempt
+/// row flag (the buffered twin of the streaming `delivered` guard),
+/// set as soon as any chunk parses to rows: on an error the
+/// attempt-local rows are discarded, and the flag is what lets
+/// `join_shards` refuse to fold a rows-then-`NotFound` band to empty.
 ///
 /// # Errors
 ///
@@ -622,6 +626,7 @@ pub(crate) async fn collect_stream_table(
 pub(crate) async fn collect_stream_typed<T, E, P>(
     mut stream: ServerStreaming<proto::ResponseData>,
     parser: P,
+    produced: &std::sync::atomic::AtomicBool,
 ) -> Result<super::shard::TypedBand<T>, Error>
 where
     P: Fn(&proto::DataTable) -> Result<Vec<T>, E>,
@@ -640,6 +645,9 @@ where
         }
         let table = decode_chunk(response, max_message_size)?;
         collect.fold_chunk(table, &parser)?;
+        if !collect.rows.is_empty() {
+            produced.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
     }
     Ok(collect.into_band())
 }

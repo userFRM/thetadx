@@ -97,6 +97,12 @@ impl BandResponse {
     fn unavailable_after(chunks: Vec<Vec<Row>>) -> Self {
         Self { chunks, status: 14 }
     }
+
+    /// Stream `chunks`, then close with a `NotFound` trailer — the
+    /// rows-then-"no data" protocol-violation shape.
+    fn not_found_after(chunks: Vec<Vec<Row>>) -> Self {
+        Self { chunks, status: 5 }
+    }
 }
 
 /// Scripted replies per band, keyed by the band's `start_date`
@@ -468,6 +474,38 @@ async fn buffered_sharded_pull_refetches_a_failed_band_from_scratch() {
         prices(&ticks),
         vec![101, 102, 201, 202],
         "partial first attempt discarded — full band exactly once"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn buffered_sharded_pull_fails_when_a_band_streams_rows_then_not_found() {
+    // A band that streams rows and then closes NotFound proved data
+    // exists in its window; folding it to the usual empty contribution
+    // would return the sibling's rows as a clean result with the band's
+    // rows silently missing. The pull must fail with the band's error
+    // instead.
+    let script = MockScript::new(vec![
+        (DAY1, vec![BandResponse::ok(vec![day1_rows()])]),
+        (DAY2, vec![BandResponse::not_found_after(vec![day2_rows()])]),
+    ]);
+    let mock = spawn_band_mock(Arc::clone(&script)).await;
+    let client = client_for_mock(&mock, 2).await;
+
+    let err = client
+        .stock_history_trade("AAPL")
+        .start_date(DAY1)
+        .end_date(DAY2)
+        .await
+        .expect_err("rows-then-NotFound must fail the pull, not vanish");
+    assert!(
+        matches!(
+            err,
+            Error::Grpc {
+                kind: thetadatadx::GrpcStatusKind::NotFound,
+                ..
+            }
+        ),
+        "expected the band's NotFound surfaced as the failure, got {err:?}"
     );
 }
 

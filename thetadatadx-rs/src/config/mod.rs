@@ -1010,9 +1010,15 @@ impl DirectConfig {
         // An explicit shard concurrency of 0 has no meaning ("shard across
         // zero requests"); floor it to 1 so the plan builder's invariant
         // `1 <= n <= pool_size` holds by construction. The pool-size upper
-        // bound is tier-derived and known only at connect time, so the plan
-        // builder applies it.
+        // bound is `max_concurrent_requests`, applied by the plan builder.
         self.market_data.shard_concurrency = self.market_data.shard_concurrency.map(|n| n.max(1));
+        // A concurrent-request pool of 0 cannot carry any request; floor an
+        // explicit 0 to 1 so connect can never build an empty channel pool.
+        // `None` keeps the tier-derived default resolved at connect time.
+        // There is no client-side upper bound: the server enforces the
+        // account's real concurrent-request allowance.
+        self.market_data.max_concurrent_requests =
+            self.market_data.max_concurrent_requests.map(|n| n.max(1));
         // The market-data channel needs a routable port. A `0` port is never a
         // valid dial target, so reject it up front rather than at the connect
         // attempt.
@@ -1193,9 +1199,16 @@ mod config_file {
         /// (case-insensitive). An unrecognised value is a load error.
         bulk_fetch: String,
         /// Fan-out cap for `bulk_fetch = "auto"`. `None` (key absent) uses
-        /// the account's full concurrent-request budget; `validate` floors
+        /// the full `max_concurrent_requests` budget; `validate` floors
         /// any explicit value to `1`.
         shard_concurrency: Option<u32>,
+        /// Concurrent in-flight market-data requests (gRPC channel-pool +
+        /// request-semaphore size). `None` (key absent) sizes the pool to
+        /// the account's subscription tier at connect time; an explicit
+        /// value is used verbatim (no client-side cap — the server
+        /// enforces the allowance). `validate` floors an explicit `0` to
+        /// `1`.
+        max_concurrent_requests: Option<u32>,
         /// gRPC connect timeout (seconds). `validate` enforces the same
         /// range as the programmatic path.
         connect_timeout_secs: u64,
@@ -1221,6 +1234,7 @@ mod config_file {
                 max_message_size: prod.market_data.max_message_size,
                 bulk_fetch: prod.market_data.bulk_fetch.as_str().to_string(),
                 shard_concurrency: prod.market_data.shard_concurrency,
+                max_concurrent_requests: prod.market_data.max_concurrent_requests,
                 connect_timeout_secs: prod.market_data.connect_timeout_secs,
                 request_timeout_secs: prod.market_data.request_timeout_secs,
                 warn_on_buffered_threshold_bytes: prod.market_data.warn_on_buffered_threshold_bytes,
@@ -1481,6 +1495,9 @@ mod config_file {
             // `validate` floors an explicit `0` to `1`; `None` keeps the
             // full-budget default.
             out.market_data.shard_concurrency = cf.market_data.shard_concurrency;
+            // `validate` floors an explicit `0` to `1`; `None` keeps the
+            // tier-derived default resolved at connect time.
+            out.market_data.max_concurrent_requests = cf.market_data.max_concurrent_requests;
             out.market_data.stream_window_size_kb = cf.grpc.stream_window_size_kb;
             out.market_data.connection_window_size_kb = cf.grpc.connection_window_size_kb;
             out.market_data.connect_timeout_secs = cf.market_data.connect_timeout_secs;
@@ -1891,6 +1908,27 @@ mod tests {
             let config =
                 DirectConfig::from_toml_str("[market_data]\nshard_concurrency = 0").unwrap();
             assert_eq!(config.market_data.shard_concurrency, Some(1));
+        }
+
+        #[test]
+        fn market_data_section_sets_max_concurrent_requests() {
+            // No client-side ceiling: a value past the tier defaults
+            // (Pro is 8) loads verbatim; absent keeps `None`, the
+            // size-to-tier-at-connect default.
+            let config =
+                DirectConfig::from_toml_str("[market_data]\nmax_concurrent_requests = 32").unwrap();
+            assert_eq!(config.market_data.max_concurrent_requests, Some(32));
+            let config = DirectConfig::from_toml_str("").unwrap();
+            assert_eq!(config.market_data.max_concurrent_requests, None);
+        }
+
+        #[test]
+        fn market_data_max_concurrent_requests_zero_floors_to_one() {
+            // `validate` floors an explicit 0 so connect can never build
+            // an empty channel pool.
+            let config =
+                DirectConfig::from_toml_str("[market_data]\nmax_concurrent_requests = 0").unwrap();
+            assert_eq!(config.market_data.max_concurrent_requests, Some(1));
         }
 
         #[test]

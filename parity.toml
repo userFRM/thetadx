@@ -320,6 +320,13 @@ typescript = true   # `Config.setShardConcurrency` / `shardConcurrency` napi set
 cpp = true          # `Config::set_shard_concurrency` over `thetadatadx_config_set_shard_concurrency`
 setter = "shard_concurrency"
 
+[[class]]
+name = "MarketDataConfig.max_concurrent_requests"
+python = true       # `Config.max_concurrent_requests` property (Optional[int])
+typescript = true   # `Config.setMaxConcurrentRequests` / `maxConcurrentRequests` napi setter+getter
+cpp = true          # `Config::set_max_concurrent_requests` over `thetadatadx_config_set_max_concurrent_requests`
+setter = "max_concurrent_requests"
+
 # ─── ReconnectConfig cross-binding setters ─────────────────────────────
 #
 # Streaming reconnect policy + per-class attempt budgets + stable-window

@@ -5,10 +5,10 @@ description: Download large history fast with the flow-control window, automatic
 
 # Bulk Downloads
 
-Pulling a lot of history at once (a full option chain for a day, months of minute bars, every tick a liquid symbol printed) should be fast without tuning anything. The SDK makes one ordinary query run at the full rate your subscription allows. Two things do the work, both on by default:
+Pulling a lot of history at once (a full option chain for a day, months of minute bars, every tick a liquid symbol printed) should be fast without tuning anything. The SDK makes one ordinary query run at the full rate your account allows. Two things do the work, both on by default:
 
 1. A large flow-control window, so each stream runs at full speed instead of stalling.
-2. Automatic sharding, so one big query runs in parallel across your tier's concurrency.
+2. Automatic sharding, so one big query runs in parallel across your concurrent-request pool.
 
 You write the same query either way. This page explains what each lever does, how to receive a large result, and what to expect.
 
@@ -27,25 +27,18 @@ Raise them for even fatter streams if you have memory to spare, or lower them wh
 
 ## Automatic sharding
 
-A single large request does not have to be one stream. The SDK splits the requested time (or date) range into equal concurrent pieces — straight from the shape of the request, with no sizing round-trip — runs them in parallel across your tier's concurrent-request budget, and reassembles them into exactly the rows one request would have returned.
+A single large request does not have to be one stream. The SDK splits the requested time (or date) range into equal concurrent pieces — straight from the shape of the request, with no sizing round-trip — runs them in parallel across your concurrent-request pool, and reassembles them into exactly the rows one request would have returned.
 
-The number of pieces is your tier's concurrency:
+The number of pieces is the request-pool size, which defaults to your account's allowance: the SDK sizes the pool to your subscription tier at connect time (Free 1 / Value 2 / Standard 4 / Pro 8), and setting `max_concurrent_requests` overrides that with no client-side cap — the server enforces the real allowance. See [Concurrent Requests](/articles/concurrent-requests).
 
-| Tier | Pieces |
-|---|---:|
-| Free | 1 |
-| Value | 2 |
-| Standard | 4 |
-| Pro | 8 |
-
-On Pro, one big query becomes eight pieces fetching at once. How much that shortens the wall clock depends on how much of the fan-out the server actually runs in parallel under current conditions; the table below shows one measured day. It scales down cleanly with tier: four pieces on Standard, two on Value, one on Free.
+On Pro, one big query becomes eight pieces fetching at once; a boosted account with `max_concurrent_requests = 32` fans out 32 ways. How much that shortens the wall clock depends on how much of the fan-out the server actually runs in parallel under current conditions; the table below shows one measured day. It scales down cleanly too: four pieces on Standard, two on Value, one on Free.
 
 Sharding is on by default. Small pulls stay a single request, so there is nothing to tune for them. If you want control:
 
 - `bulk_fetch = "off"` runs every query as one request, in the server's own order.
-- `shard_concurrency` caps how many pieces run at once (default: your full tier budget). Lower it to leave concurrency free for other requests running at the same time.
+- `shard_concurrency` caps how many pieces run at once (default: the full pool). Lower it to leave concurrency free for other requests running at the same time.
 
-Sharding only fills the concurrency your tier already grants. It never exceeds it.
+Sharding only fills the pool you configured. It never exceeds it.
 
 ## Buffered or streaming
 
@@ -110,7 +103,7 @@ Both shard and window the same way. Buffered spends extra client-side work assem
 
 ## What it adds up to
 
-Measured on a full-day SPXW options chain (125,849,342 rows, `strike="*"`, `right="both"`, tick interval) on a Pro account, using the buffered path. Absolute times depend on your tier, your distance to the server, current load, and how much of the shard fan-out the server ran in parallel that day, so read them as one box on one day, not a guarantee.
+Measured on a full-day SPXW options chain (125,849,342 rows, `strike="*"`, `right="both"`, tick interval) on a Pro account, using the buffered path. Absolute times depend on your account's concurrent-request allowance, your distance to the server, current load, and how much of the shard fan-out the server ran in parallel that day, so read them as one box on one day, not a guarantee.
 
 | Setup | Full-day chain | vs default |
 |---|---:|---:|
@@ -126,8 +119,9 @@ Every setup returns the same rows. A concrete single contract comes back byte-fo
 
 | Field | Default | What it does |
 |---|---|---|
-| `bulk_fetch` | `"auto"` | `"auto"` splits large pulls across your tier; `"off"` runs one request in server order. |
-| `shard_concurrency` | tier budget | Caps pieces per pull. Lower to share concurrency with other requests. |
+| `bulk_fetch` | `"auto"` | `"auto"` splits large pulls across the request pool; `"off"` runs one request in server order. |
+| `max_concurrent_requests` | your tier | Concurrent-request pool size. Defaults to your subscription tier's allowance; set it to a boosted allowance to go wider (the server enforces the real limit). |
+| `shard_concurrency` | full pool | Caps pieces per pull. Lower to share concurrency with other requests. |
 | `stream_window_size_kb` | `8192` | Per-stream HTTP/2 flow-control window, in KB. |
 | `connection_window_size_kb` | `16384` | Whole-connection flow-control window, in KB. |
 

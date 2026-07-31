@@ -1502,7 +1502,7 @@ macro_rules! parsed_endpoint {
                                 // band. Each spawned task acquires its OWN
                                 // request-semaphore permit; this driver
                                 // holds none while awaiting them, so the
-                                // fan-out can never deadlock the tier-sized
+                                // fan-out can never deadlock the pool-sized
                                 // semaphore (worst case the shards simply
                                 // serialize through it).
                                 let mut tasks = Vec::with_capacity(plan.bands.len());

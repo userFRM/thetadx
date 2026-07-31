@@ -601,8 +601,10 @@ pub enum Error {
 fn format_shard_windows(bands: &[crate::ShardBand]) -> String {
     use std::fmt::Write;
     /// Windows listed verbatim before the remainder folds to a count.
-    /// Plans are capped at the tier pool size, so this covers every
-    /// realistic plan whole.
+    /// Plans fan out to the resolved pool size (the account tier by
+    /// default, or a configured `max_concurrent_requests`); 16 lists
+    /// every default-tier plan whole and folds the remainder on a
+    /// wider boosted pool.
     const MAX_LISTED_WINDOWS: usize = 16;
     let mut out = String::new();
     for (index, band) in bands.iter().take(MAX_LISTED_WINDOWS).enumerate() {

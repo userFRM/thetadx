@@ -548,19 +548,35 @@ export declare class Config {
   get bulkFetch(): string
   /**
    * Set the upper bound on concurrent sub-requests per sharded bulk fetch.
-   * Pass `null` or `undefined` (the default) to use the account's full
-   * concurrent-request budget (the tier-derived channel-pool size resolved
-   * at connect time); pass a `number` to cap the fan-out. The applied value
-   * is clamped into `[1, pool_size]` when a plan is built (the pool size is
-   * the server-enforced tier ceiling).
+   * Pass `null` or `undefined` (the default) to use the full
+   * concurrent-request budget (the channel-pool size resolved from
+   * `maxConcurrentRequests`); pass a `number` to cap the fan-out. The
+   * applied value is clamped into `[1, pool_size]` when a plan is built
+   * (the pool size is resolved from `maxConcurrentRequests`).
    */
   setShardConcurrency(n?: number | undefined | null): void
   /**
    * Current `shardConcurrency` setting. `null` means a sharded pull uses
-   * the account's full concurrent-request budget; a `number` is the
-   * configured cap.
+   * the full concurrent-request budget; a `number` is the configured cap.
    */
   get shardConcurrency(): number | null
+  /**
+   * Set the number of concurrent in-flight market-data requests (gRPC
+   * channel-pool + request-semaphore size, resolved at connect time). Pass
+   * `null` or `undefined` (the default) to size the pool to the account's
+   * subscription tier from the auth response (Free 1 / Value 2 / Standard 4
+   * / Pro 8); pass a `number` to use it verbatim — no client-side cap, so
+   * a server-boosted account sets its boosted allowance. Requests past the
+   * server-enforced allowance are retried with backoff. Validation floors
+   * an explicit `0` to `1`.
+   */
+  setMaxConcurrentRequests(n?: number | undefined | null): void
+  /**
+   * Current `maxConcurrentRequests` setting. `null` means the pool is
+   * sized to the account's subscription tier at connect time; a `number`
+   * is the configured pool size.
+   */
+  get maxConcurrentRequests(): number | null
   /** Current `retry.initial_delay` value (ms, returned as BigInt). */
   get retryInitialDelayMs(): bigint
   /** Current `retry.max_delay` value (ms, returned as BigInt). */

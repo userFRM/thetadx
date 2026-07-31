@@ -827,11 +827,11 @@ impl Config {
     }
 
     /// Set the upper bound on concurrent sub-requests per sharded bulk fetch.
-    /// Pass `null` or `undefined` (the default) to use the account's full
-    /// concurrent-request budget (the tier-derived channel-pool size resolved
-    /// at connect time); pass a `number` to cap the fan-out. The applied value
-    /// is clamped into `[1, pool_size]` when a plan is built (the pool size is
-    /// the server-enforced tier ceiling).
+    /// Pass `null` or `undefined` (the default) to use the full
+    /// concurrent-request budget (the channel-pool size resolved from
+    /// `maxConcurrentRequests`); pass a `number` to cap the fan-out. The
+    /// applied value is clamped into `[1, pool_size]` when a plan is built
+    /// (the pool size is resolved from `maxConcurrentRequests`).
     #[napi(js_name = "setShardConcurrency")]
     pub fn set_shard_concurrency(&self, n: Option<u32>) -> napi::Result<()> {
         let mut guard = self
@@ -843,8 +843,7 @@ impl Config {
     }
 
     /// Current `shardConcurrency` setting. `null` means a sharded pull uses
-    /// the account's full concurrent-request budget; a `number` is the
-    /// configured cap.
+    /// the full concurrent-request budget; a `number` is the configured cap.
     #[napi(getter, js_name = "shardConcurrency")]
     pub fn shard_concurrency(&self) -> napi::Result<Option<u32>> {
         let guard = self
@@ -852,6 +851,36 @@ impl Config {
             .lock()
             .map_err(|_| napi::Error::from_reason("Config mutex poisoned"))?;
         Ok(guard.market_data.shard_concurrency)
+    }
+
+    /// Set the number of concurrent in-flight market-data requests (gRPC
+    /// channel-pool + request-semaphore size, resolved at connect time). Pass
+    /// `null` or `undefined` (the default) to size the pool to the account's
+    /// subscription tier from the auth response (Free 1 / Value 2 / Standard 4
+    /// / Pro 8); pass a `number` to use it verbatim — no client-side cap, so
+    /// a server-boosted account sets its boosted allowance. Requests past the
+    /// server-enforced allowance are retried with backoff. Validation floors
+    /// an explicit `0` to `1`.
+    #[napi(js_name = "setMaxConcurrentRequests")]
+    pub fn set_max_concurrent_requests(&self, n: Option<u32>) -> napi::Result<()> {
+        let mut guard = self
+            .inner
+            .lock()
+            .map_err(|_| napi::Error::from_reason("Config mutex poisoned"))?;
+        guard.market_data.max_concurrent_requests = n;
+        Ok(())
+    }
+
+    /// Current `maxConcurrentRequests` setting. `null` means the pool is
+    /// sized to the account's subscription tier at connect time; a `number`
+    /// is the configured pool size.
+    #[napi(getter, js_name = "maxConcurrentRequests")]
+    pub fn max_concurrent_requests(&self) -> napi::Result<Option<u32>> {
+        let guard = self
+            .inner
+            .lock()
+            .map_err(|_| napi::Error::from_reason("Config mutex poisoned"))?;
+        Ok(guard.market_data.max_concurrent_requests)
     }
 
     /// Current `retry.initial_delay` value (ms, returned as BigInt).

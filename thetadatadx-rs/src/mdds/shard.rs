@@ -2,7 +2,7 @@
 //!
 //! One logical query becomes N disjoint sub-requests along a filter
 //! axis (date band, time band), dispatched concurrently across the
-//! tier's channel pool. Bands are cut from the request shape alone —
+//! channel pool. Bands are cut from the request shape alone —
 //! equal wall-clock duration on the time axis, equal day count on the
 //! date axis — never from a sizing query. Balance is equal span, not
 //! equal rows: a deliberate trade that costs zero extra round-trips and
@@ -15,9 +15,9 @@
 //! each band's chunks to the user handler as they arrive — no merge, no
 //! materialize — so chunks from different bands interleave in arrival
 //! order (see `join_streaming_shards`). The server's per-account send
-//! rate caps a single stream well below the tier's aggregate budget, so
-//! the fan-out multiplies bulk throughput without exceeding the tier's
-//! concurrent-request ceiling.
+//! rate caps a single stream well below the account's aggregate budget,
+//! so the fan-out multiplies bulk throughput without exceeding the
+//! pool's concurrent-request budget.
 //!
 //! # Flow (buffered `.await` path)
 //!
@@ -64,7 +64,7 @@
 //!
 //! The joining driver never holds a request permit: each shard acquires
 //! its own permit inside its spawned task. Since the semaphore is sized
-//! to the channel pool (== tier cap) and a plan never exceeds the pool
+//! to the channel pool and a plan never exceeds the pool
 //! size, N shards make progress even at `pool_size == 1` (they simply
 //! serialize).
 
@@ -698,7 +698,7 @@ fn date_bands(start_ord: i64, end_ord: i64, n: i64) -> Vec<ShardBand> {
 // ─── Dispatch handle (owned, task-portable) ──────────────────────────────
 
 /// Owned, `'static` snapshot of everything one top-level MDDS dispatch
-/// needs: the tier semaphore, the shared session token, the channel pool,
+/// needs: the request semaphore, the shared session token, the channel pool,
 /// the retry policy, and the `QueryInfo` template. All handles are
 /// `Arc`-backed clones of the client's own — a `ShardDispatch` moved into
 /// a spawned shard task dispatches exactly like the client itself.
@@ -745,9 +745,9 @@ impl ShardDispatch {
 // ─── Plan construction ───────────────────────────────────────────────────
 
 /// Resolved shard width: the configured `shard_concurrency` clamped into
-/// `[1, pool_size]`. The pool size is the tier's server-enforced
-/// concurrent-request ceiling, so a plan can never spread wider than the
-/// account is allowed to run.
+/// `[1, pool_size]`. The pool size is the configured
+/// `max_concurrent_requests` budget, so a plan can never spread wider
+/// than the pool carries.
 fn shard_width(config_width: Option<u32>, pool_size: usize) -> usize {
     let pool = pool_size.max(1);
     match config_width {
@@ -863,7 +863,7 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
             // transfer: splitting the requested window by time makes every
             // band re-enumerate the whole chain. Split it by `right`
             // instead — each band assembles half the contracts (calls or
-            // puts) — then spend the rest of the tier's lanes on time bands
+            // puts) — then spend the remaining lanes on time bands
             // per half. Bands are emitted all-calls-then-all-puts, each half
             // in time order, so the ordered merge (which groups by contract
             // and keeps band order within a contract) restores the exact
@@ -1001,7 +1001,7 @@ impl<R> Drop for ShardTask<R> {
 /// Spawn one shard as an independent top-level request. The future must
 /// acquire its own request-semaphore permit; the caller (the joining
 /// driver) holds none, which is what makes the fan-out deadlock-free
-/// against the tier-sized semaphore.
+/// against the pool-sized semaphore.
 pub(crate) fn spawn_shard<R, F>(fut: F) -> ShardTask<R>
 where
     R: Send + 'static,
@@ -1095,7 +1095,7 @@ pub(crate) type ShardStreamFuture<'a> =
 /// band future acquires its own, which is what keeps the fan-out
 /// deadlock-free at any pool size (worst case the bands serialize).
 /// Every completion event re-polls the remaining set; the set is capped
-/// by the tier pool, so the sweep is noise next to a chunk decode.
+/// by the pool size, so the sweep is noise next to a chunk decode.
 ///
 /// Mirrors [`join_shards`]: a band the server holds no rows for errors
 /// gRPC `NotFound`, which folds to an empty contribution; only when
@@ -1707,7 +1707,7 @@ mod tests {
     fn plan_cuts_a_chain_day_into_call_put_time_bands() {
         // A both-rights chain's cost is contract assembly, so it splits by
         // `right` first — halving the contracts per band — then spends the
-        // tier's remaining lanes on time bands per half. At width 8 that is
+        // remaining lanes on time bands per half. At width 8 that is
         // call x 4 time bands followed by put x 4, all-calls-then-all-puts
         // so the ordered merge restores the single-stream chain order.
         let plan = plan_query("option_history_quote", &chain_day_query(), 8)

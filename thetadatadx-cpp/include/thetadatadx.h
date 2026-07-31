@@ -2120,7 +2120,7 @@ int32_t thetadatadx_config_get_bulk_fetch(const ThetaDataDxConfig* config, int32
  * using the widened (has_value, n) shape.
  * @param config Config handle to mutate.
  * @param has_value false uses the account's full concurrent-request budget
- *                  (the tier-derived channel-pool size) and ignores n; true
+ *                  (the resolved channel-pool size) and ignores n; true
  *                  caps the fan-out at n. The applied value is clamped into
  *                  [1, pool_size] when a plan is built.
  * @param n The fan-out cap, honoured only when has_value is true.
@@ -2132,12 +2132,42 @@ int32_t thetadatadx_config_set_shard_concurrency(ThetaDataDxConfig* config, bool
  * Read the configured shard-concurrency cap, using the same widened
  * (has_value, n) shape.
  * @param config Config handle to read.
- * @param out_has_value Receives false when the full tier budget applies,
+ * @param out_has_value Receives false when the full pool budget applies,
  *                      true when an explicit cap is set.
  * @param out_n Receives the cap (0 when unset, the cap otherwise).
  * @return 0 on success, -1 if any pointer is null.
  */
 int32_t thetadatadx_config_get_shard_concurrency(const ThetaDataDxConfig* config, bool* out_has_value, uint32_t* out_n);
+
+/**
+ * Set the number of concurrent in-flight market-data requests (gRPC
+ * channel-pool + request-semaphore size, resolved at connect time), using
+ * the widened (has_value, n) shape.
+ * @param config Config handle to mutate.
+ * @param has_value false (the default) sizes the pool to the account's
+ *                  subscription tier from the auth response (Free 1 /
+ *                  Value 2 / Standard 4 / Pro 8) and ignores n; true uses
+ *                  n verbatim — no client-side cap, so a server-boosted
+ *                  account sets its boosted allowance. Requests past the
+ *                  server-enforced allowance are rejected upstream and
+ *                  retried with backoff.
+ * @param n The pool size, honoured only when has_value is true. An
+ *          explicit 0 is floored to 1 by validation.
+ * @return 0 on success, -1 if config is null.
+ */
+int32_t thetadatadx_config_set_max_concurrent_requests(ThetaDataDxConfig* config, bool has_value, uint32_t n);
+
+/**
+ * Read the current max_concurrent_requests setting, using the same widened
+ * (has_value, n) shape.
+ * @param config Config handle to read.
+ * @param out_has_value Receives false when the pool is sized to the
+ *                      account's subscription tier at connect time, true
+ *                      when an explicit pool size is set.
+ * @param out_n Receives the pool size (0 when unset, the size otherwise).
+ * @return 0 on success, -1 if any pointer is null.
+ */
+int32_t thetadatadx_config_get_max_concurrent_requests(const ThetaDataDxConfig* config, bool* out_has_value, uint32_t* out_n);
 
 /* ── MarketDataClient ── */
 

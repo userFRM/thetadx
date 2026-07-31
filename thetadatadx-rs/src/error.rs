@@ -542,6 +542,11 @@ pub enum Error {
     /// the failed band already handed over; rows carry their timestamps
     /// and the window is named exactly, so the caller can drop what it
     /// already holds for that window before (or while) re-pulling.
+    /// A band of a right-split chain fan-out shares its time window
+    /// with its call/put sibling, so the recovery key is the window
+    /// AND the band's `right` (both are carried in the listed
+    /// [`crate::ShardBand`] and the rendered message) — dropping rows
+    /// by window alone would discard the healthy sibling's rows too.
     /// Each band's underlying error is logged at `warn` with the band
     /// window before this error is returned.
     ///

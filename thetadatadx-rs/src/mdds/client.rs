@@ -28,18 +28,38 @@ use crate::FlatFiles;
 const TERMINAL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 tokio::task_local! {
-    /// Address of the request semaphore whose streaming delivery
-    /// handler the current task is executing, scoped by the async chunk
-    /// deliverers around every user handler await (`deliver_chunk_slices_async`
-    /// / `deliver_chunk_ticks_async` in [`super::stream`]).
+    /// Request-semaphore addresses of EVERY streaming delivery handler
+    /// the current task is executing, innermost last — scoped by
+    /// [`in_delivery_scope`] around every user handler await
+    /// (`deliver_chunk_slices_async` / `deliver_chunk_ticks_async` in
+    /// [`super::stream`]).
     ///
-    /// Same-client requests issued inside that scope must not block on
-    /// the request pool — the pull whose handler is running holds its
-    /// permits until the handler returns, so the wait can never end.
-    /// [`MarketDataClient::acquire_request_permit`] reads this to fail
-    /// such an acquire fast, and `auto_plan` reads it to keep a
-    /// handler-issued pull off the fan-out path.
-    pub(crate) static DELIVERY_HANDLER_SEMAPHORE: usize;
+    /// Same-client requests issued inside a handler's scope must not
+    /// block on that client's request pool — the pull whose handler is
+    /// running holds its permits until the handler returns, so the wait
+    /// can never end. [`MarketDataClient::acquire_request_permit`]
+    /// tests membership here to fail such an acquire fast, and
+    /// `auto_plan` reads it to keep a handler-issued pull off the
+    /// fan-out path. A set rather than a single slot because handler
+    /// scopes NEST across clients (client A's handler awaits a stream
+    /// on client B, whose handler calls back into A): the inner scope
+    /// must not eclipse the outer client's guard.
+    pub(crate) static DELIVERY_HANDLER_SEMAPHORES: Vec<usize>;
+}
+
+/// Run `fut` inside `sem_addr`'s delivery-handler scope while
+/// RETAINING every enclosing handler scope, so a nested cross-client
+/// handler keeps the outer client's reentrancy guard armed. The inner
+/// scope unwinds when `fut` resolves, restoring the enclosing set.
+pub(crate) async fn in_delivery_scope<F: std::future::Future>(
+    sem_addr: usize,
+    fut: F,
+) -> F::Output {
+    let mut addrs = DELIVERY_HANDLER_SEMAPHORES
+        .try_with(Vec::clone)
+        .unwrap_or_default();
+    addrs.push(sem_addr);
+    DELIVERY_HANDLER_SEMAPHORES.scope(addrs, fut).await
 }
 
 /// MDDS client for `ThetaData` server access.
@@ -300,12 +320,15 @@ impl MarketDataClient {
 
     /// Whether the current task is inside one of THIS client's streaming
     /// delivery handlers (the async chunk deliverers scope
-    /// [`DELIVERY_HANDLER_SEMAPHORE`] around every user handler await).
+    /// [`DELIVERY_HANDLER_SEMAPHORES`] around every user handler await).
     /// Keyed on the request semaphore's address so a handler driving a
-    /// different client is not confused with re-entry into this one.
+    /// different client is not confused with re-entry into this one;
+    /// membership across ALL active scopes, so this client's guard stays
+    /// armed while a nested handler on another client is executing.
     pub(crate) fn in_delivery_handler(&self) -> bool {
-        DELIVERY_HANDLER_SEMAPHORE
-            .try_with(|addr| *addr == Arc::as_ptr(&self.request_semaphore) as usize)
+        let addr = Arc::as_ptr(&self.request_semaphore) as usize;
+        DELIVERY_HANDLER_SEMAPHORES
+            .try_with(|addrs| addrs.contains(&addr))
             .unwrap_or(false)
     }
 
@@ -770,6 +793,44 @@ fn build_rustls_config() -> Result<Arc<rustls::ClientConfig>, Error> {
     .with_no_client_auth();
     config.alpn_protocols = vec![b"h2".to_vec()];
     Ok(Arc::new(config))
+}
+
+#[cfg(test)]
+mod delivery_scope_tests {
+    use super::{in_delivery_scope, DELIVERY_HANDLER_SEMAPHORES};
+
+    fn member(addr: usize) -> bool {
+        DELIVERY_HANDLER_SEMAPHORES
+            .try_with(|addrs| addrs.contains(&addr))
+            .unwrap_or(false)
+    }
+
+    #[tokio::test]
+    async fn nested_delivery_scopes_retain_the_outer_scope() {
+        // Handler scopes nest across clients (client A's handler drives
+        // a stream on client B, whose handler calls back into A). The
+        // inner scope must ADD to the membership set, not eclipse the
+        // outer client's guard — and must unwind cleanly.
+        let a = 0x1000usize;
+        let b = 0x2000usize;
+        assert!(!member(a) && !member(b), "no scope armed outside");
+        in_delivery_scope(a, async {
+            assert!(member(a));
+            assert!(!member(b));
+            in_delivery_scope(b, async {
+                assert!(
+                    member(a),
+                    "the outer client's scope must stay armed inside the inner"
+                );
+                assert!(member(b));
+            })
+            .await;
+            assert!(member(a), "outer scope survives the inner unwind");
+            assert!(!member(b), "inner scope must unwind");
+        })
+        .await;
+        assert!(!member(a), "outermost scope must unwind");
+    }
 }
 
 #[cfg(test)]

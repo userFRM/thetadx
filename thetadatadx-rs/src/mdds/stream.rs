@@ -436,9 +436,7 @@ impl MarketDataClient {
                         // before running the handler, keeping peak memory
                         // at one chunk per stream.
                         drop(ticks);
-                        super::client::DELIVERY_HANDLER_SEMAPHORE
-                            .scope(sem_addr, user_fut)
-                            .await;
+                        super::client::in_delivery_scope(sem_addr, user_fut).await;
                     }
                     if stop_stream {
                         ControlFlow::Break(())
@@ -508,9 +506,7 @@ impl MarketDataClient {
                         if delivered_nonempty {
                             delivered.store(true, std::sync::atomic::Ordering::Relaxed);
                         }
-                        super::client::DELIVERY_HANDLER_SEMAPHORE
-                            .scope(sem_addr, user_fut)
-                            .await;
+                        super::client::in_delivery_scope(sem_addr, user_fut).await;
                     }
                     if stop_stream {
                         ControlFlow::Break(())

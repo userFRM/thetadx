@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-03
+
+### Removed
+
+- **`MarketDataClient::bulk_fetch_plan`, and the public `ShardPlan` and `ShardQuery` types.** Bulk-fetch sharding is automatic on the history builders. This Rust-only method handed back the shard plan for you to run the sub-requests yourself; it had no counterpart on the other bindings and exposed the internal planner types on the public API, which kept the sharding strategy from being a free-to-change implementation detail. The automatic sharding is unchanged. This is a breaking change to the Rust API.
+- **The `[grpc] max_message_size_mb` config-file key.** The inbound gRPC message ceiling is set in bytes via `[market_data] max_message_size`; the megabyte-denominated duplicate that mirrored it is gone. A config file that still sets `max_message_size_mb` now fails to load. This is a breaking change to the configuration file.
+
+### Changed
+
+- **The public API surface is tightened to what the SDK exposes for use.** Internal modules that were reachable by path (`auth` beyond `Credentials`, `backoff` beyond `JitterMode`, `util`) and a few internal decode helpers are now crate-private or hidden from the documented surface. The user-facing types stay exported at the crate root exactly as before (`Credentials`, `JitterMode`), so ordinary code is unaffected; only code that reached into the `auth` or `backoff` module path directly switches to those root re-exports.
+
 ## [0.3.0] - 2026-07-31
 
 ### Changed

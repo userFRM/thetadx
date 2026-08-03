@@ -1056,10 +1056,9 @@ impl DirectConfig {
         }
         // Inbound gRPC message size is a pre-allocated decode budget: a `0`
         // rejects every response and an absurd value commits the channel to a
-        // buffer far beyond any legitimate chunk. Range-checked against the
-        // same ceiling the `[grpc] max_message_size_mb` spelling enforces (the
-        // shared `MarketDataConfig::MAX_MESSAGE_SIZE_MB`, in megabytes, scaled to
-        // bytes here), so the two spellings cannot drift.
+        // buffer far beyond any legitimate chunk. Range-checked against
+        // `MarketDataConfig::MAX_MESSAGE_SIZE_MB` (in megabytes, scaled to
+        // bytes here).
         let max_message_size_bytes = MarketDataConfig::MAX_MESSAGE_SIZE_MB * 1024 * 1024;
         if !(1..=max_message_size_bytes).contains(&self.market_data.max_message_size) {
             return Err(Error::config_out_of_range(
@@ -1162,8 +1161,8 @@ impl DirectConfig {
 #[cfg(feature = "config-file")]
 mod config_file {
     use super::{
-        BulkFetchPolicy, DirectConfig, MarketDataConfig, ReconnectAttemptLimits, ReconnectPolicy,
-        RetryPolicy, WaitMode,
+        BulkFetchPolicy, DirectConfig, ReconnectAttemptLimits, ReconnectPolicy, RetryPolicy,
+        WaitMode,
     };
     use crate::error::Error;
     use serde::Deserialize;
@@ -1308,13 +1307,6 @@ mod config_file {
     struct GrpcSection {
         stream_window_size_kb: usize,
         connection_window_size_kb: usize,
-        /// Max inbound message size, in MB. `None` (key absent) leaves the
-        /// `[market_data].max_message_size` byte value in force; an explicit
-        /// value here — including the default of `4` — overrides it. Kept
-        /// distinguishable from "absent" via `Option` so setting the
-        /// override to the same number as the default is still honoured as
-        /// an explicit choice rather than read as unset.
-        max_message_size_mb: Option<usize>,
     }
 
     impl Default for GrpcSection {
@@ -1323,10 +1315,6 @@ mod config_file {
             Self {
                 stream_window_size_kb: prod.market_data.stream_window_size_kb,
                 connection_window_size_kb: prod.market_data.connection_window_size_kb,
-                // Absent by default so `[market_data].max_message_size`
-                // remains the single source of truth unless the operator
-                // sets this MB-denominated override explicitly.
-                max_message_size_mb: None,
             }
         }
     }
@@ -1432,38 +1420,9 @@ mod config_file {
             let cf: ConfigFile =
                 toml::from_str(toml_str).map_err(|e| Error::config_toml(e.to_string()))?;
 
-            // `[market_data].max_message_size` (bytes) is the canonical knob.
-            // `[grpc].max_message_size_mb` (MB) is an explicit override that
-            // wins when present — including when set to the same number as
-            // the default — and is inert when absent.
-            let max_message_size = match cf.grpc.max_message_size_mb {
-                // The override is a pre-allocated decode budget. Reject a
-                // `0` (which would disable the limit) or an out-of-ceiling
-                // value up front, and compute the byte count with
-                // `checked_mul` so an absurd input is reported as a range
-                // error rather than wrapping `usize` into a tiny cap.
-                Some(mb) => {
-                    if mb == 0 || mb > MarketDataConfig::MAX_MESSAGE_SIZE_MB {
-                        return Err(Error::config_out_of_range(
-                            "grpc.max_message_size_mb",
-                            i64::try_from(mb).unwrap_or(i64::MAX),
-                            1,
-                            i64::try_from(MarketDataConfig::MAX_MESSAGE_SIZE_MB)
-                                .unwrap_or(i64::MAX),
-                        ));
-                    }
-                    mb.checked_mul(1024 * 1024).ok_or_else(|| {
-                        Error::config_out_of_range(
-                            "grpc.max_message_size_mb",
-                            i64::try_from(mb).unwrap_or(i64::MAX),
-                            1,
-                            i64::try_from(MarketDataConfig::MAX_MESSAGE_SIZE_MB)
-                                .unwrap_or(i64::MAX),
-                        )
-                    })?
-                }
-                None => cf.market_data.max_message_size,
-            };
+            // `[market_data].max_message_size` (bytes) is the gRPC decode
+            // budget, bounded to `[1 B, 64 MiB]` by `validate`.
+            let max_message_size = cf.market_data.max_message_size;
 
             let mut out = DirectConfig::production_defaults();
             // An explicit `[market_data] host` is the operator's choice, so
@@ -1969,16 +1928,6 @@ mod tests {
         }
 
         #[test]
-        fn grpc_max_message_size_mb_overrides_market_data_bytes() {
-            let toml = r#"
-                [grpc]
-                max_message_size_mb = 8
-            "#;
-            let config = DirectConfig::from_toml_str(toml).unwrap();
-            assert_eq!(config.market_data.max_message_size, 8 * 1024 * 1024);
-        }
-
-        #[test]
         fn unknown_field_is_rejected() {
             // A misspelled knob (here `ring_size` -> `ringsize`) must
             // surface as a load error rather than parsing fine and
@@ -2016,67 +1965,6 @@ mod tests {
             let err = DirectConfig::from_toml_str(toml)
                 .expect_err("the removed [auth] section must be rejected");
             assert!(err.to_string().contains("auth"), "{err}");
-        }
-
-        #[test]
-        fn grpc_max_message_size_mb_default_value_is_honored_when_explicit() {
-            // Explicitly setting the override to the same number as the
-            // production default (4 MB) must still take effect as an
-            // explicit choice — "set to 4" is distinguishable from "absent".
-            let toml = r#"
-                [market_data]
-                max_message_size = 8388608
-
-                [grpc]
-                max_message_size_mb = 4
-            "#;
-            let config = DirectConfig::from_toml_str(toml).unwrap();
-            assert_eq!(config.market_data.max_message_size, 4 * 1024 * 1024);
-        }
-
-        #[test]
-        fn grpc_max_message_size_mb_at_ceiling_is_accepted() {
-            let toml = r#"
-                [grpc]
-                max_message_size_mb = 64
-            "#;
-            let config = DirectConfig::from_toml_str(toml).unwrap();
-            assert_eq!(config.market_data.max_message_size, 64 * 1024 * 1024);
-        }
-
-        #[test]
-        fn grpc_max_message_size_mb_above_ceiling_is_rejected() {
-            let toml = r#"
-                [grpc]
-                max_message_size_mb = 65
-            "#;
-            let err = DirectConfig::from_toml_str(toml)
-                .expect_err("a value above the ceiling must be rejected");
-            assert!(err.to_string().contains("max_message_size_mb"), "{err}");
-        }
-
-        #[test]
-        fn grpc_max_message_size_mb_zero_is_rejected() {
-            // `0` would disable the inbound-size limit entirely; it must be
-            // reported by name rather than silently uncapping the channel.
-            let toml = r#"
-                [grpc]
-                max_message_size_mb = 0
-            "#;
-            let err =
-                DirectConfig::from_toml_str(toml).expect_err("a zero override must be rejected");
-            assert!(err.to_string().contains("max_message_size_mb"), "{err}");
-        }
-
-        #[test]
-        fn grpc_max_message_size_mb_absurd_value_does_not_panic_or_wrap() {
-            // A value that would overflow the MB→byte conversion must
-            // surface as a range error, never a debug panic or a release
-            // wrap into a tiny garbage cap.
-            let toml = format!("[grpc]\nmax_message_size_mb = {}\n", usize::MAX);
-            let err = DirectConfig::from_toml_str(&toml)
-                .expect_err("an absurd value must be rejected, not wrapped");
-            assert!(err.to_string().contains("max_message_size_mb"), "{err}");
         }
 
         #[test]

@@ -114,8 +114,7 @@ pub struct MarketDataConfig {
     /// Max inbound gRPC message size, in bytes.
     ///
     /// Caps the size of a single inbound gRPC message. Default
-    /// `4 * 1024 * 1024` (4 MiB); validation bounds it to `[1 B, 64 MiB]`,
-    /// the same ceiling the `[grpc] max_message_size_mb` TOML spelling enforces.
+    /// `4 * 1024 * 1024` (4 MiB); validation bounds it to `[1 B, 64 MiB]`.
     pub max_message_size: usize,
 
     /// gRPC keepalive interval in seconds (`keepAliveTime(30, SECONDS)`).
@@ -254,10 +253,8 @@ impl MarketDataConfig {
     /// the MB→byte conversion (`mb * 1024 * 1024`) overflows `usize` for the
     /// largest inputs. The production default is 4 MB; 64 MB leaves generous
     /// headroom for the largest bulk market-data chunk while keeping the budget
-    /// bounded. This is the single source of truth both the byte-denominated
-    /// [`crate::config::DirectConfig::validate`] check and the
-    /// `[grpc] max_message_size_mb` TOML ceiling read, so the two spellings
-    /// cannot drift.
+    /// bounded. This is the ceiling the byte-denominated
+    /// [`crate::config::DirectConfig::validate`] check enforces.
     pub(crate) const MAX_MESSAGE_SIZE_MB: usize = 64;
 
     /// Market-data hostname.

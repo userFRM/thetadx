@@ -291,8 +291,9 @@ cpp = true
 # `warn_on_buffered_threshold_bytes` / `request_timeout_secs` are bound
 # via `Config.<name>` (Python), `Config.set<Name>` (TypeScript napi),
 # `thetadatadx::Config::set_<name>` (C++ forwarder over the C ABI).
-# Channel-pool concurrency is intentionally absent: it is resolved
-# internally from the subscription tier, not exposed as a caller knob.
+# `max_concurrent_requests` sizes the channel pool: it defaults to the
+# subscription tier's allowance and can be overridden with no client-side
+# cap (the server enforces the account's real limit).
 
 [[class]]
 name = "MarketDataConfig.warn_on_buffered_threshold_bytes"

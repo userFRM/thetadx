@@ -15,9 +15,7 @@ tls = true
 keepalive_time_secs = 30
 keepalive_timeout_secs = 10
 
-# Max inbound gRPC message size (bytes). Default 4MB. This is the canonical
-# size knob. The MB-denominated [grpc] max_message_size_mb below, when set,
-# overrides this value; leave it unset to keep this byte value in force.
+# Max inbound gRPC message size (bytes). Default 4MB.
 max_message_size = 4194304
 
 # Bulk-fetch sharding policy for large history pulls. "auto" (default) splits

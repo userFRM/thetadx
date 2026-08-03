@@ -22,7 +22,7 @@
 //! # Flow (buffered `.await` path)
 //!
 //! 1. The generated builder assembles its wire parameters once and
-//!    projects them into a [`ShardQuery`].
+//!    projects them into a `ShardQuery`.
 //! 2. `auto_plan` applies the [`BulkFetchPolicy`], the shardable-endpoint
 //!    gate, axis selection, and the equal-span band cut — pure
 //!    computation, no request issued. Anything that does not clearly
@@ -304,9 +304,8 @@ pub enum ShardBand {
 /// An equal-span fan-out plan for one logical history query: the
 /// per-shard band overrides, in output order.
 ///
-/// Power users running their own concurrency can request the plan through
-/// [`MarketDataClient::bulk_fetch_plan`] and apply each band to a clone of
-/// their builder call (bands only override the band fields; every other
+/// The automatic bulk-fetch path applies each band to a clone of the
+/// builder call (bands only override the band fields; every other
 /// parameter stays as issued). Treat a band that errors `NotFound` as
 /// empty — the union of bands can still hold data. Concatenating the
 /// per-band responses in band order reproduces the single-stream rows
@@ -314,8 +313,7 @@ pub enum ShardBand {
 /// order rather than the server's own enumeration (see the order note on
 /// `merge_typed_in_order` in this module's source).
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct ShardPlan {
+pub(crate) struct ShardPlan {
     /// Disjoint, exhaustive band overrides in output order.
     pub bands: Vec<ShardBand>,
 }
@@ -325,11 +323,9 @@ pub struct ShardPlan {
 /// Field values are the normalized wire strings the request carries
 /// (`YYYYMMDD` dates, `HH:MM:SS[.mmm]` times, `call`/`put`/`both` rights).
 /// The generated builders project their parameters into this shape
-/// automatically; manual-mode callers fill the fields that mirror their
-/// builder call and leave the rest `None`.
+/// automatically.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct ShardQuery {
+pub(crate) struct ShardQuery {
     /// Underlying symbol / root.
     pub symbol: Option<String>,
     /// Option expiration (`YYYYMMDD` or `*`), when the query has one.
@@ -471,8 +467,8 @@ fn is_shardable_history_endpoint(endpoint: &str) -> bool {
 
 /// Why a query did not shard. Logged at `debug` by [`auto_plan`] so an
 /// operator wondering why a pull ran on a single stream can see the
-/// gate that declined it; never part of the public surface
-/// ([`MarketDataClient::bulk_fetch_plan`] keeps its `Option` return).
+/// gate that declined it; never surfaced to callers (the planner returns
+/// `Option`, with `None` for a query that stays a single stream).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ShardDecline {
     /// Endpoint is outside [`SHARDABLE_HISTORY_ENDPOINTS`].
@@ -851,9 +847,9 @@ pub(crate) fn auto_plan(
 /// round-trips and zero per-endpoint tuning, and the concurrency win
 /// dominates the residual row imbalance between bands.
 ///
-/// Shared by [`MarketDataClient::bulk_fetch_plan`] (manual mode) and
-/// [`auto_plan`]. Declines — the query should stay on a single stream —
-/// carry the gate that fired ([`ShardDecline`], logged by `auto_plan`):
+/// Used by [`auto_plan`]. Declines — the query should stay on a single
+/// stream — carry the gate that fired ([`ShardDecline`], logged by
+/// `auto_plan`):
 /// an endpoint outside the shardable set, a shape with no cut axis,
 /// `width < 2`, a window too narrow for two bands of
 /// [`MIN_SHARD_BAND_MS`], a bounded-interval pull on the time axis
@@ -973,35 +969,6 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                 bands: date_bands(start_ord, end_ord, n),
             })
         }
-    }
-}
-
-impl MarketDataClient {
-    /// Compute the shard plan the automatic bulk-fetch path would use for
-    /// one history query, without running the pull.
-    ///
-    /// Manual-mode entry point: apply each returned [`ShardBand`] to a
-    /// clone of the same builder call — its time or date window via the
-    /// matching setter, and, for a chain band that carries one, its
-    /// `right` (call / put) via `.right()`; everything else stays as
-    /// issued — and run the sub-requests under your own concurrency.
-    /// Applying only the window of a chain band leaves every band pulling
-    /// both rights, doubling the result. Ignores the configured [`BulkFetchPolicy`], so the
-    /// plan stays available with `bulk_fetch = Off`. `endpoint` is the
-    /// builder method name (for example `"option_history_quote"`).
-    ///
-    /// Pure computation on the request shape — no request is issued.
-    /// Returns `None` when the query should stay on a single stream: the
-    /// endpoint is not a bulk history endpoint, the shape offers no cut
-    /// axis, or the pull is provably too small (or its window too
-    /// narrow) for a fan-out to help.
-    #[must_use]
-    pub fn bulk_fetch_plan(&self, endpoint: &str, query: &ShardQuery) -> Option<ShardPlan> {
-        let width = shard_width(
-            self.config().market_data.shard_concurrency,
-            self.pool_size(),
-        );
-        plan_query(endpoint, query, width).ok()
     }
 }
 

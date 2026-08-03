@@ -720,7 +720,7 @@ macro_rules! list_endpoint_impl_body {
     }};
 }
 
-/// Project one wire-request field into the [`crate::mdds::shard::ShardQuery`]
+/// Project one wire-request field into the `ShardQuery`
 /// the shard planner consumes.
 ///
 /// Ident-dispatch shim for the `parsed_endpoint!` buffered arm: the macro

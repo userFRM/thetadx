@@ -230,7 +230,7 @@ int main() {
 
 ```toml
 [dependencies]
-thetadatadx-rs = "0.3.0"
+thetadatadx-rs = "0.4.0"
 ```
 
 ```rust

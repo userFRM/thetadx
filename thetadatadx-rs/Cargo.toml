@@ -444,6 +444,40 @@ name = "test_endpoint_routing"
 path = "tests/test_endpoint_routing.rs"
 required-features = ["__test-helpers"]
 
+# Captured-response and schema decode regressions that run the internal
+# `decode` / `wire` pipeline against checked-in fixtures, plus the two
+# examples that regenerate those fixtures. Gated on `__test-helpers` so
+# those modules stay out of the default public rlib.
+[[test]]
+name = "test_decode_captures"
+path = "tests/test_decode_captures.rs"
+required-features = ["__test-helpers"]
+
+[[test]]
+name = "test_interest_rate_schema"
+path = "tests/test_interest_rate_schema.rs"
+required-features = ["__test-helpers"]
+
+[[test]]
+name = "test_trade_greeks_schema"
+path = "tests/test_trade_greeks_schema.rs"
+required-features = ["__test-helpers"]
+
+[[test]]
+name = "test_eod_greeks_schema"
+path = "tests/test_eod_greeks_schema.rs"
+required-features = ["__test-helpers"]
+
+[[example]]
+name = "build_trade_greeks_fixtures"
+path = "examples/build_trade_greeks_fixtures.rs"
+required-features = ["__test-helpers"]
+
+[[example]]
+name = "build_eod_greeks_fixtures"
+path = "examples/build_eod_greeks_fixtures.rs"
+required-features = ["__test-helpers"]
+
 # DataFrame extension-trait tests. Each is gated on its feature so the
 # test job that enables `arrow` / `polars` runs the column/order/dtype
 # contract; without the feature the target is skipped rather than

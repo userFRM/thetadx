@@ -591,7 +591,8 @@ pub enum Error {
 }
 
 /// Render the failed band windows for the [`Error::PartialShardFetch`]
-/// `Display`: `20240102..20240102` for a date band,
+/// `Display`: `20240102..20240105` for a date band (with a trailing
+/// ` (call)` / ` (put)` when a chain is split by right),
 /// `09:30:00.000..12:44:59.999 (call)` for a time band with a right
 /// override. The bindings surface this error as its string alone, so
 /// the windows must ride in the text for the documented targeted
@@ -615,8 +616,12 @@ fn format_shard_windows(bands: &[crate::ShardBand]) -> String {
             crate::ShardBand::Date {
                 start_date,
                 end_date,
+                right,
             } => {
                 let _ = write!(out, "{start_date}..{end_date}");
+                if let Some(right) = right {
+                    let _ = write!(out, " ({right})");
+                }
             }
             crate::ShardBand::Time {
                 start_time,
@@ -937,6 +942,7 @@ mod tests {
                 crate::ShardBand::Date {
                     start_date: "20240102".into(),
                     end_date: "20240103".into(),
+                    right: None,
                 },
                 crate::ShardBand::Time {
                     start_time: "09:30:00.000".into(),
@@ -964,6 +970,7 @@ mod tests {
             .map(|day| crate::ShardBand::Date {
                 start_date: format!("202401{day:02}"),
                 end_date: format!("202401{day:02}"),
+                right: None,
             })
             .collect();
         let text = Error::PartialShardFetch { failed }.to_string();

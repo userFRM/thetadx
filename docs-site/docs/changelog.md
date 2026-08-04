@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The public API surface is tightened to what the SDK exposes for use.** Internal modules that were reachable by path (`auth` beyond `Credentials`, `backoff` beyond `JitterMode`, `util`) and a few internal decode helpers are now crate-private or hidden from the documented surface. The user-facing types stay exported at the crate root exactly as before (`Credentials`, `JitterMode`), so ordinary code is unaffected; only code that reached into the `auth` or `backoff` module path directly switches to those root re-exports.
+- **Multi-day option-chain pulls now fan the date shard axis out by call/put.** A both-rights chain (`right = "both"`, `strike = "*"`) pulled over a date range shorter than the request pool cut one shard per day and left the rest of the pool idle; it now also splits each date band into a call band and a put band, so more lanes run at once and the pull finishes sooner. The merged rows are exactly the single stream's, in the SDK's canonical chain order (ascending expiration, strike, right). The `ShardBand::Date` band (surfaced only through `Error::PartialShardFetch`) gains a `right` field; code that matches or builds it updates for the new field.
 
 ### Fixed
 

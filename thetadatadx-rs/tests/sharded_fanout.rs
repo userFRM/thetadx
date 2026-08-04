@@ -581,6 +581,7 @@ async fn streaming_sharded_pull_reports_the_failed_band_window() {
         vec![ShardBand::Date {
             start_date: DAY2.to_string(),
             end_date: DAY2.to_string(),
+            right: None,
         }],
         "the failed band's exact window is named"
     );

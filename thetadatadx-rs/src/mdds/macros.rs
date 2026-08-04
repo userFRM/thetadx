@@ -796,14 +796,15 @@ macro_rules! shard_apply_field {
     // The option `right` lives inside `contract_spec` (the top-level
     // `right` slot is the always-empty legacy field), so a chain band's
     // call/put override rewrites `contract_spec.right`, mirroring how
-    // `shard_read_field!` reads it. Endpoints without a `contract_spec`
-    // never emit this arm; a Time band carrying no `right` leaves it as
-    // issued.
+    // `shard_read_field!` reads it. Both Time and Date bands can carry the
+    // override (the date axis right-splits short-range chains too). Endpoints
+    // without a `contract_spec` never emit this arm; a band carrying no
+    // `right` leaves it as issued.
     ($params:ident, $band:ident, contract_spec) => {
-        if let $crate::mdds::shard::ShardBand::Time {
-            right: Some(right), ..
-        } = $band
-        {
+        if let Some(right) = (match $band {
+            $crate::mdds::shard::ShardBand::Time { right, .. }
+            | $crate::mdds::shard::ShardBand::Date { right, .. } => right.as_deref(),
+        }) {
             if let Some(cs) = $params.contract_spec.as_mut() {
                 $crate::mdds::shard::set_wire_str(&mut cs.right, right);
             }

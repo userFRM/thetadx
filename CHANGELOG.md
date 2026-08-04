@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The public API surface is tightened to what the SDK exposes for use.** Internal modules that were reachable by path (`auth` beyond `Credentials`, `backoff` beyond `JitterMode`, `util`) and a few internal decode helpers are now crate-private or hidden from the documented surface. The user-facing types stay exported at the crate root exactly as before (`Credentials`, `JitterMode`), so ordinary code is unaffected; only code that reached into the `auth` or `backoff` module path directly switches to those root re-exports.
 
+### Fixed
+
+- **Rejected stream subscriptions now log at `warn` instead of `debug`.** A subscribe the server rejects (`MaxStreamsReached`, `InvalidPerms`, or a generic error) is dropped; recording that only at `debug` left a capped or unentitled stream looking live under a default log subscriber. It now logs at `warn` with the rejection reason, so hitting the concurrent-stream cap or an entitlement limit is visible without lowering the log level.
+
 ## [0.3.0] - 2026-07-31
 
 ### Changed

@@ -647,10 +647,14 @@ fn apply_req_response(
     }
 
     dec_active_for_pending_sub(&entry.sub, active_subs, active_full_subs);
-    tracing::debug!(
+    // warn, not debug: an otherwise silent drop leaves a capped or unentitled
+    // stream looking live under a default subscriber. The reason
+    // (MaxStreamsReached / InvalidPerms / Error) rides the `result` field; the
+    // reference is already dropped above, so it is not replayed on reconnect.
+    tracing::warn!(
         req_id,
         result = ?result,
-        "dropped a reference from the rejected subscription; it will not be replayed on reconnect once unreferenced"
+        "stream subscription rejected and dropped; it will not be replayed on reconnect"
     );
 }
 

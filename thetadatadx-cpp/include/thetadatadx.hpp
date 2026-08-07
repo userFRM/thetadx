@@ -29,6 +29,7 @@
 #include <vector>
 #include <utility>
 #include <stdexcept>
+#include <exception>
 #include <type_traits>
 
 #if defined(__cpp_lib_span) && __cpp_lib_span >= 202002L
@@ -3352,6 +3353,11 @@ inline ThetaDataDxSubscriptionRequest build_subscription_request(const FluentSub
             req.expiration = sub.expiration().c_str();
             req.strike = sub.strike().c_str();
             req.right = sub.right().c_str();
+        } else {
+            // Underlier (stock / index): carry the security type so the FFI
+            // subscribes to the right instrument. Without this an INDEX request
+            // (e.g. VIX) would silently default to a stock subscription.
+            req.sec_type = sub.sec_type().c_str();
         }
     }
     return req;

@@ -2569,6 +2569,12 @@ int thetadatadx_streaming_await_drain(const ThetaDataDxStreamHandle* h, uint64_t
  *  be firing, so user code must keep ctx valid past return. Under normal
  *  operation drain completes in low single-digit milliseconds, so ctx is
  *  safe to free immediately on return.
+ *  @warning Do NOT call this from inside the registered callback. The drain
+ *           barrier waits for the callback to return, so a self-call blocks for
+ *           the full 5-second timeout, then destroys the handle and resumes the
+ *           callback against freed state (use-after-free). Tear the handle down
+ *           from another thread: signal the callback to stop and free after it
+ *           returns, or free from the owning thread once streaming is done.
  *  @param h The streaming handle; no-op when NULL. Call exactly once. */
 void thetadatadx_streaming_free(ThetaDataDxStreamHandle* h);
 
@@ -2806,6 +2812,12 @@ uint64_t thetadatadx_client_panic_count(const ThetaDataDxClient* handle);
  *  may still be firing, so user code must keep ctx valid past return. Under
  *  normal operation drain completes in low single-digit milliseconds, so ctx
  *  is safe to free immediately on return.
+ *  @warning Do NOT call this from inside the registered callback. The drain
+ *           barrier waits for the callback to return, so a self-call blocks for
+ *           the full 5-second timeout, then destroys the handle and resumes the
+ *           callback against freed state (use-after-free). Tear the handle down
+ *           from another thread: signal the callback to stop and free after it
+ *           returns, or free from the owning thread once streaming is done.
  *  @param handle The unified handle; no-op when NULL. Call exactly once. */
 void thetadatadx_client_free(ThetaDataDxClient* handle);
 

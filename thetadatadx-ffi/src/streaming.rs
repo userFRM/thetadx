@@ -708,8 +708,10 @@ pub struct ThetaDataDxSubscriptionRequest {
     /// Option right (`"C"` / `"P"`). NULL for non-option per-contract or
     /// for full-stream subscriptions.
     pub right: *const c_char,
-    /// `"STOCK"` / `"OPTION"` / `"INDEX"` for full-stream
-    /// subscriptions. NULL for per-contract subscriptions.
+    /// `"STOCK"` / `"OPTION"` / `"INDEX"`. For a full-stream subscription it
+    /// names the universe; for a per-contract underlier (no option legs) it
+    /// selects `"STOCK"` (the default when NULL) vs `"INDEX"`. NULL / ignored
+    /// for an option per-contract subscription.
     pub sec_type: *const c_char,
 }
 
@@ -758,7 +760,24 @@ unsafe fn coerce_subscription(
             let symbol = require_cstr!(symbol_ptr, None);
             let contract =
                 if expiration_ptr.is_null() && strike_ptr.is_null() && right_ptr.is_null() {
-                    Contract::stock(symbol)
+                    // No option legs: a stock or index underlier. `sec_type`
+                    // selects which; a null sec_type defaults to stock for ABI
+                    // backward-compatibility (callers predating the field).
+                    if sec_type_ptr.is_null() {
+                        Contract::stock(symbol)
+                    } else {
+                        let sec_type = require_cstr!(sec_type_ptr, None);
+                        if sec_type.eq_ignore_ascii_case("index") {
+                            Contract::index(symbol)
+                        } else if sec_type.is_empty() || sec_type.eq_ignore_ascii_case("stock") {
+                            Contract::stock(symbol)
+                        } else {
+                            set_error(&format!(
+                                "invalid sec_type '{sec_type}' for a contract subscription; expected STOCK or INDEX"
+                            ));
+                            return None;
+                        }
+                    }
                 } else {
                     let exp = require_cstr!(expiration_ptr, None);
                     let stk = require_cstr!(strike_ptr, None);
@@ -3131,6 +3150,55 @@ mod null_callback_guard_tests {
         crate::error::thetadatadx_clear_error();
         crate::error::set_error("streaming already started");
         assert_eq!(last_error().as_deref(), Some("streaming already started"));
+    }
+
+    #[test]
+    fn coerce_subscription_honours_index_sec_type() {
+        // A per-contract underlier with sec_type "INDEX" must subscribe as an
+        // index, not silently as a stock (regression: VIX -> wrong instrument).
+        let symbol = std::ffi::CString::new("VIX").unwrap();
+        let sec_type = std::ffi::CString::new("INDEX").unwrap();
+        let req = super::ThetaDataDxSubscriptionRequest {
+            scope: super::THETADATADX_SUB_SCOPE_CONTRACT,
+            kind: super::THETADATADX_SUB_KIND_QUOTE,
+            symbol: symbol.as_ptr(),
+            expiration: std::ptr::null(),
+            strike: std::ptr::null(),
+            right: std::ptr::null(),
+            sec_type: sec_type.as_ptr(),
+        };
+        // SAFETY: every pointer is a live CString (or null) held for the call.
+        let sub = unsafe { super::coerce_subscription(&req) }.expect("valid index contract");
+        match sub {
+            thetadatadx::fpss::protocol::Subscription::Contract { contract, .. } => {
+                assert_eq!(contract.sec_type, thetadatadx::SecType::Index);
+            }
+            _ => panic!("expected a per-contract subscription"),
+        }
+    }
+
+    #[test]
+    fn coerce_subscription_null_sec_type_defaults_to_stock() {
+        // Backward-compat: a null sec_type (callers predating the field) still
+        // resolves to a stock subscription.
+        let symbol = std::ffi::CString::new("AAPL").unwrap();
+        let req = super::ThetaDataDxSubscriptionRequest {
+            scope: super::THETADATADX_SUB_SCOPE_CONTRACT,
+            kind: super::THETADATADX_SUB_KIND_QUOTE,
+            symbol: symbol.as_ptr(),
+            expiration: std::ptr::null(),
+            strike: std::ptr::null(),
+            right: std::ptr::null(),
+            sec_type: std::ptr::null(),
+        };
+        // SAFETY: `symbol` is a live CString held for the call; other ptrs null.
+        let sub = unsafe { super::coerce_subscription(&req) }.expect("valid stock contract");
+        match sub {
+            thetadatadx::fpss::protocol::Subscription::Contract { contract, .. } => {
+                assert_eq!(contract.sec_type, thetadatadx::SecType::Stock);
+            }
+            _ => panic!("expected a per-contract subscription"),
+        }
     }
 }
 

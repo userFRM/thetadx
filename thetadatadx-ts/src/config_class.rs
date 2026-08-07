@@ -21,18 +21,17 @@ pub struct ReconnectDecisionArgs {
 pub(crate) fn bigint_to_u64(name: &str, v: &napi::bindgen_prelude::BigInt) -> napi::Result<u64> {
     let (signed, value, lossless) = v.get_u64();
     if !lossless {
-        // `get_u64` reports `lossless == false` for a negative sign bit as well
-        // as an over-u64 magnitude, so distinguish the two: `-1n` fits in
-        // magnitude but not in sign. Surface the tagged InvalidParameterError so
-        // `instanceof InvalidParameterError` holds across the setter family.
+        // A value with no u64 representation is a domain overflow, not a
+        // rejected parameter: Python raises the built-in OverflowError here, so
+        // this stays a plain Error rather than inventing a typed class the
+        // parity binding does not raise. The message still names the cause,
+        // since `-1n` fits in magnitude but not in sign.
         let detail = if signed {
-            "a negative value is out of range"
+            "a negative value has no unsigned 64-bit representation"
         } else {
-            "the value exceeds the u64 maximum"
+            "the value exceeds the unsigned 64-bit maximum"
         };
-        return Err(crate::invalid_parameter_err(format!(
-            "{name}: must be an unsigned 64-bit integer (0..=18446744073709551615); {detail}"
-        )));
+        return Err(napi::Error::from_reason(format!("{name}: {detail}")));
     }
     Ok(value)
 }

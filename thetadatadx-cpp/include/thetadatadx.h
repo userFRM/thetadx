@@ -2218,6 +2218,12 @@ void thetadatadx_string_free(char* s);
  *  `ctx` is the opaque pointer registered alongside the callback; it is passed
  *  back unchanged on every invocation.
  *
+ *  The callback runs SERIALLY, but not necessarily on the thread that called
+ *  the `_stream` entry point: the library may invoke it from an internal
+ *  runtime worker while the calling thread blocks in the drain. Do not assume
+ *  the calling thread's thread-local / UI / COM affinity is available inside
+ *  the callback; marshal to the owning thread if you need it.
+ *
  *  This callback must not unwind across the C ABI. A C++ throw or a C longjmp
  *  that escapes the callback into the calling frame is undefined behavior, the
  *  same as for any C library. The library wraps each invocation to contain a

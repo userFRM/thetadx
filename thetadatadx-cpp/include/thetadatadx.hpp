@@ -807,7 +807,15 @@ public:
      *  Permanent disconnect reasons never reach the callback; it runs
      *  on the SDK's streaming I/O thread and must be thread-safe.
      *  Return the delay in milliseconds or a negative value to stop.
-     *  Pass nullptr to restore the default Auto policy. */
+     *  Pass nullptr to restore the default Auto policy.
+     *
+     *  @warning `user_data` must outlive EVERY client built from this config,
+     *           not just the config object: the config is cloned into each
+     *           client, so tying `user_data` to a stack object or the Config's
+     *           own lifetime can leave the I/O thread dereferencing freed
+     *           memory. The callback must not throw — it crosses the C ABI, so
+     *           catch everything inside it. Prefer heap-owned state freed only
+     *           after the last client built from this config is destroyed. */
     int32_t set_reconnect_callback(ThetaDataDxReconnectCallback cb, void* user_data) {
         return thetadatadx_config_set_reconnect_callback(handle_.get(), cb, user_data);
     }

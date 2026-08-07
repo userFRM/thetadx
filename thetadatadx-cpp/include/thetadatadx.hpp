@@ -2107,9 +2107,11 @@ public:
         const int32_t bp = backpressure == Backpressure::DropOldest
                                ? THETADATADX_BACKPRESSURE_DROP_OLDEST
                                : THETADATADX_BACKPRESSURE_BLOCK;
-        const uint64_t linger_ms = linger.count() < 0
-                                       ? 0
-                                       : static_cast<uint64_t>(linger.count());
+        if (linger.count() < 0) {
+            throw InvalidParameterError(
+                "thetadatadx: batches linger must not be negative");
+        }
+        const uint64_t linger_ms = static_cast<uint64_t>(linger.count());
         ThetaDataDxRecordBatchStream* raw = thetadatadx_client_batches_open(
             handle_.get(), batch_size, linger_ms, bp, capacity);
         if (raw == nullptr) {

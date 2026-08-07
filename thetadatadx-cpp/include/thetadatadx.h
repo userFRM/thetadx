@@ -2457,9 +2457,9 @@ typedef void (*ThetaDataDxStreamCallback)(const ThetaDataDxStreamEvent* event, v
  *  ## Lifecycle contract (one-shot rule)
  *
  *  Must be called exactly ONCE per handle. After thetadatadx_streaming_shutdown() this
- *  handle is terminal: a second register, a register-after-shutdown, a
- *  reconnect-after-shutdown, or a double-shutdown all return -1 with a
- *  clear thetadatadx_last_error() string ("streaming callback already installed -- ..."
+ *  handle is terminal: a second register, a register-after-shutdown, or a
+ *  reconnect-after-shutdown all return -1 with a clear thetadatadx_last_error()
+ *  string ("streaming callback already installed -- ..."
  *  or "streaming handle has already been shut down -- this is terminal").
  *
  *  This is intentionally stricter than thetadatadx_client_set_callback(), where
@@ -2539,8 +2539,10 @@ char* thetadatadx_streaming_last_connected_addr(const ThetaDataDxStreamHandle* h
 uint64_t thetadatadx_streaming_panic_count(const ThetaDataDxStreamHandle* h);
 
 /** Shut down the streaming client. Terminal: every subsequent
- *  set_callback / reconnect / shutdown call on this handle returns -1
- *  with a clear thetadatadx_last_error() string. The handle remains valid for
+ *  set_callback / reconnect call on this handle returns -1 with a clear
+ *  thetadatadx_last_error() string. This function itself returns void, so a
+ *  repeated shutdown is a safe no-op that sets thetadatadx_last_error() but has
+ *  no return value to check. The handle remains valid for
  *  thetadatadx_streaming_free() only. Returns asynchronously: in-flight events
  *  continue draining through the registered callback until the shutdown
  *  signal is observed.

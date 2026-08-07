@@ -110,6 +110,15 @@ where
     F: std::future::Future<Output = Result<T, thetadatadx::Error>> + Send,
     T: Send,
 {
+    // A synchronous market-data call made from inside a Python streaming
+    // delivery handler re-enters here on the same thread: a nested `block_on`
+    // aborts the runtime (sync `.stream()`), and the async `.stream_async()`
+    // handler — driven on a `spawn_blocking` thread — holds the request permit
+    // this call would wait on. Neither can make progress, so reject it fast
+    // with the same guidance the core reentrancy guard gives.
+    if in_delivery_handler_thread() {
+        return Err(to_py_err(tick::Error::HandlerReentrancy));
+    }
     py.detach(|| {
         // VOCAB-OK: tokio Runtime::block_on in PyO3 bridge, not PyO3 allow_threads GIL-hold pattern
         runtime().block_on(async move {
@@ -124,6 +133,57 @@ where
             }
         })
     })
+}
+
+thread_local! {
+    /// Non-zero while this thread is executing a Python streaming delivery
+    /// handler. Guards against a synchronous same-thread re-entry into
+    /// [`run_blocking`], which would deadlock (async stream) or abort the
+    /// runtime (sync stream). Set by [`DeliveryHandlerGuard`] around every
+    /// user-handler invocation in the generated stream deliverers.
+    static DELIVERY_HANDLER_DEPTH: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// RAII marker: the current thread is running a Python delivery handler for
+/// as long as this guard is alive.
+pub(crate) struct DeliveryHandlerGuard;
+
+impl DeliveryHandlerGuard {
+    pub(crate) fn enter() -> Self {
+        DELIVERY_HANDLER_DEPTH.with(|d| d.set(d.get() + 1));
+        Self
+    }
+}
+
+impl Drop for DeliveryHandlerGuard {
+    fn drop(&mut self) {
+        DELIVERY_HANDLER_DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+    }
+}
+
+/// Whether this thread is currently inside a Python delivery handler.
+fn in_delivery_handler_thread() -> bool {
+    DELIVERY_HANDLER_DEPTH.with(std::cell::Cell::get) != 0
+}
+
+#[cfg(test)]
+mod delivery_guard_tests {
+    use super::{in_delivery_handler_thread, DeliveryHandlerGuard};
+
+    #[test]
+    fn guard_marks_thread_and_nests() {
+        assert!(!in_delivery_handler_thread());
+        let outer = DeliveryHandlerGuard::enter();
+        assert!(in_delivery_handler_thread());
+        {
+            let _inner = DeliveryHandlerGuard::enter();
+            assert!(in_delivery_handler_thread());
+        }
+        // Dropping the inner (cross-client) scope must not clear the outer.
+        assert!(in_delivery_handler_thread());
+        drop(outer);
+        assert!(!in_delivery_handler_thread());
+    }
 }
 
 // ── Credentials ──

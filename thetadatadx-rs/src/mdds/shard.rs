@@ -1000,10 +1000,23 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                 bands.extend(date_bands(start_ord, end_ord, date_n, Some("put")));
                 return Ok(ShardPlan { bands });
             }
-            // Equal-day-count bands, at most one band per day.
-            // `select_axis` only picks the date axis for `span >= 2`, so
-            // with `width >= 2` (checked above) two bands always fit.
-            let n = days.min(width);
+            // A tick CHAIN history pull is the single-day case: the server
+            // assembles the whole chain per day and accepts a tick chain only
+            // one day at a time, so it takes one band per day whatever the pool
+            // width (the surplus over `width` simply queues). A stock or
+            // single-contract tick pull, an interval-bar pull, and an as-of
+            // (`at_time`) chain all band multi-day and cap at the pool width.
+            // `at_time` carries no interval (so `is_tick_pull` is true) but is
+            // not tick data, hence the explicit endpoint guard. `select_axis`
+            // only picks the date axis for `span >= 2`, so with `width >= 2`
+            // (checked above) two bands always fit.
+            let single_day_tick_chain =
+                is_tick_pull(q) && chain_cross_product(q) && !endpoint.contains("at_time");
+            let n = if single_day_tick_chain {
+                days
+            } else {
+                days.min(width)
+            };
             if n < 2 {
                 return Err(ShardDecline::NarrowWindow);
             }
@@ -2443,6 +2456,36 @@ mod tests {
                     assert_eq!(start_date, end_date, "each tick band must be a single day");
                     assert_eq!(right.as_deref(), None, "no right split for a multi-day tick chain");
                 }
+                ShardBand::Time { .. } => panic!("expected date bands"),
+            }
+        }
+    }
+
+    #[test]
+    fn tick_chain_over_wide_range_stays_single_day_per_band() {
+        // Regression: a tick chain longer than the pool width must still take
+        // one band per day, not `width` bands that each span several days (the
+        // server rejects a tick band wider than a day). A 12-day chain at
+        // width 8 caps every OTHER family at 8 bands; tick takes all 12.
+        let q = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("*".into()),
+            strike: Some("*".into()),
+            right: Some("both".into()),
+            start_date: Some("20240102".into()),
+            end_date: Some("20240113".into()), // 12 days > width 8
+            interval: Some("tick".into()),
+            ..Default::default()
+        };
+        let plan = plan_query("option_history_quote", &q, 8).expect("chain should shard");
+        assert_eq!(plan.bands.len(), 12, "one band per day even past the pool width");
+        for band in &plan.bands {
+            match band {
+                ShardBand::Date {
+                    start_date,
+                    end_date,
+                    ..
+                } => assert_eq!(start_date, end_date, "each tick band must be a single day"),
                 ShardBand::Time { .. } => panic!("expected date bands"),
             }
         }

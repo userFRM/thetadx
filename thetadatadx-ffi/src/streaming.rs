@@ -758,45 +758,47 @@ unsafe fn coerce_subscription(
                 }
             };
             let symbol = require_cstr!(symbol_ptr, None);
-            let contract =
-                if expiration_ptr.is_null() && strike_ptr.is_null() && right_ptr.is_null() {
-                    // No option legs: a stock or index underlier. `sec_type`
-                    // selects which; a null sec_type defaults to stock for ABI
-                    // backward-compatibility (callers predating the field).
-                    if sec_type_ptr.is_null() {
+            let contract = if expiration_ptr.is_null()
+                && strike_ptr.is_null()
+                && right_ptr.is_null()
+            {
+                // No option legs: a stock or index underlier. `sec_type`
+                // selects which; a null sec_type defaults to stock for ABI
+                // backward-compatibility (callers predating the field).
+                if sec_type_ptr.is_null() {
+                    Contract::stock(symbol)
+                } else {
+                    let sec_type = require_cstr!(sec_type_ptr, None);
+                    if sec_type.eq_ignore_ascii_case("index") {
+                        Contract::index(symbol)
+                    } else if sec_type.is_empty() || sec_type.eq_ignore_ascii_case("stock") {
                         Contract::stock(symbol)
                     } else {
-                        let sec_type = require_cstr!(sec_type_ptr, None);
-                        if sec_type.eq_ignore_ascii_case("index") {
-                            Contract::index(symbol)
-                        } else if sec_type.is_empty() || sec_type.eq_ignore_ascii_case("stock") {
-                            Contract::stock(symbol)
-                        } else {
-                            set_error(&format!(
+                        set_error(&format!(
                                 "invalid sec_type '{sec_type}' for a contract subscription; expected STOCK or INDEX"
                             ));
-                            return None;
-                        }
+                        return None;
                     }
-                } else {
-                    let exp = require_cstr!(expiration_ptr, None);
-                    let stk = require_cstr!(strike_ptr, None);
-                    let rt = require_cstr!(right_ptr, None);
-                    match Contract::option(
-                        symbol,
-                        OptionLeg {
-                            expiration: exp,
-                            strike: stk,
-                            right: rt,
-                        },
-                    ) {
-                        Ok(c) => c,
-                        Err(e) => {
-                            set_error_from(&e);
-                            return None;
-                        }
+                }
+            } else {
+                let exp = require_cstr!(expiration_ptr, None);
+                let stk = require_cstr!(strike_ptr, None);
+                let rt = require_cstr!(right_ptr, None);
+                match Contract::option(
+                    symbol,
+                    OptionLeg {
+                        expiration: exp,
+                        strike: stk,
+                        right: rt,
+                    },
+                ) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        set_error_from(&e);
+                        return None;
                     }
-                };
+                }
+            };
             Some(Subscription::Contract { contract, kind })
         }
         THETADATADX_SUB_SCOPE_FULL => {

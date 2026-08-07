@@ -523,7 +523,7 @@ ts_doc = """
 Set the TCP keepalive idle time (seconds) before the first kernel probe on a silent streaming socket. Default `5n`; validated to `[1, 7_200]` at connect.
 """
 py_param = "secs"
-ts_param = "ms"
+ts_param = "secs"
 
 [[accessor]]
 symbol = "thetadatadx_config_get_streaming_keepalive_idle_secs"
@@ -568,7 +568,7 @@ ts_doc = """
 Set the interval (seconds) between TCP keepalive probes. Default `2n`; validated to `[1, 75]` at connect.
 """
 py_param = "secs"
-ts_param = "ms"
+ts_param = "secs"
 
 [[accessor]]
 symbol = "thetadatadx_config_get_streaming_keepalive_interval_secs"

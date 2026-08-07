@@ -242,8 +242,8 @@ impl Config {
 
     /// Set the TCP keepalive idle time (seconds) before the first kernel probe on a silent streaming socket. Default `5n`; validated to `[1, 7_200]` at connect.
     #[napi(js_name = "setStreamingKeepaliveIdleSecs")]
-    pub fn set_streaming_keepalive_idle_secs(&self, ms: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
-        let value = bigint_to_u64("setStreamingKeepaliveIdleSecs", &ms)?;
+    pub fn set_streaming_keepalive_idle_secs(&self, secs: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
+        let value = bigint_to_u64("setStreamingKeepaliveIdleSecs", &secs)?;
         let mut guard = self
             .inner
             .lock()
@@ -264,8 +264,8 @@ impl Config {
 
     /// Set the interval (seconds) between TCP keepalive probes. Default `2n`; validated to `[1, 75]` at connect.
     #[napi(js_name = "setStreamingKeepaliveIntervalSecs")]
-    pub fn set_streaming_keepalive_interval_secs(&self, ms: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
-        let value = bigint_to_u64("setStreamingKeepaliveIntervalSecs", &ms)?;
+    pub fn set_streaming_keepalive_interval_secs(&self, secs: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
+        let value = bigint_to_u64("setStreamingKeepaliveIntervalSecs", &secs)?;
         let mut guard = self
             .inner
             .lock()

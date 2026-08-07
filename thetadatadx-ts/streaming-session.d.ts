@@ -15,7 +15,7 @@
 
 /* eslint-disable */
 
-import type { Client, MarketDataClient, StreamView, StreamEvent, ContractRef } from './index';
+import type { Client, MarketDataClient, StreamView, StreamEvent, StreamingClient, ContractRef } from './index';
 
 export * from './index';
 
@@ -115,6 +115,18 @@ export declare const StreamingSession: {
   prototype: StreamingSession;
 };
 
+/**
+ * Context-managed streaming session over a standalone {@link StreamingClient}.
+ * Unlike {@link StreamingSession} (returned by the unified `Client.streaming`),
+ * this wraps a `StreamingClient`, so it exposes the standalone streaming
+ * surface only: it is NOT a `Client` and has no `marketData` / `flatFiles` /
+ * `close` members. Returned by {@link StreamingClient.streaming}.
+ */
+export interface StandaloneStreamingSession extends StreamingClient {
+  /** See {@link StreamingSession}'s async dispose. */
+  [Symbol.asyncDispose](): Promise<void>;
+}
+
 declare module './index' {
   interface Client {
     /**
@@ -173,7 +185,7 @@ declare module './index' {
      * `awaitDrain(5000)` on scope exit, the same RAII semantics as the unified
      * {@link Client.streaming} helper.
      */
-    streaming(callback: StreamEventCallback): Promise<StreamingSession>;
+    streaming(callback: StreamEventCallback): Promise<StandaloneStreamingSession>;
 
     /**
      * TC39 explicit resource management: `using sc = StreamingClient.connect(...)`

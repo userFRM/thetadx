@@ -2062,13 +2062,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().stock_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -2092,13 +2091,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().stock_list_dates(&request_type, &symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -3627,13 +3625,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -3664,13 +3661,12 @@ impl MarketDataView {
         let expiration = normalize_date(expiration);
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_dates(&request_type, &symbol, expiration.as_str());
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -3694,13 +3690,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_expirations(&symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -3726,13 +3721,12 @@ impl MarketDataView {
         let expiration = normalize_date(expiration);
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_strikes(&symbol, expiration.as_str());
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -9905,13 +9899,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().index_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -9934,13 +9927,12 @@ impl MarketDataView {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().index_list_dates(&symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -11054,13 +11046,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().stock_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -11084,13 +11075,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().stock_list_dates(&request_type, &symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -12619,13 +12609,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -12656,13 +12645,12 @@ impl MarketDataClient {
         let expiration = normalize_date(expiration);
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_dates(&request_type, &symbol, expiration.as_str());
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -12686,13 +12674,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_expirations(&symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -12718,13 +12705,12 @@ impl MarketDataClient {
         let expiration = normalize_date(expiration);
         spawn_endpoint_task(async move {
             let call = client.market_data().option_list_strikes(&symbol, expiration.as_str());
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -18897,13 +18883,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().index_list_symbols();
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await
@@ -18926,13 +18911,12 @@ impl MarketDataClient {
         let client = self.client_handle()?;
         spawn_endpoint_task(async move {
             let call = client.market_data().index_list_dates(&symbol);
-            if let Some(ms) = timeout_ms {
-                match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
+            match timeout_ms {
+                None | Some(0) => call.await,
+                Some(ms) => match tokio::time::timeout(std::time::Duration::from_millis(ms), call).await {
                     Ok(inner) => inner,
                     Err(_) => Err(thetadatadx::Error::Timeout { duration_ms: ms }),
-                }
-            } else {
-                call.await
+                },
             }
         })
         .await

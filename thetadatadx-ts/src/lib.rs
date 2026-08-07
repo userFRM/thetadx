@@ -511,6 +511,26 @@ pub(crate) fn validate_optional_u32_arg(name: &str, v: Option<f64>) -> napi::Res
     v.map(|v| validate_u32_arg(name, v)).transpose()
 }
 
+#[cfg(test)]
+mod numeric_arg_validation_tests {
+    use super::validate_u32_arg;
+
+    #[test]
+    fn rejects_v8_touint32_footguns_and_accepts_valid() {
+        // The bug this guards: a bare napi `u32`/`Option<u32>` runs V8
+        // `ToUint32`, so `-1` reaches Rust as 4_294_967_295 (a catastrophic
+        // pool size for `setMaxConcurrentRequests`). Taking `f64` + this
+        // validator rejects it instead of silently wrapping.
+        assert!(validate_u32_arg("maxConcurrentRequests", -1.0).is_err());
+        assert!(validate_u32_arg("maxConcurrentRequests", 1.5).is_err());
+        assert!(validate_u32_arg("maxConcurrentRequests", 4_294_967_296.0).is_err());
+        assert!(validate_u32_arg("maxConcurrentRequests", f64::NAN).is_err());
+        assert!(validate_u32_arg("maxConcurrentRequests", f64::INFINITY).is_err());
+        assert_eq!(validate_u32_arg("maxConcurrentRequests", 8.0).unwrap(), 8);
+        assert_eq!(validate_u32_arg("maxConcurrentRequests", 0.0).unwrap(), 0);
+    }
+}
+
 /// Validate a JavaScript `timeoutMs` deadline and convert it to the
 /// integer millisecond domain the Python, C++, and C ABI bindings take.
 pub(crate) fn validate_timeout_ms(timeout_ms: f64) -> napi::Result<u64> {

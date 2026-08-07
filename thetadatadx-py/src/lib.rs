@@ -243,8 +243,9 @@ impl Credentials {
     /// Source credentials strictly from the ``THETADATA_API_KEY``
     /// environment variable.
     ///
-    /// Strict: an unset or whitespace-only value raises ``ConfigError``
-    /// rather than falling back, and there is no ``creds.txt`` file
+    /// Strict: an unset or whitespace-only value raises
+    /// ``InvalidParameterError`` (a ``ThetaDataError`` / ``ValueError``
+    /// subclass) rather than falling back, and there is no ``creds.txt`` file
     /// fallback. Use :meth:`from_env_or_file` when a file fallback is
     /// wanted instead.
     #[staticmethod]
@@ -411,6 +412,13 @@ impl Config {
                 config::ReconnectPolicy::Auto(config::ReconnectAttemptLimits::default());
             return Ok(());
         };
+        // Reject a non-callable up front: otherwise the stored policy fails at
+        // reconnect time on the I/O thread, where the error is unraisable.
+        if !Python::attach(|py| callback.bind(py).is_callable()) {
+            return Err(errors::invalid_parameter_err(
+                "reconnect_callback must be callable",
+            ));
+        }
         guard.reconnect.policy =
             config::ReconnectPolicy::Custom(std::sync::Arc::new(move |reason, attempt| {
                 Python::attach(|py| {
@@ -678,7 +686,17 @@ fn resolve_direct_config(
         let guard = cfg.inner.lock().unwrap_or_else(|e| e.into_inner());
         return Ok(guard.clone());
     }
-    let mut direct = config::DirectConfig::production();
+    apply_env_overrides(config::DirectConfig::production(), market_data_type, streaming_type)
+}
+
+/// Apply the optional `market_data_type` / `streaming_type` channel selectors
+/// on top of a base config, leaving each channel the base already carries when
+/// its selector is absent. An unrecognized value raises `ValueError`.
+fn apply_env_overrides(
+    mut direct: config::DirectConfig,
+    market_data_type: Option<&str>,
+    streaming_type: Option<&str>,
+) -> PyResult<config::DirectConfig> {
     if let Some(raw) = market_data_type {
         let environment = config::MarketDataEnvironment::parse(raw).ok_or_else(|| {
             config_err(format!(
@@ -928,8 +946,8 @@ impl Client {
     /// (``THETADATA_API_KEY``).
     ///
     /// Strict, with no file fallback: an unset or whitespace-only
-    /// ``THETADATA_API_KEY`` raises ``ConfigError`` before any network
-    /// round-trip, mirroring the Rust ``ClientBuilder::api_key_from_env``
+    /// ``THETADATA_API_KEY`` raises ``InvalidParameterError`` before any
+    /// network round-trip, mirroring the Rust ``ClientBuilder::api_key_from_env``
     /// and the C++ ``ClientBuilder::api_key_from_env`` so the same-named
     /// capability behaves identically across bindings. For the
     /// env-or-file convenience read a ``.env`` file with
@@ -976,9 +994,18 @@ impl Client {
         // With no explicit config / market_data_type / streaming_type, read both
         // environment selectors from the same file; otherwise honour the
         // explicit override.
-        let direct_config = match (config, market_data_type, streaming_type) {
-            (None, None, None) => config::DirectConfig::from_dotenv(path).map_err(to_py_err)?,
-            _ => resolve_direct_config(config, market_data_type, streaming_type)?,
+        // An explicit `config` handle wins verbatim; otherwise the file is the
+        // base and `market_data_type` / `streaming_type` override only the
+        // selectors they name, keeping the file's other environment and host
+        // settings instead of resetting to the production defaults.
+        let direct_config = if config.is_some() {
+            resolve_direct_config(config, market_data_type, streaming_type)?
+        } else {
+            apply_env_overrides(
+                config::DirectConfig::from_dotenv(path).map_err(to_py_err)?,
+                market_data_type,
+                streaming_type,
+            )?
         };
         Self::connect_blocking(py, creds, direct_config)
     }

@@ -44,6 +44,13 @@ impl StreamView {
     /// `PyErr::write_unraisable` (visible in `sys.stderr` and
     /// the unraisable hook); each one bumps `panic_count()`.
     pub(crate) fn start_streaming(&self, py: Python<'_>, callback: Py<PyAny>) -> PyResult<()> {
+        // Reject a non-callable up front: otherwise the dispatcher fails on
+        // the first event, off the calling thread, as an unraisable TypeError.
+        if !callback.bind(py).is_callable() {
+            return Err(crate::errors::invalid_parameter_err(
+                "start_streaming callback must be callable",
+            ));
+        }
         // Bind the callable behind a cheap `Arc` so the FPSS callback
         // closure (`Fn(&StreamEvent) + Send + 'static`) can clone the
         // handle into each per-event invocation. `Py<PyAny>` itself is

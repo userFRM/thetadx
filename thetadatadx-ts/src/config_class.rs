@@ -156,9 +156,11 @@ impl Config {
 
     /// Install a custom reconnect policy driven by a JS callback.
     ///
-    /// `callback(reason: number, attempt: number)` is invoked (on the
-    /// Node main thread, queued from the streaming I/O thread) after
-    /// each retriable involuntary disconnect. Return the reconnect
+    /// The callback is invoked with a single `{ reason, attempt }` object (a
+    /// [`ReconnectDecisionArgs`]) on the Node main thread, queued from the
+    /// streaming I/O thread, after each retriable involuntary disconnect.
+    /// Read `args.reason` / `args.attempt` — the arguments are NOT positional.
+    /// Return the reconnect
     /// delay in milliseconds, or `null` to stop reconnecting (the
     /// stream then emits the terminal `ReconnectsExhausted` event).
     /// Permanent disconnect reasons (bad credentials, account

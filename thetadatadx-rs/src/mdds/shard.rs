@@ -2454,7 +2454,11 @@ mod tests {
                     right,
                 } => {
                     assert_eq!(start_date, end_date, "each tick band must be a single day");
-                    assert_eq!(right.as_deref(), None, "no right split for a multi-day tick chain");
+                    assert_eq!(
+                        right.as_deref(),
+                        None,
+                        "no right split for a multi-day tick chain"
+                    );
                 }
                 ShardBand::Time { .. } => panic!("expected date bands"),
             }
@@ -2478,7 +2482,11 @@ mod tests {
             ..Default::default()
         };
         let plan = plan_query("option_history_quote", &q, 8).expect("chain should shard");
-        assert_eq!(plan.bands.len(), 12, "one band per day even past the pool width");
+        assert_eq!(
+            plan.bands.len(),
+            12,
+            "one band per day even past the pool width"
+        );
         for band in &plan.bands {
             match band {
                 ShardBand::Date {

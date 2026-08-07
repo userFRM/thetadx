@@ -1270,7 +1270,11 @@ where
                 let delay = if ReconnectAttemptLimits::elapsed_budget_applies(class)
                     && !limits.max_elapsed.is_zero()
                 {
-                    delay.min(limits.max_elapsed.saturating_sub(reconnect_state.burst_elapsed()))
+                    delay.min(
+                        limits
+                            .max_elapsed
+                            .saturating_sub(reconnect_state.burst_elapsed()),
+                    )
                 } else {
                     delay
                 };

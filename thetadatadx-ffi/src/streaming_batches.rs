@@ -51,8 +51,9 @@ use crate::types::ThetaDataDxArrowBytes;
 
 /// Backpressure policy selector for [`thetadatadx_client_batches_open`].
 ///
-/// Mirrors `thetadatadx::streaming::Backpressure`. `BLOCK` is lossless and
-/// applies backpressure to the wire; `DROP_OLDEST` keeps a bounded buffer
+/// Mirrors `thetadatadx::streaming::Backpressure`. `BLOCK` backpressures the
+/// reader with no queue-side drops (a sustained stall can still overflow the
+/// upstream event ring); `DROP_OLDEST` keeps a bounded buffer
 /// and drops the oldest batch on overflow, counted by
 /// [`thetadatadx_record_batch_stream_dropped`].
 pub const THETADATADX_BACKPRESSURE_BLOCK: i32 = 0;

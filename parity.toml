@@ -87,6 +87,12 @@ typescript = true   # exported from the package entry (streaming-session.{js,d.t
 cpp = false         # C++ uses the RAII guard pattern instead
 
 [[class]]
+name = "StandaloneStreamingSession"
+python = false      # Python's dynamic proxy needs no distinct static session type
+typescript = true   # returned by the standalone `StreamingClient.streaming()`; extends `StreamingClient` only (not `Client`), unlike `StreamingSession`
+cpp = false         # C++ uses the RAII guard pattern instead
+
+[[class]]
 name = "Contract"
 python = true
 typescript = true   # exposed as `ContractRef` (Contract aliased post-build)

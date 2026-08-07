@@ -2098,7 +2098,8 @@ public:
     /// the fixed schema, and `dropped()` (on the concrete
     /// `thetadatadx::RecordBatchStream`) reports the drop-oldest count. The
     /// reader closes (unsubscribe + tear down) when the last reference drops
-    /// (RAII). The same subscriptions feed it; subscribe first, then open.
+    /// (RAII). The same subscriptions feed it; open first (that starts the
+    /// session), then subscribe.
     ///
     /// `batch_size` rows per batch (default 65536). `linger` flushes a
     /// partial batch on a quiet stream (default 50 ms). `backpressure`

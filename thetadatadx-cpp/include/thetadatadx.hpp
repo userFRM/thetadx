@@ -1610,7 +1610,8 @@ struct CallbackState {
 /// Backpressure policy for the pull-based Arrow `RecordBatch` reader
 /// (`Stream::batches(..)`).
 ///
-/// `Block` (default) is lossless and applies backpressure to the wire;
+/// `Block` (default) backpressures the reader with no queue-side drops, though
+/// a sustained reader stall can still overflow the upstream event ring;
 /// `DropOldest` keeps a bounded buffer and drops the oldest batch on
 /// overflow, counted by `RecordBatchStream::dropped()`.
 enum class Backpressure {
@@ -3164,11 +3165,10 @@ public:
     static FluentContract stock(std::string symbol) {
         return FluentContract{std::move(symbol), "STOCK", false, "", "", ""};
     }
-    /// Construct an index contract. Routes through the stock-shape
-    /// wire encoder; the C ABI layer treats them identically (no
-    /// per-index subscribe call exists today). The security type is
-    /// retained for rendering so an index contract reads `"INDEX"`
-    /// rather than `"STOCK"`.
+    /// Construct an index contract. A subscription over this contract carries
+    /// `sec_type = "INDEX"`, so the C ABI subscribes to the index rather than
+    /// the stock (a null `sec_type` defaults to stock); the security type also
+    /// reads `"INDEX"` rather than `"STOCK"` when rendered.
     static FluentContract index(std::string symbol) {
         return FluentContract{std::move(symbol), "INDEX", false, "", "", ""};
     }

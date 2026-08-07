@@ -943,7 +943,7 @@ ThetaDataDxArrowBytes thetadatadx_trade_quote_ticks_to_arrow_ipc_projected(const
  *  entry points for the same handle. */
 typedef struct ThetaDataDxRecordBatchStream ThetaDataDxRecordBatchStream;
 
-/** Backpressure: block — applies backpressure to the wire; no queue-side drops. */
+/** Backpressure: block — the reader backpressures with no queue-side drops, though a sustained reader stall can still overflow the upstream event ring. */
 #define THETADATADX_BACKPRESSURE_BLOCK 0
 /** Backpressure: bounded buffer, drop the oldest batch on overflow (counted
  *  by thetadatadx_record_batch_stream_dropped). */
@@ -2666,7 +2666,7 @@ typedef struct {
     const char* expiration;   /* per-contract option only */
     const char* strike;       /* per-contract option only */
     const char* right;        /* per-contract option only */
-    const char* sec_type;     /* full-stream only */
+    const char* sec_type;     /* full-stream; or STOCK/INDEX for a per-contract underlier (NULL defaults to stock) */
 } ThetaDataDxSubscriptionRequest;
 
 /** Polymorphic subscribe on the unified client.

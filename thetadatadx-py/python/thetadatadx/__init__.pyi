@@ -116,7 +116,7 @@ class Credentials:
             The sourced :class:`Credentials`.
 
         Raises:
-            ThetaDataError: If ``THETADATA_API_KEY`` is unset or empty.
+            InvalidParameterError: If ``THETADATA_API_KEY`` is unset or empty.
         """
         ...
 
@@ -338,7 +338,7 @@ class Contract:
         *,
         expiration: str,
         strike: float | int | str,
-        right: str,
+        right: str | Right,
     ) -> Contract:
         """Construct an option contract.
 
@@ -347,7 +347,8 @@ class Contract:
             expiration: Expiration date as a ``YYYYMMDD`` string.
             strike: Strike price in dollars; a number or string is
                 accepted (``550``, ``550.0``, and ``"550"`` are equivalent).
-            right: Option right, ``"C"`` (call) or ``"P"`` (put).
+            right: Option right — ``"C"`` (call) or ``"P"`` (put), or a
+                :class:`Right`.
 
         Returns:
             The constructed option :class:`Contract`.
@@ -5014,8 +5015,10 @@ class StreamView:
         """Open a pull-based columnar reader over the live stream.
 
         Returns a :class:`RecordBatchStream` yielding ``pyarrow.RecordBatch``
-        objects. ``backpressure`` selects ``"block"`` (lossless, the default)
-        or ``"drop_oldest"`` (bounded by ``capacity`` buffered batches).
+        objects. ``backpressure`` selects ``"block"`` (the default; no
+        queue-side drops, though a sustained stall can overflow the upstream
+        event ring) or ``"drop_oldest"`` (bounded by ``capacity`` buffered
+        batches).
         """
         ...
 
@@ -5261,8 +5264,9 @@ class Client:
 
         Reads ``THETADATA_API_KEY`` and connects. Strict, with no file
         fallback: an unset or whitespace-only ``THETADATA_API_KEY`` raises
-        ``ConfigError`` before any network round-trip. For the env-or-file
-        convenience read a ``.env`` file with :meth:`from_dotenv` instead.
+        ``InvalidParameterError`` before any network round-trip. For the
+        env-or-file convenience read a ``.env`` file with :meth:`from_dotenv`
+        instead.
 
         Args:
             config: Connection configuration; defaults to
@@ -5274,8 +5278,8 @@ class Client:
             A connected :class:`Client`.
 
         Raises:
-            ConfigError: If ``THETADATA_API_KEY`` is unset or empty, or
-                ``market_data_type`` / ``streaming_type`` is invalid.
+            InvalidParameterError: If ``THETADATA_API_KEY`` is unset or empty.
+            ConfigError: If ``market_data_type`` / ``streaming_type`` is invalid.
             ThetaDataError: If the connection fails.
         """
         ...

@@ -33,7 +33,7 @@ use std::ptr;
 use std::sync::atomic::{AtomicU8, Ordering as AtomicOrdering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::error::{set_error, set_error_from};
+use crate::error::{set_error, set_error_from, set_error_with_code};
 use crate::types::{ThetaDataDxConfig, ThetaDataDxCredentials, ThetaDataDxMarketDataClient};
 use thetadatadx::DispatcherSession as FfpssDispatcherSession;
 
@@ -763,8 +763,8 @@ unsafe fn coerce_subscription(
                 && right_ptr.is_null()
             {
                 // No option legs: a stock or index underlier. `sec_type`
-                // selects which; a null sec_type defaults to stock for ABI
-                // backward-compatibility (callers predating the field).
+                // selects which; a null or empty sec_type defaults to stock
+                // for ABI backward-compatibility (callers predating the field).
                 if sec_type_ptr.is_null() {
                     Contract::stock(symbol)
                 } else {
@@ -774,9 +774,12 @@ unsafe fn coerce_subscription(
                     } else if sec_type.is_empty() || sec_type.eq_ignore_ascii_case("stock") {
                         Contract::stock(symbol)
                     } else {
-                        set_error(&format!(
+                        set_error_with_code(
+                            &format!(
                                 "invalid sec_type '{sec_type}' for a contract subscription; expected STOCK or INDEX"
-                            ));
+                            ),
+                            crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                        );
                         return None;
                     }
                 }
@@ -3201,6 +3204,31 @@ mod null_callback_guard_tests {
             }
             _ => panic!("expected a per-contract subscription"),
         }
+    }
+
+    #[test]
+    fn coerce_subscription_rejects_unknown_sec_type_as_invalid_parameter() {
+        // An unrecognized sec_type is a caller error, not a silent stock:
+        // coercion fails and sets the typed INVALID_PARAMETER code (not the
+        // untyped OTHER), so the C++ wrapper throws InvalidParameterError.
+        let symbol = std::ffi::CString::new("AAPL").unwrap();
+        let sec_type = std::ffi::CString::new("FUTURE").unwrap();
+        let req = super::ThetaDataDxSubscriptionRequest {
+            scope: super::THETADATADX_SUB_SCOPE_CONTRACT,
+            kind: super::THETADATADX_SUB_KIND_QUOTE,
+            symbol: symbol.as_ptr(),
+            expiration: std::ptr::null(),
+            strike: std::ptr::null(),
+            right: std::ptr::null(),
+            sec_type: sec_type.as_ptr(),
+        };
+        // SAFETY: `symbol` and `sec_type` are live CStrings held for the call.
+        let sub = unsafe { super::coerce_subscription(&req) };
+        assert!(sub.is_none(), "an unknown sec_type must be rejected");
+        assert_eq!(
+            crate::error::thetadatadx_last_error_code(),
+            crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+        );
     }
 }
 

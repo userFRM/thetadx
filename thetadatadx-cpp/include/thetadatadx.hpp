@@ -1615,7 +1615,7 @@ struct CallbackState {
 /// `DropOldest` keeps a bounded buffer and drops the oldest batch on
 /// overflow, counted by `RecordBatchStream::dropped()`.
 enum class Backpressure {
-    /// Lossless: block until the reader catches up. The default.
+    /// Block until the reader catches up; no queue-side drops. The default.
     Block,
     /// Bounded buffer: drop the oldest batch on overflow, count it.
     DropOldest,
@@ -2104,7 +2104,7 @@ public:
     ///
     /// `batch_size` rows per batch (default 65536). `linger` flushes a
     /// partial batch on a quiet stream (default 50 ms). `backpressure`
-    /// selects lossless block (default) or bounded drop-oldest with
+    /// selects block (default; no queue-side drops) or bounded drop-oldest with
     /// `capacity` buffered batches.
     ///
     /// Only available when the SDK is built with `THETADATADX_CPP_ARROW`

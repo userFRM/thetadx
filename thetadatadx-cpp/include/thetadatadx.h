@@ -2666,7 +2666,7 @@ typedef struct {
     const char* expiration;   /* per-contract option only */
     const char* strike;       /* per-contract option only */
     const char* right;        /* per-contract option only */
-    const char* sec_type;     /* full-stream; or STOCK/INDEX for a per-contract underlier (NULL defaults to stock) */
+    const char* sec_type;     /* full-stream; or STOCK/INDEX for a per-contract underlier (NULL or empty defaults to stock) */
 } ThetaDataDxSubscriptionRequest;
 
 /** Polymorphic subscribe on the unified client.

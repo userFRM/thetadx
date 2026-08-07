@@ -686,7 +686,11 @@ fn resolve_direct_config(
         let guard = cfg.inner.lock().unwrap_or_else(|e| e.into_inner());
         return Ok(guard.clone());
     }
-    apply_env_overrides(config::DirectConfig::production(), market_data_type, streaming_type)
+    apply_env_overrides(
+        config::DirectConfig::production(),
+        market_data_type,
+        streaming_type,
+    )
 }
 
 /// Apply the optional `market_data_type` / `streaming_type` channel selectors

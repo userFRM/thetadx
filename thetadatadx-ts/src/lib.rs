@@ -684,34 +684,25 @@ fn normalize_symbols(symbols: Either<String, Vec<String>>) -> Vec<String> {
     }
 }
 
-/// A `String` passes through verbatim (the caller supplied a wire-format
-/// literal); a `DateTime` is rendered with `fmt` (`"%Y%m%d"` for dates,
-/// `"%H:%M:%S"` for times).
-fn normalize_dt(value: Either<String, chrono::DateTime<chrono::Utc>>, fmt: &str) -> String {
-    match value {
-        Either::A(value) => value,
-        Either::B(value) => value.format(fmt).to_string(),
-    }
+// Calendar dates and times are wire-format strings only (`"YYYYMMDD"` /
+// `"HH:MM:SS"`). A JS `Date` is deliberately NOT accepted: it is an instant,
+// not a calendar day, so converting it forced a UTC rendering that shifted the
+// requested day in non-UTC time zones. These pass the string through as the
+// single normalization seam every date/time argument routes through.
+fn normalize_date(value: String) -> String {
+    value
 }
 
-fn normalize_date(value: Either<String, chrono::DateTime<chrono::Utc>>) -> String {
-    normalize_dt(value, "%Y%m%d")
+fn normalize_time(value: String) -> String {
+    value
 }
 
-fn normalize_time(value: Either<String, chrono::DateTime<chrono::Utc>>) -> String {
-    normalize_dt(value, "%H:%M:%S")
+fn normalize_optional_date(value: Option<String>) -> Option<String> {
+    value
 }
 
-fn normalize_optional_date(
-    value: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
-) -> Option<String> {
-    value.map(normalize_date)
-}
-
-fn normalize_optional_time(
-    value: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
-) -> Option<String> {
-    value.map(normalize_time)
+fn normalize_optional_time(value: Option<String>) -> Option<String> {
+    value
 }
 
 // Generated string enum exports.

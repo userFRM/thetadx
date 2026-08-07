@@ -19,10 +19,19 @@ pub struct ReconnectDecisionArgs {
 /// `false` for a negative (sign bit set) or an over-`u64` magnitude, so this
 /// rejects both rather than passing a wrapped/truncated value.
 pub(crate) fn bigint_to_u64(name: &str, v: &napi::bindgen_prelude::BigInt) -> napi::Result<u64> {
-    let (_signed, value, lossless) = v.get_u64();
+    let (signed, value, lossless) = v.get_u64();
     if !lossless {
-        return Err(napi::Error::from_reason(format!(
-            "{name}: BigInt magnitude must fit in u64",
+        // `get_u64` reports `lossless == false` for a negative sign bit as well
+        // as an over-u64 magnitude, so distinguish the two: `-1n` fits in
+        // magnitude but not in sign. Surface the tagged InvalidParameterError so
+        // `instanceof InvalidParameterError` holds across the setter family.
+        let detail = if signed {
+            "a negative value is out of range"
+        } else {
+            "the value exceeds the u64 maximum"
+        };
+        return Err(crate::invalid_parameter_err(format!(
+            "{name}: must be an unsigned 64-bit integer (0..=18446744073709551615); {detail}"
         )));
     }
     Ok(value)

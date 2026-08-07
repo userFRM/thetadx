@@ -842,7 +842,10 @@ fn ts_napi_arg_type(param: &super::super::model::GeneratedParam) -> &'static str
     if param.param_type == "Symbols" {
         "Either<String, Vec<String>>"
     } else if matches!(param.param_type.as_str(), "Date" | "Expiration") || is_time_arg(param) {
-        "Either<String, chrono::DateTime<chrono::Utc>>"
+        // Wire-format strings only. A JS `Date` is an instant, not a calendar
+        // day; converting it forced a UTC rendering that shifted the requested
+        // day in non-UTC zones.
+        "String"
     } else {
         "String"
     }
@@ -971,8 +974,8 @@ fn ts_napi_optional_type(param: &super::super::model::GeneratedParam) -> &'stati
         "Int" => "Option<f64>",
         "Float" => "Option<f64>",
         "Bool" => "Option<bool>",
-        "Date" | "Expiration" => "Option<Either<String, chrono::DateTime<chrono::Utc>>>",
-        _ if is_time_arg(param) => "Option<Either<String, chrono::DateTime<chrono::Utc>>>",
+        "Date" | "Expiration" => "Option<String>",
+        _ if is_time_arg(param) => "Option<String>",
         _ => "Option<String>",
     }
 }

@@ -38,7 +38,7 @@ pub struct StockSnapshotOHLCOptions {
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -56,7 +56,7 @@ pub struct StockSnapshotTradeOptions {
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -74,7 +74,7 @@ pub struct StockSnapshotQuoteOptions {
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -92,7 +92,7 @@ pub struct StockSnapshotMarketValueOptions {
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -122,19 +122,19 @@ pub struct StockHistoryEODOptions {
 #[derive(Default)]
 pub struct StockHistoryOHLCOptions {
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -150,17 +150,17 @@ pub struct StockHistoryOHLCOptions {
 #[derive(Default)]
 pub struct StockHistoryTradeOptions {
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -176,19 +176,19 @@ pub struct StockHistoryTradeOptions {
 #[derive(Default)]
 pub struct StockHistoryQuoteOptions {
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -204,19 +204,19 @@ pub struct StockHistoryQuoteOptions {
 #[derive(Default)]
 pub struct StockHistoryTradeQuoteOptions {
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// When true, quotes whose timestamp equals the trade timestamp are excluded; only quotes strictly before the trade are paired.
     pub exclusive: Option<bool>,
     /// Venue/exchange filter. Accepted values: `nqb`, `utp_cta`.
     pub venue: Option<String>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -346,7 +346,7 @@ pub struct OptionSnapshotOHLCOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -368,7 +368,7 @@ pub struct OptionSnapshotTradeOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -392,7 +392,7 @@ pub struct OptionSnapshotQuoteOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -416,7 +416,7 @@ pub struct OptionSnapshotOpenInterestOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -440,7 +440,7 @@ pub struct OptionSnapshotMarketValueOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -474,7 +474,7 @@ pub struct OptionSnapshotGreeksImpliedVolatilityOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair.
     pub use_market_value: Option<bool>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
@@ -510,7 +510,7 @@ pub struct OptionSnapshotGreeksAllOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair.
     pub use_market_value: Option<bool>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
@@ -546,7 +546,7 @@ pub struct OptionSnapshotGreeksFirstOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair.
     pub use_market_value: Option<bool>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
@@ -582,7 +582,7 @@ pub struct OptionSnapshotGreeksSecondOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair.
     pub use_market_value: Option<bool>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
@@ -618,7 +618,7 @@ pub struct OptionSnapshotGreeksThirdOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair.
     pub use_market_value: Option<bool>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
@@ -662,19 +662,19 @@ pub struct OptionHistoryOHLCOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -694,19 +694,19 @@ pub struct OptionHistoryTradeOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Maximum days to expiration
     pub max_dte: Option<f64>,
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -726,21 +726,21 @@ pub struct OptionHistoryQuoteOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Maximum days to expiration
     pub max_dte: Option<f64>,
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -760,11 +760,11 @@ pub struct OptionHistoryTradeQuoteOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// When true, quotes whose timestamp equals the trade timestamp are excluded; only quotes strictly before the trade are paired.
     pub exclusive: Option<bool>,
     /// Maximum days to expiration
@@ -772,9 +772,9 @@ pub struct OptionHistoryTradeQuoteOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -794,15 +794,15 @@ pub struct OptionHistoryOpenInterestOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Maximum days to expiration
     pub max_dte: Option<f64>,
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -854,13 +854,13 @@ pub struct OptionHistoryGreeksAllOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -872,9 +872,9 @@ pub struct OptionHistoryGreeksAllOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -894,11 +894,11 @@ pub struct OptionHistoryTradeGreeksAllOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -912,9 +912,9 @@ pub struct OptionHistoryTradeGreeksAllOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -934,13 +934,13 @@ pub struct OptionHistoryGreeksFirstOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -952,9 +952,9 @@ pub struct OptionHistoryGreeksFirstOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -974,11 +974,11 @@ pub struct OptionHistoryTradeGreeksFirstOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -992,9 +992,9 @@ pub struct OptionHistoryTradeGreeksFirstOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1014,13 +1014,13 @@ pub struct OptionHistoryGreeksSecondOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1032,9 +1032,9 @@ pub struct OptionHistoryGreeksSecondOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1054,11 +1054,11 @@ pub struct OptionHistoryTradeGreeksSecondOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1072,9 +1072,9 @@ pub struct OptionHistoryTradeGreeksSecondOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1094,13 +1094,13 @@ pub struct OptionHistoryGreeksThirdOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1112,9 +1112,9 @@ pub struct OptionHistoryGreeksThirdOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1134,11 +1134,11 @@ pub struct OptionHistoryTradeGreeksThirdOrderOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1152,9 +1152,9 @@ pub struct OptionHistoryTradeGreeksThirdOrderOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1174,13 +1174,13 @@ pub struct OptionHistoryGreeksImpliedVolatilityOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1192,9 +1192,9 @@ pub struct OptionHistoryGreeksImpliedVolatilityOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1214,11 +1214,11 @@ pub struct OptionHistoryTradeGreeksImpliedVolatilityOptions {
     /// Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`.
     pub right: Option<String>,
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year).
     pub annual_dividend: Option<f64>,
     /// Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`.
@@ -1232,9 +1232,9 @@ pub struct OptionHistoryTradeGreeksImpliedVolatilityOptions {
     /// Strike range filter
     pub strike_range: Option<f64>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1322,7 +1322,7 @@ pub struct IndexListDatesOptions {
 #[derive(Default)]
 pub struct IndexSnapshotOHLCOptions {
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1338,7 +1338,7 @@ pub struct IndexSnapshotOHLCOptions {
 #[derive(Default)]
 pub struct IndexSnapshotPriceOptions {
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1354,7 +1354,7 @@ pub struct IndexSnapshotPriceOptions {
 #[derive(Default)]
 pub struct IndexSnapshotMarketValueOptions {
     /// Minimum time filter
-    pub min_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub min_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1386,9 +1386,9 @@ pub struct IndexHistoryOHLCOptions {
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -1404,17 +1404,17 @@ pub struct IndexHistoryOHLCOptions {
 #[derive(Default)]
 pub struct IndexHistoryPriceOptions {
     /// Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range.
-    pub date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub date: Option<String>,
     /// Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`.
     pub interval: Option<String>,
     /// Start time filter
-    pub start_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_time: Option<String>,
     /// End time filter
-    pub end_time: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_time: Option<String>,
     /// Start date YYYYMMDD
-    pub start_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub start_date: Option<String>,
     /// End date YYYYMMDD
-    pub end_date: Option<Either<String, chrono::DateTime<chrono::Utc>>>,
+    pub end_date: Option<String>,
     /// Per-call deadline as a non-negative whole number of milliseconds;
     /// on expiry the returned Promise rejects and the underlying request
     /// is cancelled. A non-finite, negative, or fractional value is
@@ -2430,8 +2430,8 @@ impl MarketDataView {
     pub async fn stock_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -2458,8 +2458,8 @@ impl MarketDataView {
     pub async fn stock_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -2513,8 +2513,8 @@ impl MarketDataView {
     pub async fn stock_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -3335,9 +3335,9 @@ impl MarketDataView {
     pub async fn stock_at_time_trade(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -3369,9 +3369,9 @@ impl MarketDataView {
     pub async fn stock_at_time_trade_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -3430,9 +3430,9 @@ impl MarketDataView {
     pub async fn stock_at_time_trade_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -3480,9 +3480,9 @@ impl MarketDataView {
     pub async fn stock_at_time_quote(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -3514,9 +3514,9 @@ impl MarketDataView {
     pub async fn stock_at_time_quote_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -3575,9 +3575,9 @@ impl MarketDataView {
     pub async fn stock_at_time_quote_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -3649,7 +3649,7 @@ impl MarketDataView {
         &self,
         request_type: String,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionListDatesOptions>,
     ) -> napi::Result<Vec<String>> {
         let options = options.unwrap_or_default();
@@ -3709,7 +3709,7 @@ impl MarketDataView {
     pub async fn option_list_strikes(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionListStrikesOptions>,
     ) -> napi::Result<Vec<String>> {
         let options = options.unwrap_or_default();
@@ -3743,7 +3743,7 @@ impl MarketDataView {
     pub async fn option_list_contracts(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
     ) -> napi::Result<Vec<OptionContract>> {
         let options = options.unwrap_or_default();
@@ -3777,7 +3777,7 @@ impl MarketDataView {
     pub async fn option_list_contracts_stream(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OptionContract>, (), Vec<OptionContract>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -3838,7 +3838,7 @@ impl MarketDataView {
     pub async fn option_list_contracts_with_columns(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
     ) -> napi::Result<OptionContractWithColumns> {
         let options = options.unwrap_or_default();
@@ -3883,7 +3883,7 @@ impl MarketDataView {
     pub async fn option_snapshot_ohlc(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -3929,7 +3929,7 @@ impl MarketDataView {
     pub async fn option_snapshot_ohlc_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -3987,7 +3987,7 @@ impl MarketDataView {
     pub async fn option_snapshot_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -4029,7 +4029,7 @@ impl MarketDataView {
     pub async fn option_snapshot_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4083,7 +4083,7 @@ impl MarketDataView {
     pub async fn option_snapshot_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -4129,7 +4129,7 @@ impl MarketDataView {
     pub async fn option_snapshot_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4188,7 +4188,7 @@ impl MarketDataView {
     pub async fn option_snapshot_open_interest(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOpenInterestOptions>,
     ) -> napi::Result<Vec<OpenInterestTick>> {
         let options = options.unwrap_or_default();
@@ -4234,7 +4234,7 @@ impl MarketDataView {
     pub async fn option_snapshot_open_interest_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOpenInterestOptions>,
     ) -> napi::Result<OpenInterestTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4291,7 +4291,7 @@ impl MarketDataView {
     pub async fn option_snapshot_market_value(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotMarketValueOptions>,
     ) -> napi::Result<Vec<MarketValueTick>> {
         let options = options.unwrap_or_default();
@@ -4337,7 +4337,7 @@ impl MarketDataView {
     pub async fn option_snapshot_market_value_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotMarketValueOptions>,
     ) -> napi::Result<MarketValueTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4399,7 +4399,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<IvTick>> {
         let options = options.unwrap_or_default();
@@ -4469,7 +4469,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<IvTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4554,7 +4554,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksAllOptions>,
     ) -> napi::Result<Vec<GreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -4624,7 +4624,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksAllOptions>,
     ) -> napi::Result<GreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4709,7 +4709,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<GreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -4779,7 +4779,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksFirstOrderOptions>,
     ) -> napi::Result<GreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -4864,7 +4864,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<GreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -4934,7 +4934,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksSecondOrderOptions>,
     ) -> napi::Result<GreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -5019,7 +5019,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<GreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -5089,7 +5089,7 @@ impl MarketDataView {
     pub async fn option_snapshot_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksThirdOrderOptions>,
     ) -> napi::Result<GreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -5173,9 +5173,9 @@ impl MarketDataView {
     pub async fn option_history_eod(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -5219,9 +5219,9 @@ impl MarketDataView {
     pub async fn option_history_eod_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -5292,9 +5292,9 @@ impl MarketDataView {
     pub async fn option_history_eod_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -5354,7 +5354,7 @@ impl MarketDataView {
     pub async fn option_history_ohlc(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -5416,7 +5416,7 @@ impl MarketDataView {
     pub async fn option_history_ohlc_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OhlcTick>, (), Vec<OhlcTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -5505,7 +5505,7 @@ impl MarketDataView {
     pub async fn option_history_ohlc_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -5583,7 +5583,7 @@ impl MarketDataView {
     pub async fn option_history_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -5645,7 +5645,7 @@ impl MarketDataView {
     pub async fn option_history_trade_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -5734,7 +5734,7 @@ impl MarketDataView {
     pub async fn option_history_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -5812,7 +5812,7 @@ impl MarketDataView {
     pub async fn option_history_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -5878,7 +5878,7 @@ impl MarketDataView {
     pub async fn option_history_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -5971,7 +5971,7 @@ impl MarketDataView {
     pub async fn option_history_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -6054,7 +6054,7 @@ impl MarketDataView {
     pub async fn option_history_trade_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
     ) -> napi::Result<Vec<TradeQuoteTick>> {
         let options = options.unwrap_or_default();
@@ -6120,7 +6120,7 @@ impl MarketDataView {
     pub async fn option_history_trade_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeQuoteTick>, (), Vec<TradeQuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -6213,7 +6213,7 @@ impl MarketDataView {
     pub async fn option_history_trade_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
     ) -> napi::Result<TradeQuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -6292,7 +6292,7 @@ impl MarketDataView {
     pub async fn option_history_open_interest(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
     ) -> napi::Result<Vec<OpenInterestTick>> {
         let options = options.unwrap_or_default();
@@ -6346,7 +6346,7 @@ impl MarketDataView {
     pub async fn option_history_open_interest_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OpenInterestTick>, (), Vec<OpenInterestTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -6427,7 +6427,7 @@ impl MarketDataView {
     pub async fn option_history_open_interest_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
     ) -> napi::Result<OpenInterestTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -6497,9 +6497,9 @@ impl MarketDataView {
     pub async fn option_history_greeks_eod(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
     ) -> napi::Result<Vec<GreeksEodTick>> {
         let options = options.unwrap_or_default();
@@ -6563,9 +6563,9 @@ impl MarketDataView {
     pub async fn option_history_greeks_eod_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksEodTick>, (), Vec<GreeksEodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -6656,9 +6656,9 @@ impl MarketDataView {
     pub async fn option_history_greeks_eod_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
     ) -> napi::Result<GreeksEodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -6741,7 +6741,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
     ) -> napi::Result<Vec<GreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -6819,7 +6819,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_all_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksAllTick>, (), Vec<GreeksAllTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -6924,7 +6924,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
     ) -> napi::Result<GreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -7020,7 +7020,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
     ) -> napi::Result<Vec<TradeGreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -7098,7 +7098,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_all_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksAllTick>, (), Vec<TradeGreeksAllTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -7203,7 +7203,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
     ) -> napi::Result<TradeGreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -7300,7 +7300,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<GreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -7378,7 +7378,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_first_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksFirstOrderTick>, (), Vec<GreeksFirstOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -7483,7 +7483,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
     ) -> napi::Result<GreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -7579,7 +7579,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -7657,7 +7657,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_first_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksFirstOrderTick>, (), Vec<TradeGreeksFirstOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -7762,7 +7762,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
     ) -> napi::Result<TradeGreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -7859,7 +7859,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<GreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -7937,7 +7937,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_second_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksSecondOrderTick>, (), Vec<GreeksSecondOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -8042,7 +8042,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
     ) -> napi::Result<GreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -8138,7 +8138,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -8216,7 +8216,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_second_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksSecondOrderTick>, (), Vec<TradeGreeksSecondOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -8321,7 +8321,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
     ) -> napi::Result<TradeGreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -8418,7 +8418,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<GreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -8496,7 +8496,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_third_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksThirdOrderTick>, (), Vec<GreeksThirdOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -8601,7 +8601,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
     ) -> napi::Result<GreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -8697,7 +8697,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -8775,7 +8775,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_third_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksThirdOrderTick>, (), Vec<TradeGreeksThirdOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -8880,7 +8880,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
     ) -> napi::Result<TradeGreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -8976,7 +8976,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<IvTick>> {
         let options = options.unwrap_or_default();
@@ -9054,7 +9054,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_implied_volatility_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<IvTick>, (), Vec<IvTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -9159,7 +9159,7 @@ impl MarketDataView {
     pub async fn option_history_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<IvTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -9254,7 +9254,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<TradeGreeksImpliedVolatilityTick>> {
         let options = options.unwrap_or_default();
@@ -9332,7 +9332,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_implied_volatility_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksImpliedVolatilityTick>, (), Vec<TradeGreeksImpliedVolatilityTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -9437,7 +9437,7 @@ impl MarketDataView {
     pub async fn option_history_trade_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<TradeGreeksImpliedVolatilityTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -9529,10 +9529,10 @@ impl MarketDataView {
     pub async fn option_at_time_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -9577,10 +9577,10 @@ impl MarketDataView {
     pub async fn option_at_time_trade_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -9652,10 +9652,10 @@ impl MarketDataView {
     pub async fn option_at_time_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -9712,10 +9712,10 @@ impl MarketDataView {
     pub async fn option_at_time_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -9760,10 +9760,10 @@ impl MarketDataView {
     pub async fn option_at_time_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -9835,10 +9835,10 @@ impl MarketDataView {
     pub async fn option_at_time_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -10149,8 +10149,8 @@ impl MarketDataView {
     pub async fn index_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -10177,8 +10177,8 @@ impl MarketDataView {
     pub async fn index_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -10232,8 +10232,8 @@ impl MarketDataView {
     pub async fn index_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -10274,8 +10274,8 @@ impl MarketDataView {
     pub async fn index_history_ohlc(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -10314,8 +10314,8 @@ impl MarketDataView {
     pub async fn index_history_ohlc_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OhlcTick>, (), Vec<OhlcTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -10381,8 +10381,8 @@ impl MarketDataView {
     pub async fn index_history_ohlc_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -10615,9 +10615,9 @@ impl MarketDataView {
     pub async fn index_at_time_price(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
     ) -> napi::Result<Vec<IndexPriceAtTimeTick>> {
         let options = options.unwrap_or_default();
@@ -10645,9 +10645,9 @@ impl MarketDataView {
     pub async fn index_at_time_price_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<IndexPriceAtTimeTick>, (), Vec<IndexPriceAtTimeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -10702,9 +10702,9 @@ impl MarketDataView {
     pub async fn index_at_time_price_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
     ) -> napi::Result<IndexPriceAtTimeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -10796,7 +10796,7 @@ impl MarketDataView {
     #[napi(js_name = "calendarOnDate")]
     pub async fn calendar_on_date(
         &self,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<CalendarOnDateOptions>,
     ) -> napi::Result<Vec<CalendarDay>> {
         let options = options.unwrap_or_default();
@@ -10821,7 +10821,7 @@ impl MarketDataView {
     #[napi(js_name = "calendarOnDateWithColumns")]
     pub async fn calendar_on_date_with_columns(
         &self,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<CalendarOnDateOptions>,
     ) -> napi::Result<CalendarDayWithColumns> {
         let options = options.unwrap_or_default();
@@ -10916,8 +10916,8 @@ impl MarketDataView {
     pub async fn interest_rate_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
     ) -> napi::Result<Vec<InterestRateTick>> {
         let options = options.unwrap_or_default();
@@ -10944,8 +10944,8 @@ impl MarketDataView {
     pub async fn interest_rate_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<InterestRateTick>, (), Vec<InterestRateTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -10999,8 +10999,8 @@ impl MarketDataView {
     pub async fn interest_rate_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
     ) -> napi::Result<InterestRateTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -11414,8 +11414,8 @@ impl MarketDataClient {
     pub async fn stock_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -11442,8 +11442,8 @@ impl MarketDataClient {
     pub async fn stock_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -11497,8 +11497,8 @@ impl MarketDataClient {
     pub async fn stock_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<StockHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -12319,9 +12319,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_trade(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -12353,9 +12353,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_trade_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -12414,9 +12414,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_trade_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -12464,9 +12464,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_quote(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -12498,9 +12498,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_quote_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -12559,9 +12559,9 @@ impl MarketDataClient {
     pub async fn stock_at_time_quote_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<StockAtTimeQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -12633,7 +12633,7 @@ impl MarketDataClient {
         &self,
         request_type: String,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionListDatesOptions>,
     ) -> napi::Result<Vec<String>> {
         let options = options.unwrap_or_default();
@@ -12693,7 +12693,7 @@ impl MarketDataClient {
     pub async fn option_list_strikes(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionListStrikesOptions>,
     ) -> napi::Result<Vec<String>> {
         let options = options.unwrap_or_default();
@@ -12727,7 +12727,7 @@ impl MarketDataClient {
     pub async fn option_list_contracts(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
     ) -> napi::Result<Vec<OptionContract>> {
         let options = options.unwrap_or_default();
@@ -12761,7 +12761,7 @@ impl MarketDataClient {
     pub async fn option_list_contracts_stream(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OptionContract>, (), Vec<OptionContract>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -12822,7 +12822,7 @@ impl MarketDataClient {
     pub async fn option_list_contracts_with_columns(
         &self,
         request_type: String,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<OptionListContractsOptions>,
     ) -> napi::Result<OptionContractWithColumns> {
         let options = options.unwrap_or_default();
@@ -12867,7 +12867,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_ohlc(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -12913,7 +12913,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_ohlc_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -12971,7 +12971,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -13013,7 +13013,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13067,7 +13067,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -13113,7 +13113,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13172,7 +13172,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_open_interest(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOpenInterestOptions>,
     ) -> napi::Result<Vec<OpenInterestTick>> {
         let options = options.unwrap_or_default();
@@ -13218,7 +13218,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_open_interest_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotOpenInterestOptions>,
     ) -> napi::Result<OpenInterestTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13275,7 +13275,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_market_value(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotMarketValueOptions>,
     ) -> napi::Result<Vec<MarketValueTick>> {
         let options = options.unwrap_or_default();
@@ -13321,7 +13321,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_market_value_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotMarketValueOptions>,
     ) -> napi::Result<MarketValueTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13383,7 +13383,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<IvTick>> {
         let options = options.unwrap_or_default();
@@ -13453,7 +13453,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<IvTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13538,7 +13538,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksAllOptions>,
     ) -> napi::Result<Vec<GreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -13608,7 +13608,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksAllOptions>,
     ) -> napi::Result<GreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13693,7 +13693,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<GreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -13763,7 +13763,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksFirstOrderOptions>,
     ) -> napi::Result<GreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -13848,7 +13848,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<GreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -13918,7 +13918,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksSecondOrderOptions>,
     ) -> napi::Result<GreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -14003,7 +14003,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<GreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -14073,7 +14073,7 @@ impl MarketDataClient {
     pub async fn option_snapshot_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionSnapshotGreeksThirdOrderOptions>,
     ) -> napi::Result<GreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -14157,9 +14157,9 @@ impl MarketDataClient {
     pub async fn option_history_eod(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -14203,9 +14203,9 @@ impl MarketDataClient {
     pub async fn option_history_eod_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -14276,9 +14276,9 @@ impl MarketDataClient {
     pub async fn option_history_eod_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -14338,7 +14338,7 @@ impl MarketDataClient {
     pub async fn option_history_ohlc(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -14400,7 +14400,7 @@ impl MarketDataClient {
     pub async fn option_history_ohlc_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OhlcTick>, (), Vec<OhlcTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -14489,7 +14489,7 @@ impl MarketDataClient {
     pub async fn option_history_ohlc_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -14567,7 +14567,7 @@ impl MarketDataClient {
     pub async fn option_history_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -14629,7 +14629,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -14718,7 +14718,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -14796,7 +14796,7 @@ impl MarketDataClient {
     pub async fn option_history_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -14862,7 +14862,7 @@ impl MarketDataClient {
     pub async fn option_history_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -14955,7 +14955,7 @@ impl MarketDataClient {
     pub async fn option_history_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -15038,7 +15038,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
     ) -> napi::Result<Vec<TradeQuoteTick>> {
         let options = options.unwrap_or_default();
@@ -15104,7 +15104,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeQuoteTick>, (), Vec<TradeQuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -15197,7 +15197,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeQuoteOptions>,
     ) -> napi::Result<TradeQuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -15276,7 +15276,7 @@ impl MarketDataClient {
     pub async fn option_history_open_interest(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
     ) -> napi::Result<Vec<OpenInterestTick>> {
         let options = options.unwrap_or_default();
@@ -15330,7 +15330,7 @@ impl MarketDataClient {
     pub async fn option_history_open_interest_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OpenInterestTick>, (), Vec<OpenInterestTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -15411,7 +15411,7 @@ impl MarketDataClient {
     pub async fn option_history_open_interest_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryOpenInterestOptions>,
     ) -> napi::Result<OpenInterestTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -15481,9 +15481,9 @@ impl MarketDataClient {
     pub async fn option_history_greeks_eod(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
     ) -> napi::Result<Vec<GreeksEodTick>> {
         let options = options.unwrap_or_default();
@@ -15547,9 +15547,9 @@ impl MarketDataClient {
     pub async fn option_history_greeks_eod_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksEodTick>, (), Vec<GreeksEodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -15640,9 +15640,9 @@ impl MarketDataClient {
     pub async fn option_history_greeks_eod_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
         options: Option<OptionHistoryGreeksEODOptions>,
     ) -> napi::Result<GreeksEodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -15725,7 +15725,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
     ) -> napi::Result<Vec<GreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -15803,7 +15803,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_all_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksAllTick>, (), Vec<GreeksAllTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -15908,7 +15908,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksAllOptions>,
     ) -> napi::Result<GreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -16004,7 +16004,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_all(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
     ) -> napi::Result<Vec<TradeGreeksAllTick>> {
         let options = options.unwrap_or_default();
@@ -16082,7 +16082,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_all_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksAllTick>, (), Vec<TradeGreeksAllTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -16187,7 +16187,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_all_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksAllOptions>,
     ) -> napi::Result<TradeGreeksAllTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -16284,7 +16284,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<GreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -16362,7 +16362,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_first_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksFirstOrderTick>, (), Vec<GreeksFirstOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -16467,7 +16467,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksFirstOrderOptions>,
     ) -> napi::Result<GreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -16563,7 +16563,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_first_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksFirstOrderTick>> {
         let options = options.unwrap_or_default();
@@ -16641,7 +16641,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_first_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksFirstOrderTick>, (), Vec<TradeGreeksFirstOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -16746,7 +16746,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_first_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksFirstOrderOptions>,
     ) -> napi::Result<TradeGreeksFirstOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -16843,7 +16843,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<GreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -16921,7 +16921,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_second_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksSecondOrderTick>, (), Vec<GreeksSecondOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -17026,7 +17026,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksSecondOrderOptions>,
     ) -> napi::Result<GreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -17122,7 +17122,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_second_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksSecondOrderTick>> {
         let options = options.unwrap_or_default();
@@ -17200,7 +17200,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_second_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksSecondOrderTick>, (), Vec<TradeGreeksSecondOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -17305,7 +17305,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_second_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksSecondOrderOptions>,
     ) -> napi::Result<TradeGreeksSecondOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -17402,7 +17402,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<GreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -17480,7 +17480,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_third_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<GreeksThirdOrderTick>, (), Vec<GreeksThirdOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -17585,7 +17585,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksThirdOrderOptions>,
     ) -> napi::Result<GreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -17681,7 +17681,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_third_order(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
     ) -> napi::Result<Vec<TradeGreeksThirdOrderTick>> {
         let options = options.unwrap_or_default();
@@ -17759,7 +17759,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_third_order_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksThirdOrderTick>, (), Vec<TradeGreeksThirdOrderTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -17864,7 +17864,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_third_order_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksThirdOrderOptions>,
     ) -> napi::Result<TradeGreeksThirdOrderTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -17960,7 +17960,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<IvTick>> {
         let options = options.unwrap_or_default();
@@ -18038,7 +18038,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_implied_volatility_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<IvTick>, (), Vec<IvTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -18143,7 +18143,7 @@ impl MarketDataClient {
     pub async fn option_history_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<IvTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -18238,7 +18238,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_implied_volatility(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<Vec<TradeGreeksImpliedVolatilityTick>> {
         let options = options.unwrap_or_default();
@@ -18316,7 +18316,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_implied_volatility_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeGreeksImpliedVolatilityTick>, (), Vec<TradeGreeksImpliedVolatilityTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -18421,7 +18421,7 @@ impl MarketDataClient {
     pub async fn option_history_trade_greeks_implied_volatility_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
         options: Option<OptionHistoryTradeGreeksImpliedVolatilityOptions>,
     ) -> napi::Result<TradeGreeksImpliedVolatilityTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -18513,10 +18513,10 @@ impl MarketDataClient {
     pub async fn option_at_time_trade(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
     ) -> napi::Result<Vec<TradeTick>> {
         let options = options.unwrap_or_default();
@@ -18561,10 +18561,10 @@ impl MarketDataClient {
     pub async fn option_at_time_trade_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<TradeTick>, (), Vec<TradeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -18636,10 +18636,10 @@ impl MarketDataClient {
     pub async fn option_at_time_trade_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeTradeOptions>,
     ) -> napi::Result<TradeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -18696,10 +18696,10 @@ impl MarketDataClient {
     pub async fn option_at_time_quote(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
     ) -> napi::Result<Vec<QuoteTick>> {
         let options = options.unwrap_or_default();
@@ -18744,10 +18744,10 @@ impl MarketDataClient {
     pub async fn option_at_time_quote_stream(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<QuoteTick>, (), Vec<QuoteTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -18819,10 +18819,10 @@ impl MarketDataClient {
     pub async fn option_at_time_quote_with_columns(
         &self,
         symbol: String,
-        expiration: Either<String, chrono::DateTime<chrono::Utc>>,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        expiration: String,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<OptionAtTimeQuoteOptions>,
     ) -> napi::Result<QuoteTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -19133,8 +19133,8 @@ impl MarketDataClient {
     pub async fn index_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
     ) -> napi::Result<Vec<EodTick>> {
         let options = options.unwrap_or_default();
@@ -19161,8 +19161,8 @@ impl MarketDataClient {
     pub async fn index_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<EodTick>, (), Vec<EodTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -19216,8 +19216,8 @@ impl MarketDataClient {
     pub async fn index_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryEODOptions>,
     ) -> napi::Result<EodTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -19258,8 +19258,8 @@ impl MarketDataClient {
     pub async fn index_history_ohlc(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
     ) -> napi::Result<Vec<OhlcTick>> {
         let options = options.unwrap_or_default();
@@ -19298,8 +19298,8 @@ impl MarketDataClient {
     pub async fn index_history_ohlc_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<OhlcTick>, (), Vec<OhlcTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -19365,8 +19365,8 @@ impl MarketDataClient {
     pub async fn index_history_ohlc_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<IndexHistoryOHLCOptions>,
     ) -> napi::Result<OhlcTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -19599,9 +19599,9 @@ impl MarketDataClient {
     pub async fn index_at_time_price(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
     ) -> napi::Result<Vec<IndexPriceAtTimeTick>> {
         let options = options.unwrap_or_default();
@@ -19629,9 +19629,9 @@ impl MarketDataClient {
     pub async fn index_at_time_price_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<IndexPriceAtTimeTick>, (), Vec<IndexPriceAtTimeTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -19686,9 +19686,9 @@ impl MarketDataClient {
     pub async fn index_at_time_price_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        time_of_day: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
+        time_of_day: String,
         options: Option<IndexAtTimePriceOptions>,
     ) -> napi::Result<IndexPriceAtTimeTickWithColumns> {
         let options = options.unwrap_or_default();
@@ -19780,7 +19780,7 @@ impl MarketDataClient {
     #[napi(js_name = "calendarOnDate")]
     pub async fn calendar_on_date(
         &self,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<CalendarOnDateOptions>,
     ) -> napi::Result<Vec<CalendarDay>> {
         let options = options.unwrap_or_default();
@@ -19805,7 +19805,7 @@ impl MarketDataClient {
     #[napi(js_name = "calendarOnDateWithColumns")]
     pub async fn calendar_on_date_with_columns(
         &self,
-        date: Either<String, chrono::DateTime<chrono::Utc>>,
+        date: String,
         options: Option<CalendarOnDateOptions>,
     ) -> napi::Result<CalendarDayWithColumns> {
         let options = options.unwrap_or_default();
@@ -19900,8 +19900,8 @@ impl MarketDataClient {
     pub async fn interest_rate_history_eod(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
     ) -> napi::Result<Vec<InterestRateTick>> {
         let options = options.unwrap_or_default();
@@ -19928,8 +19928,8 @@ impl MarketDataClient {
     pub async fn interest_rate_history_eod_stream(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
         callback: napi::threadsafe_function::ThreadsafeFunction<Vec<InterestRateTick>, (), Vec<InterestRateTick>, napi::Status, false>,
     ) -> napi::Result<()> {
@@ -19983,8 +19983,8 @@ impl MarketDataClient {
     pub async fn interest_rate_history_eod_with_columns(
         &self,
         symbol: String,
-        start_date: Either<String, chrono::DateTime<chrono::Utc>>,
-        end_date: Either<String, chrono::DateTime<chrono::Utc>>,
+        start_date: String,
+        end_date: String,
         options: Option<InterestRateHistoryEODOptions>,
     ) -> napi::Result<InterestRateTickWithColumns> {
         let options = options.unwrap_or_default();

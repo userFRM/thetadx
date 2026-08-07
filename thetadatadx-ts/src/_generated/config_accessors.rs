@@ -242,8 +242,8 @@ impl Config {
 
     /// Set the TCP keepalive idle time (seconds) before the first kernel probe on a silent streaming socket. Default `5n`; validated to `[1, 7_200]` at connect.
     #[napi(js_name = "setStreamingKeepaliveIdleSecs")]
-    pub fn set_streaming_keepalive_idle_secs(&self, ms: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
-        let value = bigint_to_u64("setStreamingKeepaliveIdleSecs", &ms)?;
+    pub fn set_streaming_keepalive_idle_secs(&self, secs: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
+        let value = bigint_to_u64("setStreamingKeepaliveIdleSecs", &secs)?;
         let mut guard = self
             .inner
             .lock()
@@ -264,8 +264,8 @@ impl Config {
 
     /// Set the interval (seconds) between TCP keepalive probes. Default `2n`; validated to `[1, 75]` at connect.
     #[napi(js_name = "setStreamingKeepaliveIntervalSecs")]
-    pub fn set_streaming_keepalive_interval_secs(&self, ms: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
-        let value = bigint_to_u64("setStreamingKeepaliveIntervalSecs", &ms)?;
+    pub fn set_streaming_keepalive_interval_secs(&self, secs: napi::bindgen_prelude::BigInt) -> napi::Result<()> {
+        let value = bigint_to_u64("setStreamingKeepaliveIntervalSecs", &secs)?;
         let mut guard = self
             .inner
             .lock()
@@ -642,10 +642,11 @@ impl Config {
     /// same test-only rationale. Rejects values outside the `0..=65535`
     /// port range.
     #[napi(js_name = "setMarketDataPort")]
-    pub fn set_market_data_port(&self, port: u32) -> napi::Result<()> {
-        let value = u16::try_from(port).map_err(|_| {
+    pub fn set_market_data_port(&self, port: f64) -> napi::Result<()> {
+        let value = crate::validate_u32_arg("marketDataPort", port)?;
+        let value = u16::try_from(value).map_err(|_| {
             crate::invalid_parameter_err(format!(
-                "setMarketDataPort: port must be in the u16 range 0..=65535; got {port}"
+                "setMarketDataPort: port must be in the u16 range 0..=65535; got {value}"
             ))
         })?;
         let mut guard = self
@@ -833,12 +834,16 @@ impl Config {
     /// applied value is clamped into `[1, pool_size]` when a plan is built
     /// (the pool size is resolved from `maxConcurrentRequests`).
     #[napi(js_name = "setShardConcurrency")]
-    pub fn set_shard_concurrency(&self, n: Option<u32>) -> napi::Result<()> {
+    pub fn set_shard_concurrency(&self, n: Option<f64>) -> napi::Result<()> {
+        let resolved = match n {
+            Some(v) => Some(crate::validate_u32_arg("setShardConcurrency", v)?),
+            None => None,
+        };
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| napi::Error::from_reason("Config mutex poisoned"))?;
-        guard.market_data.shard_concurrency = n;
+        guard.market_data.shard_concurrency = resolved;
         Ok(())
     }
 
@@ -862,12 +867,16 @@ impl Config {
     /// server-enforced allowance are retried with backoff. Validation floors
     /// an explicit `0` to `1`.
     #[napi(js_name = "setMaxConcurrentRequests")]
-    pub fn set_max_concurrent_requests(&self, n: Option<u32>) -> napi::Result<()> {
+    pub fn set_max_concurrent_requests(&self, n: Option<f64>) -> napi::Result<()> {
+        let resolved = match n {
+            Some(v) => Some(crate::validate_u32_arg("setMaxConcurrentRequests", v)?),
+            None => None,
+        };
         let mut guard = self
             .inner
             .lock()
             .map_err(|_| napi::Error::from_reason("Config mutex poisoned"))?;
-        guard.market_data.max_concurrent_requests = n;
+        guard.market_data.max_concurrent_requests = resolved;
         Ok(())
     }
 
@@ -1164,13 +1173,16 @@ impl Config {
     ///
     /// Rejects values outside the `0..=65535` port range.
     #[napi(js_name = "setMetricsPort")]
-    pub fn set_metrics_port(&self, port: Option<u32>) -> napi::Result<()> {
+    pub fn set_metrics_port(&self, port: Option<f64>) -> napi::Result<()> {
         let resolved = match port {
-            Some(v) => Some(u16::try_from(v).map_err(|_| {
-                crate::invalid_parameter_err(format!(
-                    "setMetricsPort: port must be in 0..=65535; got {v}"
-                ))
-            })?),
+            Some(v) => {
+                let v = crate::validate_u32_arg("setMetricsPort", v)?;
+                Some(u16::try_from(v).map_err(|_| {
+                    crate::invalid_parameter_err(format!(
+                        "setMetricsPort: port must be in 0..=65535; got {v}"
+                    ))
+                })?)
+            }
             None => None,
         };
         let mut guard = self

@@ -174,9 +174,11 @@ export declare class Config {
   /**
    * Install a custom reconnect policy driven by a JS callback.
    *
-   * `callback(reason: number, attempt: number)` is invoked (on the
-   * Node main thread, queued from the streaming I/O thread) after
-   * each retriable involuntary disconnect. Return the reconnect
+   * The callback is invoked with a single `{ reason, attempt }` object (a
+   * [`ReconnectDecisionArgs`]) on the Node main thread, queued from the
+   * streaming I/O thread, after each retriable involuntary disconnect.
+   * Read `args.reason` / `args.attempt` — the arguments are NOT positional.
+   * Return the reconnect
    * delay in milliseconds, or `null` to stop reconnecting (the
    * stream then emits the terminal `ReconnectsExhausted` event).
    * Permanent disconnect reasons (bad credentials, account
@@ -311,11 +313,11 @@ export declare class Config {
   /** Current `streaming.io_read_slice_ms` value (default `25n`). */
   get streamingIoReadSliceMs(): bigint
   /** Set the TCP keepalive idle time (seconds) before the first kernel probe on a silent streaming socket. Default `5n`; validated to `[1, 7_200]` at connect. */
-  setStreamingKeepaliveIdleSecs(ms: bigint): void
+  setStreamingKeepaliveIdleSecs(secs: bigint): void
   /** Current `streaming.keepalive_idle_secs` value (default `5n`). */
   get streamingKeepaliveIdleSecs(): bigint
   /** Set the interval (seconds) between TCP keepalive probes. Default `2n`; validated to `[1, 75]` at connect. */
-  setStreamingKeepaliveIntervalSecs(ms: bigint): void
+  setStreamingKeepaliveIntervalSecs(secs: bigint): void
   /** Current `streaming.keepalive_interval_secs` value (default `2n`). */
   get streamingKeepaliveIntervalSecs(): bigint
   /**
@@ -985,11 +987,11 @@ export declare class MarketDataClient {
    *
    * Since the equity SIPs only generate a partial EOD report, Theta Data generates a national EOD report at 17:15 ET each day. ``created`` represents the datetime the report was generated and ``last_trade`` represents the datetime of the last trade. The quote in the response represents the last NBBO reported by CTA or UTP at the time of report generation. You can read more about EOD & OHLC data here. Theta Data plans to avail SIP EOD reports in the near future.
    */
-  stockHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: StockHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  stockHistoryEOD(symbol: string, startDate: string, endDate: string, options?: StockHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `stock_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `stockHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: StockHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  stockHistoryEODStream(symbol: string, startDate: string, endDate: string, options: StockHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `stockHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: StockHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  stockHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: StockHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for a stock on a single date.
    *
@@ -1074,11 +1076,11 @@ export declare class MarketDataClient {
    * Defaults (upstream):
    * - `venue`: `"nqb"`
    */
-  stockAtTimeTrade(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  stockAtTimeTrade(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `stock_at_time_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `stockAtTimeTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockAtTimeTradeStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: StockAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  stockAtTimeTradeStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: StockAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `stockAtTimeTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockAtTimeTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockAtTimeTradeWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  stockAtTimeTradeWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch the quote at a specific time of day across a date range.
    *
@@ -1093,11 +1095,11 @@ export declare class MarketDataClient {
    * Defaults (upstream):
    * - `venue`: `"nqb"`
    */
-  stockAtTimeQuote(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  stockAtTimeQuote(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `stock_at_time_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `stockAtTimeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockAtTimeQuoteStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: StockAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  stockAtTimeQuoteStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: StockAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `stockAtTimeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockAtTimeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockAtTimeQuoteWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  stockAtTimeQuoteWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * List all available option underlying symbols.
    *
@@ -1114,7 +1116,7 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionListDates(requestType: string, symbol: string, expiration: string | Date, options?: OptionListDatesOptions | undefined | null): Promise<Array<string>>
+  optionListDates(requestType: string, symbol: string, expiration: string, options?: OptionListDatesOptions | undefined | null): Promise<Array<string>>
   /**
    * List available expiration dates for an option underlying.
    *
@@ -1128,7 +1130,7 @@ export declare class MarketDataClient {
    * Lists all strikes that are available for an option with a given symbol and expiration date.
    * This endpoint is updated overnight.
    */
-  optionListStrikes(symbol: string, expiration: string | Date, options?: OptionListStrikesOptions | undefined | null): Promise<Array<string>>
+  optionListStrikes(symbol: string, expiration: string, options?: OptionListStrikesOptions | undefined | null): Promise<Array<string>>
   /**
    * List all option contracts traded or quoted on a given date, optionally filtered to a symbol.
    *
@@ -1138,11 +1140,11 @@ export declare class MarketDataClient {
    * When ``symbol`` is omitted the full universe of contracts for that date is returned.
    * This endpoint is updated real-time.
    */
-  optionListContracts(requestType: string, date: string | Date, options?: OptionListContractsOptions | undefined | null): Promise<Array<OptionContract>>
+  optionListContracts(requestType: string, date: string, options?: OptionListContractsOptions | undefined | null): Promise<Array<OptionContract>>
   /** Stream `option_list_contracts` rows into `callback` without materialising the full response in memory. `callback(chunk: OptionContract[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionListContracts` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionListContractsStream(requestType: string, date: string | Date, options: OptionListContractsOptions | undefined | null, callback: ((arg: Array<OptionContract>) => void)): Promise<void>
+  optionListContractsStream(requestType: string, date: string, options: OptionListContractsOptions | undefined | null, callback: ((arg: Array<OptionContract>) => void)): Promise<void>
   /** Run the `optionListContracts` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionListContracts` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `optionContractToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionListContractsWithColumns(requestType: string, date: string | Date, options?: OptionListContractsOptions | undefined | null): Promise<OptionContractWithColumns>
+  optionListContractsWithColumns(requestType: string, date: string, options?: OptionListContractsOptions | undefined | null): Promise<OptionContractWithColumns>
   /**
    * Get the latest OHLC snapshot for an option contract.
    *
@@ -1152,9 +1154,9 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotOHLC(symbol: string, expiration: string | Date, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  optionSnapshotOHLC(symbol: string, expiration: string, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Run the `optionSnapshotOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotOHLCWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  optionSnapshotOHLCWithColumns(symbol: string, expiration: string, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Get the latest trade snapshot for an option contract.
    *
@@ -1165,9 +1167,9 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotTrade(symbol: string, expiration: string | Date, options?: OptionSnapshotTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionSnapshotTrade(symbol: string, expiration: string, options?: OptionSnapshotTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Run the `optionSnapshotTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotTradeWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionSnapshotTradeWithColumns(symbol: string, expiration: string, options?: OptionSnapshotTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Get the latest NBBO quote snapshot for an option contract.
    *
@@ -1178,9 +1180,9 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotQuote(symbol: string, expiration: string | Date, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionSnapshotQuote(symbol: string, expiration: string, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Run the `optionSnapshotQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionSnapshotQuoteWithColumns(symbol: string, expiration: string, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * Get the latest open interest snapshot for an option contract.
    *
@@ -1192,9 +1194,9 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotOpenInterest(symbol: string, expiration: string | Date, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
+  optionSnapshotOpenInterest(symbol: string, expiration: string, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
   /** Run the `optionSnapshotOpenInterest` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotOpenInterest` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `openInterestTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotOpenInterestWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
+  optionSnapshotOpenInterestWithColumns(symbol: string, expiration: string, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
   /**
    * Get the latest market value snapshot for an option contract.
    *
@@ -1204,9 +1206,9 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotMarketValue(symbol: string, expiration: string | Date, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<Array<MarketValueTick>>
+  optionSnapshotMarketValue(symbol: string, expiration: string, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<Array<MarketValueTick>>
   /** Run the `optionSnapshotMarketValue` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotMarketValue` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `marketValueTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotMarketValueWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<MarketValueTickWithColumns>
+  optionSnapshotMarketValueWithColumns(symbol: string, expiration: string, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<MarketValueTickWithColumns>
   /**
    * Get implied volatility snapshot for an option contract (from ThetaData server).
    *
@@ -1221,9 +1223,9 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
+  optionSnapshotGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
   /** Run the `optionSnapshotGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ivTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
+  optionSnapshotGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
   /**
    * Get all Greeks snapshot for an option contract (from ThetaData server).
    *
@@ -1237,9 +1239,9 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksAll(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
+  optionSnapshotGreeksAll(symbol: string, expiration: string, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
   /** Run the `optionSnapshotGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
+  optionSnapshotGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
   /**
    * Get first-order Greeks snapshot (delta, theta, rho) for an option contract.
    *
@@ -1253,9 +1255,9 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
+  optionSnapshotGreeksFirstOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
   /** Run the `optionSnapshotGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
+  optionSnapshotGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
   /**
    * Get second-order Greeks snapshot (gamma, vanna, charm) for an option contract.
    *
@@ -1269,9 +1271,9 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
+  optionSnapshotGreeksSecondOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
   /** Run the `optionSnapshotGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
+  optionSnapshotGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
   /**
    * Get third-order Greeks snapshot (speed, color, ultima) for an option contract.
    *
@@ -1285,9 +1287,9 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
+  optionSnapshotGreeksThirdOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
   /** Run the `optionSnapshotGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
+  optionSnapshotGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
   /**
    * Fetch end-of-day option data for a contract over a date range.
    *
@@ -1300,11 +1302,11 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionHistoryEOD(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  optionHistoryEOD(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `option_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryEODStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options: OptionHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  optionHistoryEODStream(symbol: string, expiration: string, startDate: string, endDate: string, options: OptionHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `optionHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryEODWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  optionHistoryEODWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for an option contract.
    *
@@ -1319,11 +1321,11 @@ export declare class MarketDataClient {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryOHLC(symbol: string, expiration: string | Date, options?: OptionHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  optionHistoryOHLC(symbol: string, expiration: string, options?: OptionHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Stream `option_history_ohlc` rows into `callback` without materialising the full response in memory. `callback(chunk: OhlcTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryOHLC` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryOHLCStream(symbol: string, expiration: string | Date, options: OptionHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
+  optionHistoryOHLCStream(symbol: string, expiration: string, options: OptionHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
   /** Run the `optionHistoryOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryOHLCWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  optionHistoryOHLCWithColumns(symbol: string, expiration: string, options?: OptionHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Fetch all trades for an option contract on a given date.
    *
@@ -1338,11 +1340,11 @@ export declare class MarketDataClient {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryTrade(symbol: string, expiration: string | Date, options?: OptionHistoryTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionHistoryTrade(symbol: string, expiration: string, options?: OptionHistoryTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `option_history_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  optionHistoryTradeStream(symbol: string, expiration: string, options: OptionHistoryTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `optionHistoryTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionHistoryTradeWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch NBBO quotes for an option contract on a given date.
    *
@@ -1357,11 +1359,11 @@ export declare class MarketDataClient {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryQuote(symbol: string, expiration: string | Date, options?: OptionHistoryQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionHistoryQuote(symbol: string, expiration: string, options?: OptionHistoryQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `option_history_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryQuoteStream(symbol: string, expiration: string | Date, options: OptionHistoryQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  optionHistoryQuoteStream(symbol: string, expiration: string, options: OptionHistoryQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `optionHistoryQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionHistoryQuoteWithColumns(symbol: string, expiration: string, options?: OptionHistoryQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * Fetch combined trade + quote ticks for an option contract.
    *
@@ -1377,11 +1379,11 @@ export declare class MarketDataClient {
    * - `end_time`: `"16:00:00"`
    * - `exclusive`: `false`
    */
-  optionHistoryTradeQuote(symbol: string, expiration: string | Date, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<Array<TradeQuoteTick>>
+  optionHistoryTradeQuote(symbol: string, expiration: string, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<Array<TradeQuoteTick>>
   /** Stream `option_history_trade_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeQuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeQuoteStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeQuoteOptions | undefined | null, callback: ((arg: Array<TradeQuoteTick>) => void)): Promise<void>
+  optionHistoryTradeQuoteStream(symbol: string, expiration: string, options: OptionHistoryTradeQuoteOptions | undefined | null, callback: ((arg: Array<TradeQuoteTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeQuoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<TradeQuoteTickWithColumns>
+  optionHistoryTradeQuoteWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<TradeQuoteTickWithColumns>
   /**
    * Fetch open interest history for an option contract.
    *
@@ -1393,11 +1395,11 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionHistoryOpenInterest(symbol: string, expiration: string | Date, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
+  optionHistoryOpenInterest(symbol: string, expiration: string, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
   /** Stream `option_history_open_interest` rows into `callback` without materialising the full response in memory. `callback(chunk: OpenInterestTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryOpenInterest` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryOpenInterestStream(symbol: string, expiration: string | Date, options: OptionHistoryOpenInterestOptions | undefined | null, callback: ((arg: Array<OpenInterestTick>) => void)): Promise<void>
+  optionHistoryOpenInterestStream(symbol: string, expiration: string, options: OptionHistoryOpenInterestOptions | undefined | null, callback: ((arg: Array<OpenInterestTick>) => void)): Promise<void>
   /** Run the `optionHistoryOpenInterest` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryOpenInterest` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `openInterestTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryOpenInterestWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
+  optionHistoryOpenInterestWithColumns(symbol: string, expiration: string, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
   /**
    * Fetch end-of-day Greeks history for an option contract.
    *
@@ -1412,11 +1414,11 @@ export declare class MarketDataClient {
    * - `version`: `"latest"`
    * - `underlyer_use_nbbo`: `false`
    */
-  optionHistoryGreeksEOD(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<Array<GreeksEodTick>>
+  optionHistoryGreeksEOD(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<Array<GreeksEodTick>>
   /** Stream `option_history_greeks_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksEodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryGreeksEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksEODStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options: OptionHistoryGreeksEodOptions | undefined | null, callback: ((arg: Array<GreeksEodTick>) => void)): Promise<void>
+  optionHistoryGreeksEODStream(symbol: string, expiration: string, startDate: string, endDate: string, options: OptionHistoryGreeksEodOptions | undefined | null, callback: ((arg: Array<GreeksEodTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksEodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksEODWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<GreeksEodTickWithColumns>
+  optionHistoryGreeksEODWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<GreeksEodTickWithColumns>
   /**
    * Fetch all Greeks history for an option contract (intraday, sampled by interval).
    *
@@ -1434,11 +1436,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksAll(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
+  optionHistoryGreeksAll(symbol: string, expiration: string, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
   /** Stream `option_history_greeks_all` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksAllTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksAll` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksAllStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksAllOptions | undefined | null, callback: ((arg: Array<GreeksAllTick>) => void)): Promise<void>
+  optionHistoryGreeksAllStream(symbol: string, expiration: string, options: OptionHistoryGreeksAllOptions | undefined | null, callback: ((arg: Array<GreeksAllTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
+  optionHistoryGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
   /**
    * Fetch all Greeks on each trade for an option contract.
    *
@@ -1455,11 +1457,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksAll(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<Array<TradeGreeksAllTick>>
+  optionHistoryTradeGreeksAll(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<Array<TradeGreeksAllTick>>
   /** Stream `option_history_trade_greeks_all` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksAllTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksAll` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksAllStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksAllOptions | undefined | null, callback: ((arg: Array<TradeGreeksAllTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksAllStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksAllOptions | undefined | null, callback: ((arg: Array<TradeGreeksAllTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<TradeGreeksAllTickWithColumns>
+  optionHistoryTradeGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<TradeGreeksAllTickWithColumns>
   /**
    * Fetch first-order Greeks history (intraday, sampled by interval).
    *
@@ -1477,11 +1479,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
+  optionHistoryGreeksFirstOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
   /** Stream `option_history_greeks_first_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksFirstOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksFirstOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksFirstOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<GreeksFirstOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksFirstOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<GreeksFirstOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
+  optionHistoryGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
   /**
    * Fetch first-order Greeks on each trade for an option contract.
    *
@@ -1498,11 +1500,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<Array<TradeGreeksFirstOrderTick>>
+  optionHistoryTradeGreeksFirstOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<Array<TradeGreeksFirstOrderTick>>
   /** Stream `option_history_trade_greeks_first_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksFirstOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksFirstOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksFirstOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksFirstOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksFirstOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksFirstOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<TradeGreeksFirstOrderTickWithColumns>
+  optionHistoryTradeGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<TradeGreeksFirstOrderTickWithColumns>
   /**
    * Fetch second-order Greeks history (intraday, sampled by interval).
    *
@@ -1520,11 +1522,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
+  optionHistoryGreeksSecondOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
   /** Stream `option_history_greeks_second_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksSecondOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksSecondOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksSecondOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<GreeksSecondOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksSecondOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<GreeksSecondOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
+  optionHistoryGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
   /**
    * Fetch second-order Greeks on each trade for an option contract.
    *
@@ -1541,11 +1543,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<Array<TradeGreeksSecondOrderTick>>
+  optionHistoryTradeGreeksSecondOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<Array<TradeGreeksSecondOrderTick>>
   /** Stream `option_history_trade_greeks_second_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksSecondOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksSecondOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksSecondOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksSecondOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksSecondOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksSecondOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<TradeGreeksSecondOrderTickWithColumns>
+  optionHistoryTradeGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<TradeGreeksSecondOrderTickWithColumns>
   /**
    * Fetch third-order Greeks history (intraday, sampled by interval).
    *
@@ -1563,11 +1565,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
+  optionHistoryGreeksThirdOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
   /** Stream `option_history_greeks_third_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksThirdOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksThirdOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksThirdOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<GreeksThirdOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksThirdOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<GreeksThirdOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
+  optionHistoryGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
   /**
    * Fetch third-order Greeks on each trade for an option contract.
    *
@@ -1584,11 +1586,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<Array<TradeGreeksThirdOrderTick>>
+  optionHistoryTradeGreeksThirdOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<Array<TradeGreeksThirdOrderTick>>
   /** Stream `option_history_trade_greeks_third_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksThirdOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksThirdOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksThirdOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksThirdOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksThirdOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksThirdOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<TradeGreeksThirdOrderTickWithColumns>
+  optionHistoryTradeGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<TradeGreeksThirdOrderTickWithColumns>
   /**
    * Fetch implied volatility history (intraday, sampled by interval).
    *
@@ -1605,11 +1607,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
+  optionHistoryGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
   /** Stream `option_history_greeks_implied_volatility` rows into `callback` without materialising the full response in memory. `callback(chunk: IvTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksImpliedVolatility` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksImpliedVolatilityStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<IvTick>) => void)): Promise<void>
+  optionHistoryGreeksImpliedVolatilityStream(symbol: string, expiration: string, options: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<IvTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ivTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
+  optionHistoryGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
   /**
    * Fetch implied volatility on each trade for an option contract.
    *
@@ -1625,11 +1627,11 @@ export declare class MarketDataClient {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<TradeGreeksImpliedVolatilityTick>>
+  optionHistoryTradeGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<TradeGreeksImpliedVolatilityTick>>
   /** Stream `option_history_trade_greeks_implied_volatility` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksImpliedVolatilityTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksImpliedVolatility` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksImpliedVolatilityStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<TradeGreeksImpliedVolatilityTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksImpliedVolatilityStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<TradeGreeksImpliedVolatilityTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksImpliedVolatilityTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<TradeGreeksImpliedVolatilityTickWithColumns>
+  optionHistoryTradeGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<TradeGreeksImpliedVolatilityTickWithColumns>
   /**
    * Fetch the trade at a specific time of day across a date range for an option.
    *
@@ -1642,11 +1644,11 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionAtTimeTrade(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionAtTimeTrade(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `option_at_time_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionAtTimeTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionAtTimeTradeStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: OptionAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  optionAtTimeTradeStream(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options: OptionAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `optionAtTimeTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionAtTimeTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionAtTimeTradeWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionAtTimeTradeWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch the quote at a specific time of day across a date range for an option.
    *
@@ -1657,11 +1659,11 @@ export declare class MarketDataClient {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionAtTimeQuote(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionAtTimeQuote(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `option_at_time_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionAtTimeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionAtTimeQuoteStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: OptionAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  optionAtTimeQuoteStream(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options: OptionAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `optionAtTimeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionAtTimeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionAtTimeQuoteWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionAtTimeQuoteWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * List all available index symbols.
    *
@@ -1706,11 +1708,11 @@ export declare class MarketDataClient {
    *
    * - Since the indices feeds do not provide a national EOD report, Theta Data generates a national EOD report at 17:15 each day.
    */
-  indexHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  indexHistoryEOD(symbol: string, startDate: string, endDate: string, options?: IndexHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `index_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `indexHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: IndexHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  indexHistoryEODStream(symbol: string, startDate: string, endDate: string, options: IndexHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `indexHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  indexHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: IndexHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for an index.
    *
@@ -1723,11 +1725,11 @@ export declare class MarketDataClient {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  indexHistoryOHLC(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  indexHistoryOHLC(symbol: string, startDate: string, endDate: string, options?: IndexHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Stream `index_history_ohlc` rows into `callback` without materialising the full response in memory. `callback(chunk: OhlcTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `indexHistoryOHLC` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexHistoryOHLCStream(symbol: string, startDate: string | Date, endDate: string | Date, options: IndexHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
+  indexHistoryOHLCStream(symbol: string, startDate: string, endDate: string, options: IndexHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
   /** Run the `indexHistoryOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexHistoryOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexHistoryOHLCWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  indexHistoryOHLCWithColumns(symbol: string, startDate: string, endDate: string, options?: IndexHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Fetch intraday price history for an index.
    *
@@ -1752,11 +1754,11 @@ export declare class MarketDataClient {
    * - Retrieves historical indices price reports. Exchanges typically generate a price report every second for popular indices like SPX.
    * - The ``time_of_day`` parameter represents the 00:00:00.000 ET that the price should be provided for.
    */
-  indexAtTimePrice(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: IndexAtTimePriceOptions | undefined | null): Promise<Array<IndexPriceAtTimeTick>>
+  indexAtTimePrice(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: IndexAtTimePriceOptions | undefined | null): Promise<Array<IndexPriceAtTimeTick>>
   /** Stream `index_at_time_price` rows into `callback` without materialising the full response in memory. `callback(chunk: IndexPriceAtTimeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `indexAtTimePrice` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexAtTimePriceStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: IndexAtTimePriceOptions | undefined | null, callback: ((arg: Array<IndexPriceAtTimeTick>) => void)): Promise<void>
+  indexAtTimePriceStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: IndexAtTimePriceOptions | undefined | null, callback: ((arg: Array<IndexPriceAtTimeTick>) => void)): Promise<void>
   /** Run the `indexAtTimePrice` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexAtTimePrice` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `indexPriceAtTimeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexAtTimePriceWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: IndexAtTimePriceOptions | undefined | null): Promise<IndexPriceAtTimeTickWithColumns>
+  indexAtTimePriceWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: IndexAtTimePriceOptions | undefined | null): Promise<IndexPriceAtTimeTickWithColumns>
   /**
    * Check whether the market is open today.
    *
@@ -1775,9 +1777,9 @@ export declare class MarketDataClient {
    * - *On days when the market closes early at 1:00 PM ET; eligible options will trade until 1:15 PM.
    * - **Some NYSE exchanges will continue late trading until 5:00 PM ET on early close days.
    */
-  calendarOnDate(date: string | Date, options?: CalendarOnDateOptions | undefined | null): Promise<Array<CalendarDay>>
+  calendarOnDate(date: string, options?: CalendarOnDateOptions | undefined | null): Promise<Array<CalendarDay>>
   /** Run the `calendarOnDate` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `calendarOnDate` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `calendarDayToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  calendarOnDateWithColumns(date: string | Date, options?: CalendarOnDateOptions | undefined | null): Promise<CalendarDayWithColumns>
+  calendarOnDateWithColumns(date: string, options?: CalendarOnDateOptions | undefined | null): Promise<CalendarDayWithColumns>
   /**
    * Get equity market holidays and early-close days for a year (vendor `year_holidays` endpoint — only non-standard days, not every trading day).
    *
@@ -1798,11 +1800,11 @@ export declare class MarketDataClient {
    *   `TREASURY_Y1`, `TREASURY_Y2`, `TREASURY_Y3`, `TREASURY_Y5`,
    *   `TREASURY_Y7`, `TREASURY_Y10`, `TREASURY_Y20`, `TREASURY_Y30`.
    */
-  interestRateHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: InterestRateHistoryEodOptions | undefined | null): Promise<Array<InterestRateTick>>
+  interestRateHistoryEOD(symbol: string, startDate: string, endDate: string, options?: InterestRateHistoryEodOptions | undefined | null): Promise<Array<InterestRateTick>>
   /** Stream `interest_rate_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: InterestRateTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `interestRateHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  interestRateHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: InterestRateHistoryEodOptions | undefined | null, callback: ((arg: Array<InterestRateTick>) => void)): Promise<void>
+  interestRateHistoryEODStream(symbol: string, startDate: string, endDate: string, options: InterestRateHistoryEodOptions | undefined | null, callback: ((arg: Array<InterestRateTick>) => void)): Promise<void>
   /** Run the `interestRateHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `interestRateHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `interestRateTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  interestRateHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: InterestRateHistoryEodOptions | undefined | null): Promise<InterestRateTickWithColumns>
+  interestRateHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: InterestRateHistoryEodOptions | undefined | null): Promise<InterestRateTickWithColumns>
   /**
    * FLATFILES namespace handle. Cheap — shares the underlying client connection.
    * The market-data-only client opens the same data channel as the unified
@@ -1898,11 +1900,11 @@ export declare class MarketDataView {
    *
    * Since the equity SIPs only generate a partial EOD report, Theta Data generates a national EOD report at 17:15 ET each day. ``created`` represents the datetime the report was generated and ``last_trade`` represents the datetime of the last trade. The quote in the response represents the last NBBO reported by CTA or UTP at the time of report generation. You can read more about EOD & OHLC data here. Theta Data plans to avail SIP EOD reports in the near future.
    */
-  stockHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: StockHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  stockHistoryEOD(symbol: string, startDate: string, endDate: string, options?: StockHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `stock_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `stockHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: StockHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  stockHistoryEODStream(symbol: string, startDate: string, endDate: string, options: StockHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `stockHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: StockHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  stockHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: StockHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for a stock on a single date.
    *
@@ -1987,11 +1989,11 @@ export declare class MarketDataView {
    * Defaults (upstream):
    * - `venue`: `"nqb"`
    */
-  stockAtTimeTrade(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  stockAtTimeTrade(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `stock_at_time_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `stockAtTimeTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockAtTimeTradeStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: StockAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  stockAtTimeTradeStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: StockAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `stockAtTimeTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockAtTimeTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockAtTimeTradeWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  stockAtTimeTradeWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch the quote at a specific time of day across a date range.
    *
@@ -2006,11 +2008,11 @@ export declare class MarketDataView {
    * Defaults (upstream):
    * - `venue`: `"nqb"`
    */
-  stockAtTimeQuote(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  stockAtTimeQuote(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `stock_at_time_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `stockAtTimeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  stockAtTimeQuoteStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: StockAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  stockAtTimeQuoteStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: StockAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `stockAtTimeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `stockAtTimeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  stockAtTimeQuoteWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: StockAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  stockAtTimeQuoteWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: StockAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * List all available option underlying symbols.
    *
@@ -2027,7 +2029,7 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionListDates(requestType: string, symbol: string, expiration: string | Date, options?: OptionListDatesOptions | undefined | null): Promise<Array<string>>
+  optionListDates(requestType: string, symbol: string, expiration: string, options?: OptionListDatesOptions | undefined | null): Promise<Array<string>>
   /**
    * List available expiration dates for an option underlying.
    *
@@ -2041,7 +2043,7 @@ export declare class MarketDataView {
    * Lists all strikes that are available for an option with a given symbol and expiration date.
    * This endpoint is updated overnight.
    */
-  optionListStrikes(symbol: string, expiration: string | Date, options?: OptionListStrikesOptions | undefined | null): Promise<Array<string>>
+  optionListStrikes(symbol: string, expiration: string, options?: OptionListStrikesOptions | undefined | null): Promise<Array<string>>
   /**
    * List all option contracts traded or quoted on a given date, optionally filtered to a symbol.
    *
@@ -2051,11 +2053,11 @@ export declare class MarketDataView {
    * When ``symbol`` is omitted the full universe of contracts for that date is returned.
    * This endpoint is updated real-time.
    */
-  optionListContracts(requestType: string, date: string | Date, options?: OptionListContractsOptions | undefined | null): Promise<Array<OptionContract>>
+  optionListContracts(requestType: string, date: string, options?: OptionListContractsOptions | undefined | null): Promise<Array<OptionContract>>
   /** Stream `option_list_contracts` rows into `callback` without materialising the full response in memory. `callback(chunk: OptionContract[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionListContracts` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionListContractsStream(requestType: string, date: string | Date, options: OptionListContractsOptions | undefined | null, callback: ((arg: Array<OptionContract>) => void)): Promise<void>
+  optionListContractsStream(requestType: string, date: string, options: OptionListContractsOptions | undefined | null, callback: ((arg: Array<OptionContract>) => void)): Promise<void>
   /** Run the `optionListContracts` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionListContracts` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `optionContractToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionListContractsWithColumns(requestType: string, date: string | Date, options?: OptionListContractsOptions | undefined | null): Promise<OptionContractWithColumns>
+  optionListContractsWithColumns(requestType: string, date: string, options?: OptionListContractsOptions | undefined | null): Promise<OptionContractWithColumns>
   /**
    * Get the latest OHLC snapshot for an option contract.
    *
@@ -2065,9 +2067,9 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotOHLC(symbol: string, expiration: string | Date, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  optionSnapshotOHLC(symbol: string, expiration: string, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Run the `optionSnapshotOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotOHLCWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  optionSnapshotOHLCWithColumns(symbol: string, expiration: string, options?: OptionSnapshotOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Get the latest trade snapshot for an option contract.
    *
@@ -2078,9 +2080,9 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotTrade(symbol: string, expiration: string | Date, options?: OptionSnapshotTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionSnapshotTrade(symbol: string, expiration: string, options?: OptionSnapshotTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Run the `optionSnapshotTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotTradeWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionSnapshotTradeWithColumns(symbol: string, expiration: string, options?: OptionSnapshotTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Get the latest NBBO quote snapshot for an option contract.
    *
@@ -2091,9 +2093,9 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotQuote(symbol: string, expiration: string | Date, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionSnapshotQuote(symbol: string, expiration: string, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Run the `optionSnapshotQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionSnapshotQuoteWithColumns(symbol: string, expiration: string, options?: OptionSnapshotQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * Get the latest open interest snapshot for an option contract.
    *
@@ -2105,9 +2107,9 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotOpenInterest(symbol: string, expiration: string | Date, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
+  optionSnapshotOpenInterest(symbol: string, expiration: string, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
   /** Run the `optionSnapshotOpenInterest` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotOpenInterest` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `openInterestTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotOpenInterestWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
+  optionSnapshotOpenInterestWithColumns(symbol: string, expiration: string, options?: OptionSnapshotOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
   /**
    * Get the latest market value snapshot for an option contract.
    *
@@ -2117,9 +2119,9 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionSnapshotMarketValue(symbol: string, expiration: string | Date, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<Array<MarketValueTick>>
+  optionSnapshotMarketValue(symbol: string, expiration: string, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<Array<MarketValueTick>>
   /** Run the `optionSnapshotMarketValue` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotMarketValue` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `marketValueTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotMarketValueWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<MarketValueTickWithColumns>
+  optionSnapshotMarketValueWithColumns(symbol: string, expiration: string, options?: OptionSnapshotMarketValueOptions | undefined | null): Promise<MarketValueTickWithColumns>
   /**
    * Get implied volatility snapshot for an option contract (from ThetaData server).
    *
@@ -2134,9 +2136,9 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
+  optionSnapshotGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
   /** Run the `optionSnapshotGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ivTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
+  optionSnapshotGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
   /**
    * Get all Greeks snapshot for an option contract (from ThetaData server).
    *
@@ -2150,9 +2152,9 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksAll(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
+  optionSnapshotGreeksAll(symbol: string, expiration: string, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
   /** Run the `optionSnapshotGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
+  optionSnapshotGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
   /**
    * Get first-order Greeks snapshot (delta, theta, rho) for an option contract.
    *
@@ -2166,9 +2168,9 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
+  optionSnapshotGreeksFirstOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
   /** Run the `optionSnapshotGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
+  optionSnapshotGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
   /**
    * Get second-order Greeks snapshot (gamma, vanna, charm) for an option contract.
    *
@@ -2182,9 +2184,9 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
+  optionSnapshotGreeksSecondOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
   /** Run the `optionSnapshotGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
+  optionSnapshotGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
   /**
    * Get third-order Greeks snapshot (speed, color, ultima) for an option contract.
    *
@@ -2198,9 +2200,9 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `use_market_value`: `false`
    */
-  optionSnapshotGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
+  optionSnapshotGreeksThirdOrder(symbol: string, expiration: string, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
   /** Run the `optionSnapshotGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionSnapshotGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionSnapshotGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
+  optionSnapshotGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionSnapshotGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
   /**
    * Fetch end-of-day option data for a contract over a date range.
    *
@@ -2213,11 +2215,11 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionHistoryEOD(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  optionHistoryEOD(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `option_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryEODStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options: OptionHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  optionHistoryEODStream(symbol: string, expiration: string, startDate: string, endDate: string, options: OptionHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `optionHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryEODWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  optionHistoryEODWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for an option contract.
    *
@@ -2232,11 +2234,11 @@ export declare class MarketDataView {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryOHLC(symbol: string, expiration: string | Date, options?: OptionHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  optionHistoryOHLC(symbol: string, expiration: string, options?: OptionHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Stream `option_history_ohlc` rows into `callback` without materialising the full response in memory. `callback(chunk: OhlcTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryOHLC` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryOHLCStream(symbol: string, expiration: string | Date, options: OptionHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
+  optionHistoryOHLCStream(symbol: string, expiration: string, options: OptionHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
   /** Run the `optionHistoryOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryOHLCWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  optionHistoryOHLCWithColumns(symbol: string, expiration: string, options?: OptionHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Fetch all trades for an option contract on a given date.
    *
@@ -2251,11 +2253,11 @@ export declare class MarketDataView {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryTrade(symbol: string, expiration: string | Date, options?: OptionHistoryTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionHistoryTrade(symbol: string, expiration: string, options?: OptionHistoryTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `option_history_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  optionHistoryTradeStream(symbol: string, expiration: string, options: OptionHistoryTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `optionHistoryTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionHistoryTradeWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch NBBO quotes for an option contract on a given date.
    *
@@ -2270,11 +2272,11 @@ export declare class MarketDataView {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  optionHistoryQuote(symbol: string, expiration: string | Date, options?: OptionHistoryQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionHistoryQuote(symbol: string, expiration: string, options?: OptionHistoryQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `option_history_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryQuoteStream(symbol: string, expiration: string | Date, options: OptionHistoryQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  optionHistoryQuoteStream(symbol: string, expiration: string, options: OptionHistoryQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `optionHistoryQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionHistoryQuoteWithColumns(symbol: string, expiration: string, options?: OptionHistoryQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * Fetch combined trade + quote ticks for an option contract.
    *
@@ -2290,11 +2292,11 @@ export declare class MarketDataView {
    * - `end_time`: `"16:00:00"`
    * - `exclusive`: `false`
    */
-  optionHistoryTradeQuote(symbol: string, expiration: string | Date, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<Array<TradeQuoteTick>>
+  optionHistoryTradeQuote(symbol: string, expiration: string, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<Array<TradeQuoteTick>>
   /** Stream `option_history_trade_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeQuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeQuoteStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeQuoteOptions | undefined | null, callback: ((arg: Array<TradeQuoteTick>) => void)): Promise<void>
+  optionHistoryTradeQuoteStream(symbol: string, expiration: string, options: OptionHistoryTradeQuoteOptions | undefined | null, callback: ((arg: Array<TradeQuoteTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeQuoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeQuoteWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<TradeQuoteTickWithColumns>
+  optionHistoryTradeQuoteWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeQuoteOptions | undefined | null): Promise<TradeQuoteTickWithColumns>
   /**
    * Fetch open interest history for an option contract.
    *
@@ -2306,11 +2308,11 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionHistoryOpenInterest(symbol: string, expiration: string | Date, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
+  optionHistoryOpenInterest(symbol: string, expiration: string, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<Array<OpenInterestTick>>
   /** Stream `option_history_open_interest` rows into `callback` without materialising the full response in memory. `callback(chunk: OpenInterestTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryOpenInterest` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryOpenInterestStream(symbol: string, expiration: string | Date, options: OptionHistoryOpenInterestOptions | undefined | null, callback: ((arg: Array<OpenInterestTick>) => void)): Promise<void>
+  optionHistoryOpenInterestStream(symbol: string, expiration: string, options: OptionHistoryOpenInterestOptions | undefined | null, callback: ((arg: Array<OpenInterestTick>) => void)): Promise<void>
   /** Run the `optionHistoryOpenInterest` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryOpenInterest` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `openInterestTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryOpenInterestWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
+  optionHistoryOpenInterestWithColumns(symbol: string, expiration: string, options?: OptionHistoryOpenInterestOptions | undefined | null): Promise<OpenInterestTickWithColumns>
   /**
    * Fetch end-of-day Greeks history for an option contract.
    *
@@ -2325,11 +2327,11 @@ export declare class MarketDataView {
    * - `version`: `"latest"`
    * - `underlyer_use_nbbo`: `false`
    */
-  optionHistoryGreeksEOD(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<Array<GreeksEodTick>>
+  optionHistoryGreeksEOD(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<Array<GreeksEodTick>>
   /** Stream `option_history_greeks_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksEodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `optionHistoryGreeksEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksEODStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options: OptionHistoryGreeksEodOptions | undefined | null, callback: ((arg: Array<GreeksEodTick>) => void)): Promise<void>
+  optionHistoryGreeksEODStream(symbol: string, expiration: string, startDate: string, endDate: string, options: OptionHistoryGreeksEodOptions | undefined | null, callback: ((arg: Array<GreeksEodTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksEodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksEODWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<GreeksEodTickWithColumns>
+  optionHistoryGreeksEODWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, options?: OptionHistoryGreeksEodOptions | undefined | null): Promise<GreeksEodTickWithColumns>
   /**
    * Fetch all Greeks history for an option contract (intraday, sampled by interval).
    *
@@ -2347,11 +2349,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksAll(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
+  optionHistoryGreeksAll(symbol: string, expiration: string, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<Array<GreeksAllTick>>
   /** Stream `option_history_greeks_all` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksAllTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksAll` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksAllStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksAllOptions | undefined | null, callback: ((arg: Array<GreeksAllTick>) => void)): Promise<void>
+  optionHistoryGreeksAllStream(symbol: string, expiration: string, options: OptionHistoryGreeksAllOptions | undefined | null, callback: ((arg: Array<GreeksAllTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
+  optionHistoryGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksAllOptions | undefined | null): Promise<GreeksAllTickWithColumns>
   /**
    * Fetch all Greeks on each trade for an option contract.
    *
@@ -2368,11 +2370,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksAll(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<Array<TradeGreeksAllTick>>
+  optionHistoryTradeGreeksAll(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<Array<TradeGreeksAllTick>>
   /** Stream `option_history_trade_greeks_all` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksAllTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksAll` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksAllStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksAllOptions | undefined | null, callback: ((arg: Array<TradeGreeksAllTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksAllStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksAllOptions | undefined | null, callback: ((arg: Array<TradeGreeksAllTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksAll` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksAll` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksAllTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksAllWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<TradeGreeksAllTickWithColumns>
+  optionHistoryTradeGreeksAllWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksAllOptions | undefined | null): Promise<TradeGreeksAllTickWithColumns>
   /**
    * Fetch first-order Greeks history (intraday, sampled by interval).
    *
@@ -2390,11 +2392,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
+  optionHistoryGreeksFirstOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<Array<GreeksFirstOrderTick>>
   /** Stream `option_history_greeks_first_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksFirstOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksFirstOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksFirstOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<GreeksFirstOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksFirstOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<GreeksFirstOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
+  optionHistoryGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksFirstOrderOptions | undefined | null): Promise<GreeksFirstOrderTickWithColumns>
   /**
    * Fetch first-order Greeks on each trade for an option contract.
    *
@@ -2411,11 +2413,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksFirstOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<Array<TradeGreeksFirstOrderTick>>
+  optionHistoryTradeGreeksFirstOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<Array<TradeGreeksFirstOrderTick>>
   /** Stream `option_history_trade_greeks_first_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksFirstOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksFirstOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksFirstOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksFirstOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksFirstOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksFirstOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksFirstOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksFirstOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksFirstOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksFirstOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<TradeGreeksFirstOrderTickWithColumns>
+  optionHistoryTradeGreeksFirstOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksFirstOrderOptions | undefined | null): Promise<TradeGreeksFirstOrderTickWithColumns>
   /**
    * Fetch second-order Greeks history (intraday, sampled by interval).
    *
@@ -2433,11 +2435,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
+  optionHistoryGreeksSecondOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<Array<GreeksSecondOrderTick>>
   /** Stream `option_history_greeks_second_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksSecondOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksSecondOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksSecondOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<GreeksSecondOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksSecondOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<GreeksSecondOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
+  optionHistoryGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksSecondOrderOptions | undefined | null): Promise<GreeksSecondOrderTickWithColumns>
   /**
    * Fetch second-order Greeks on each trade for an option contract.
    *
@@ -2454,11 +2456,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksSecondOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<Array<TradeGreeksSecondOrderTick>>
+  optionHistoryTradeGreeksSecondOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<Array<TradeGreeksSecondOrderTick>>
   /** Stream `option_history_trade_greeks_second_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksSecondOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksSecondOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksSecondOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksSecondOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksSecondOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksSecondOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksSecondOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksSecondOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksSecondOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksSecondOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<TradeGreeksSecondOrderTickWithColumns>
+  optionHistoryTradeGreeksSecondOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksSecondOrderOptions | undefined | null): Promise<TradeGreeksSecondOrderTickWithColumns>
   /**
    * Fetch third-order Greeks history (intraday, sampled by interval).
    *
@@ -2476,11 +2478,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
+  optionHistoryGreeksThirdOrder(symbol: string, expiration: string, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<Array<GreeksThirdOrderTick>>
   /** Stream `option_history_greeks_third_order` rows into `callback` without materialising the full response in memory. `callback(chunk: GreeksThirdOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksThirdOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksThirdOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<GreeksThirdOrderTick>) => void)): Promise<void>
+  optionHistoryGreeksThirdOrderStream(symbol: string, expiration: string, options: OptionHistoryGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<GreeksThirdOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `greeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
+  optionHistoryGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksThirdOrderOptions | undefined | null): Promise<GreeksThirdOrderTickWithColumns>
   /**
    * Fetch third-order Greeks on each trade for an option contract.
    *
@@ -2497,11 +2499,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksThirdOrder(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<Array<TradeGreeksThirdOrderTick>>
+  optionHistoryTradeGreeksThirdOrder(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<Array<TradeGreeksThirdOrderTick>>
   /** Stream `option_history_trade_greeks_third_order` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksThirdOrderTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksThirdOrder` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksThirdOrderStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksThirdOrderTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksThirdOrderStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null, callback: ((arg: Array<TradeGreeksThirdOrderTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksThirdOrder` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksThirdOrder` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksThirdOrderTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksThirdOrderWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<TradeGreeksThirdOrderTickWithColumns>
+  optionHistoryTradeGreeksThirdOrderWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksThirdOrderOptions | undefined | null): Promise<TradeGreeksThirdOrderTickWithColumns>
   /**
    * Fetch implied volatility history (intraday, sampled by interval).
    *
@@ -2518,11 +2520,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
+  optionHistoryGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<IvTick>>
   /** Stream `option_history_greeks_implied_volatility` rows into `callback` without materialising the full response in memory. `callback(chunk: IvTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryGreeksImpliedVolatility` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryGreeksImpliedVolatilityStream(symbol: string, expiration: string | Date, options: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<IvTick>) => void)): Promise<void>
+  optionHistoryGreeksImpliedVolatilityStream(symbol: string, expiration: string, options: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<IvTick>) => void)): Promise<void>
   /** Run the `optionHistoryGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ivTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
+  optionHistoryGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionHistoryGreeksImpliedVolatilityOptions | undefined | null): Promise<IvTickWithColumns>
   /**
    * Fetch implied volatility on each trade for an option contract.
    *
@@ -2538,11 +2540,11 @@ export declare class MarketDataView {
    * - `rate_type`: `"sofr"`
    * - `version`: `"latest"`
    */
-  optionHistoryTradeGreeksImpliedVolatility(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<TradeGreeksImpliedVolatilityTick>>
+  optionHistoryTradeGreeksImpliedVolatility(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<Array<TradeGreeksImpliedVolatilityTick>>
   /** Stream `option_history_trade_greeks_implied_volatility` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeGreeksImpliedVolatilityTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionHistoryTradeGreeksImpliedVolatility` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionHistoryTradeGreeksImpliedVolatilityStream(symbol: string, expiration: string | Date, options: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<TradeGreeksImpliedVolatilityTick>) => void)): Promise<void>
+  optionHistoryTradeGreeksImpliedVolatilityStream(symbol: string, expiration: string, options: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null, callback: ((arg: Array<TradeGreeksImpliedVolatilityTick>) => void)): Promise<void>
   /** Run the `optionHistoryTradeGreeksImpliedVolatility` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionHistoryTradeGreeksImpliedVolatility` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeGreeksImpliedVolatilityTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionHistoryTradeGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string | Date, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<TradeGreeksImpliedVolatilityTickWithColumns>
+  optionHistoryTradeGreeksImpliedVolatilityWithColumns(symbol: string, expiration: string, options?: OptionHistoryTradeGreeksImpliedVolatilityOptions | undefined | null): Promise<TradeGreeksImpliedVolatilityTickWithColumns>
   /**
    * Fetch the trade at a specific time of day across a date range for an option.
    *
@@ -2555,11 +2557,11 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionAtTimeTrade(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
+  optionAtTimeTrade(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeTradeOptions | undefined | null): Promise<Array<TradeTick>>
   /** Stream `option_at_time_trade` rows into `callback` without materialising the full response in memory. `callback(chunk: TradeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionAtTimeTrade` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionAtTimeTradeStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: OptionAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
+  optionAtTimeTradeStream(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options: OptionAtTimeTradeOptions | undefined | null, callback: ((arg: Array<TradeTick>) => void)): Promise<void>
   /** Run the `optionAtTimeTrade` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionAtTimeTrade` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `tradeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionAtTimeTradeWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
+  optionAtTimeTradeWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeTradeOptions | undefined | null): Promise<TradeTickWithColumns>
   /**
    * Fetch the quote at a specific time of day across a date range for an option.
    *
@@ -2570,11 +2572,11 @@ export declare class MarketDataView {
    * - `strike`: `"*"`
    * - `right`: `"both"`
    */
-  optionAtTimeQuote(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
+  optionAtTimeQuote(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<Array<QuoteTick>>
   /** Stream `option_at_time_quote` rows into `callback` without materialising the full response in memory. `callback(chunk: QuoteTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `optionAtTimeQuote` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  optionAtTimeQuoteStream(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: OptionAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
+  optionAtTimeQuoteStream(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options: OptionAtTimeQuoteOptions | undefined | null, callback: ((arg: Array<QuoteTick>) => void)): Promise<void>
   /** Run the `optionAtTimeQuote` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `optionAtTimeQuote` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `quoteTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  optionAtTimeQuoteWithColumns(symbol: string, expiration: string | Date, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
+  optionAtTimeQuoteWithColumns(symbol: string, expiration: string, startDate: string, endDate: string, timeOfDay: string, options?: OptionAtTimeQuoteOptions | undefined | null): Promise<QuoteTickWithColumns>
   /**
    * List all available index symbols.
    *
@@ -2619,11 +2621,11 @@ export declare class MarketDataView {
    *
    * - Since the indices feeds do not provide a national EOD report, Theta Data generates a national EOD report at 17:15 each day.
    */
-  indexHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
+  indexHistoryEOD(symbol: string, startDate: string, endDate: string, options?: IndexHistoryEodOptions | undefined | null): Promise<Array<EodTick>>
   /** Stream `index_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: EodTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `indexHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: IndexHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
+  indexHistoryEODStream(symbol: string, startDate: string, endDate: string, options: IndexHistoryEodOptions | undefined | null, callback: ((arg: Array<EodTick>) => void)): Promise<void>
   /** Run the `indexHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `eodTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
+  indexHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: IndexHistoryEodOptions | undefined | null): Promise<EodTickWithColumns>
   /**
    * Fetch intraday OHLC bars for an index.
    *
@@ -2636,11 +2638,11 @@ export declare class MarketDataView {
    * - `start_time`: `"09:30:00"`
    * - `end_time`: `"16:00:00"`
    */
-  indexHistoryOHLC(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
+  indexHistoryOHLC(symbol: string, startDate: string, endDate: string, options?: IndexHistoryOhlcOptions | undefined | null): Promise<Array<OhlcTick>>
   /** Stream `index_history_ohlc` rows into `callback` without materialising the full response in memory. `callback(chunk: OhlcTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `indexHistoryOHLC` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexHistoryOHLCStream(symbol: string, startDate: string | Date, endDate: string | Date, options: IndexHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
+  indexHistoryOHLCStream(symbol: string, startDate: string, endDate: string, options: IndexHistoryOhlcOptions | undefined | null, callback: ((arg: Array<OhlcTick>) => void)): Promise<void>
   /** Run the `indexHistoryOHLC` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexHistoryOHLC` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `ohlcTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexHistoryOHLCWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: IndexHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
+  indexHistoryOHLCWithColumns(symbol: string, startDate: string, endDate: string, options?: IndexHistoryOhlcOptions | undefined | null): Promise<OhlcTickWithColumns>
   /**
    * Fetch intraday price history for an index.
    *
@@ -2665,11 +2667,11 @@ export declare class MarketDataView {
    * - Retrieves historical indices price reports. Exchanges typically generate a price report every second for popular indices like SPX.
    * - The ``time_of_day`` parameter represents the 00:00:00.000 ET that the price should be provided for.
    */
-  indexAtTimePrice(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: IndexAtTimePriceOptions | undefined | null): Promise<Array<IndexPriceAtTimeTick>>
+  indexAtTimePrice(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: IndexAtTimePriceOptions | undefined | null): Promise<Array<IndexPriceAtTimeTick>>
   /** Stream `index_at_time_price` rows into `callback` without materialising the full response in memory. `callback(chunk: IndexPriceAtTimeTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. Under `bulkFetch = "auto"` a large history pull may fan out across concurrent sub-requests: every chunk is still delivered exactly once, but chunks from different sub-requests interleave in arrival order rather than the single-stream order (set `bulkFetch = "off"` to restore it). This is the memory-bounded companion to the `indexAtTimePrice` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  indexAtTimePriceStream(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options: IndexAtTimePriceOptions | undefined | null, callback: ((arg: Array<IndexPriceAtTimeTick>) => void)): Promise<void>
+  indexAtTimePriceStream(symbol: string, startDate: string, endDate: string, timeOfDay: string, options: IndexAtTimePriceOptions | undefined | null, callback: ((arg: Array<IndexPriceAtTimeTick>) => void)): Promise<void>
   /** Run the `indexAtTimePrice` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `indexAtTimePrice` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `indexPriceAtTimeTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  indexAtTimePriceWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, timeOfDay: string | Date, options?: IndexAtTimePriceOptions | undefined | null): Promise<IndexPriceAtTimeTickWithColumns>
+  indexAtTimePriceWithColumns(symbol: string, startDate: string, endDate: string, timeOfDay: string, options?: IndexAtTimePriceOptions | undefined | null): Promise<IndexPriceAtTimeTickWithColumns>
   /**
    * Check whether the market is open today.
    *
@@ -2688,9 +2690,9 @@ export declare class MarketDataView {
    * - *On days when the market closes early at 1:00 PM ET; eligible options will trade until 1:15 PM.
    * - **Some NYSE exchanges will continue late trading until 5:00 PM ET on early close days.
    */
-  calendarOnDate(date: string | Date, options?: CalendarOnDateOptions | undefined | null): Promise<Array<CalendarDay>>
+  calendarOnDate(date: string, options?: CalendarOnDateOptions | undefined | null): Promise<Array<CalendarDay>>
   /** Run the `calendarOnDate` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `calendarOnDate` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `calendarDayToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  calendarOnDateWithColumns(date: string | Date, options?: CalendarOnDateOptions | undefined | null): Promise<CalendarDayWithColumns>
+  calendarOnDateWithColumns(date: string, options?: CalendarOnDateOptions | undefined | null): Promise<CalendarDayWithColumns>
   /**
    * Get equity market holidays and early-close days for a year (vendor `year_holidays` endpoint — only non-standard days, not every trading day).
    *
@@ -2711,11 +2713,11 @@ export declare class MarketDataView {
    *   `TREASURY_Y1`, `TREASURY_Y2`, `TREASURY_Y3`, `TREASURY_Y5`,
    *   `TREASURY_Y7`, `TREASURY_Y10`, `TREASURY_Y20`, `TREASURY_Y30`.
    */
-  interestRateHistoryEOD(symbol: string, startDate: string | Date, endDate: string | Date, options?: InterestRateHistoryEodOptions | undefined | null): Promise<Array<InterestRateTick>>
+  interestRateHistoryEOD(symbol: string, startDate: string, endDate: string, options?: InterestRateHistoryEodOptions | undefined | null): Promise<Array<InterestRateTick>>
   /** Stream `interest_rate_history_eod` rows into `callback` without materialising the full response in memory. `callback(chunk: InterestRateTick[]) => void` is invoked once per server chunk; the chunk is freed before that stream's next chunk is fetched, so peak memory tracks a single chunk rather than the whole result. This is the memory-bounded companion to the `interestRateHistoryEOD` method — prefer it for multi-day or full-universe pulls. The returned Promise resolves when the stream drains and rejects (typed like the buffered method) on a wire or decode error. Cancelling the Promise drops the in-flight request. `options` carries the same optional builder parameters and `timeoutMs` as the buffered method; the `callback` is the trailing argument. */
-  interestRateHistoryEODStream(symbol: string, startDate: string | Date, endDate: string | Date, options: InterestRateHistoryEodOptions | undefined | null, callback: ((arg: Array<InterestRateTick>) => void)): Promise<void>
+  interestRateHistoryEODStream(symbol: string, startDate: string, endDate: string, options: InterestRateHistoryEodOptions | undefined | null, callback: ((arg: Array<InterestRateTick>) => void)): Promise<void>
   /** Run the `interestRateHistoryEOD` query and return the rows together with the columns the response's wire carried, so a projected Arrow-IPC frame is drivable from a live call. Same parameters and result rows as the `interestRateHistoryEOD` method; the returned object adds `presentColumns` (the schema columns the wire sent, in schema order), `symbol` (the response's constant root, set for option, index, and single-symbol snapshot responses), and `symbols` (the per-row root values for a multi-symbol snapshot, one per row). Feed them to `interestRateTickToArrowIpcProjected` for a terminal-exact columnar export that omits the columns the wire omitted and attributes each row to its symbol. */
-  interestRateHistoryEODWithColumns(symbol: string, startDate: string | Date, endDate: string | Date, options?: InterestRateHistoryEodOptions | undefined | null): Promise<InterestRateTickWithColumns>
+  interestRateHistoryEODWithColumns(symbol: string, startDate: string, endDate: string, options?: InterestRateHistoryEodOptions | undefined | null): Promise<InterestRateTickWithColumns>
 }
 
 /**
@@ -4250,9 +4252,9 @@ export interface IndexHistoryOhlcOptions {
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -4270,17 +4272,17 @@ export interface IndexHistoryOhlcOptions {
  */
 export interface IndexHistoryPriceOptions {
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -4416,7 +4418,7 @@ export interface IndexPriceAtTimeTickWithColumns {
  */
 export interface IndexSnapshotMarketValueOptions {
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -4434,7 +4436,7 @@ export interface IndexSnapshotMarketValueOptions {
  */
 export interface IndexSnapshotOhlcOptions {
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -4452,7 +4454,7 @@ export interface IndexSnapshotOhlcOptions {
  */
 export interface IndexSnapshotPriceOptions {
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5120,13 +5122,13 @@ export interface OptionHistoryGreeksAllOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5138,9 +5140,9 @@ export interface OptionHistoryGreeksAllOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5196,13 +5198,13 @@ export interface OptionHistoryGreeksFirstOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5214,9 +5216,9 @@ export interface OptionHistoryGreeksFirstOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5238,13 +5240,13 @@ export interface OptionHistoryGreeksImpliedVolatilityOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5256,9 +5258,9 @@ export interface OptionHistoryGreeksImpliedVolatilityOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5280,13 +5282,13 @@ export interface OptionHistoryGreeksSecondOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5298,9 +5300,9 @@ export interface OptionHistoryGreeksSecondOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5322,13 +5324,13 @@ export interface OptionHistoryGreeksThirdOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5340,9 +5342,9 @@ export interface OptionHistoryGreeksThirdOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5364,19 +5366,19 @@ export interface OptionHistoryOhlcOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5398,15 +5400,15 @@ export interface OptionHistoryOpenInterestOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Maximum days to expiration */
   maxDte?: number
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5428,21 +5430,21 @@ export interface OptionHistoryQuoteOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Maximum days to expiration */
   maxDte?: number
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5464,11 +5466,11 @@ export interface OptionHistoryTradeGreeksAllOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5482,9 +5484,9 @@ export interface OptionHistoryTradeGreeksAllOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5506,11 +5508,11 @@ export interface OptionHistoryTradeGreeksFirstOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5524,9 +5526,9 @@ export interface OptionHistoryTradeGreeksFirstOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5548,11 +5550,11 @@ export interface OptionHistoryTradeGreeksImpliedVolatilityOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5566,9 +5568,9 @@ export interface OptionHistoryTradeGreeksImpliedVolatilityOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5590,11 +5592,11 @@ export interface OptionHistoryTradeGreeksSecondOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5608,9 +5610,9 @@ export interface OptionHistoryTradeGreeksSecondOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5632,11 +5634,11 @@ export interface OptionHistoryTradeGreeksThirdOrderOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Annualized expected dividend amount, in dollars per share, used in the Greeks calculation (e.g. 2.5 is $2.50 per share per year). */
   annualDividend?: number
   /** Risk-free-rate source used in the Greeks calculation. Accepted values: `sofr`, `treasury_m1`, `treasury_m3`, `treasury_m6`, `treasury_y1`, `treasury_y2`, `treasury_y3`, `treasury_y5`, `treasury_y7`, `treasury_y10`, `treasury_y20`, `treasury_y30`. */
@@ -5650,9 +5652,9 @@ export interface OptionHistoryTradeGreeksThirdOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5674,19 +5676,19 @@ export interface OptionHistoryTradeOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Maximum days to expiration */
   maxDte?: number
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5708,11 +5710,11 @@ export interface OptionHistoryTradeQuoteOptions {
   /** Option side. Use `both` or `*` (alias) for calls and puts. Accepted values: `call`, `put`, `both`, `*`. */
   right?: string
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** When true, quotes whose timestamp equals the trade timestamp are excluded; only quotes strictly before the trade are paired. */
   exclusive?: boolean
   /** Maximum days to expiration */
@@ -5720,9 +5722,9 @@ export interface OptionHistoryTradeQuoteOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -5866,7 +5868,7 @@ export interface OptionSnapshotGreeksAllOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /** When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair. */
   useMarketValue?: boolean
   /**
@@ -5904,7 +5906,7 @@ export interface OptionSnapshotGreeksFirstOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /** When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair. */
   useMarketValue?: boolean
   /**
@@ -5942,7 +5944,7 @@ export interface OptionSnapshotGreeksImpliedVolatilityOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /** When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair. */
   useMarketValue?: boolean
   /**
@@ -5980,7 +5982,7 @@ export interface OptionSnapshotGreeksSecondOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /** When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair. */
   useMarketValue?: boolean
   /**
@@ -6018,7 +6020,7 @@ export interface OptionSnapshotGreeksThirdOrderOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /** When true, calculate Greeks against the option market value (mid-price) instead of the NBBO bid/ask pair. */
   useMarketValue?: boolean
   /**
@@ -6046,7 +6048,7 @@ export interface OptionSnapshotMarketValueOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6072,7 +6074,7 @@ export interface OptionSnapshotOhlcOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6098,7 +6100,7 @@ export interface OptionSnapshotOpenInterestOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6124,7 +6126,7 @@ export interface OptionSnapshotQuoteOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6148,7 +6150,7 @@ export interface OptionSnapshotTradeOptions {
   /** Strike range filter */
   strikeRange?: number
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6503,19 +6505,19 @@ export interface StockHistoryEodOptions {
  */
 export interface StockHistoryOhlcOptions {
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6533,19 +6535,19 @@ export interface StockHistoryOhlcOptions {
  */
 export interface StockHistoryQuoteOptions {
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Interval preset. Defaults to `1s` when omitted — matching the upstream ThetaData Python library. Accepted values: `tick`, `10ms`, `100ms`, `500ms`, `1s`, `5s`, `10s`, `15s`, `30s`, `1m`, `5m`, `10m`, `15m`, `30m`, `1h`. */
   interval?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6563,17 +6565,17 @@ export interface StockHistoryQuoteOptions {
  */
 export interface StockHistoryTradeOptions {
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6591,19 +6593,19 @@ export interface StockHistoryTradeOptions {
  */
 export interface StockHistoryTradeQuoteOptions {
   /** Single date YYYYMMDD. Supply this for a single-day pull, or supply `start_date`/`end_date` for a range. When present, `date` takes precedence over the range. */
-  date?: string | Date
+  date?: string
   /** Start time filter */
-  startTime?: string | Date
+  startTime?: string
   /** End time filter */
-  endTime?: string | Date
+  endTime?: string
   /** When true, quotes whose timestamp equals the trade timestamp are excluded; only quotes strictly before the trade are paired. */
   exclusive?: boolean
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Start date YYYYMMDD */
-  startDate?: string | Date
+  startDate?: string
   /** End date YYYYMMDD */
-  endDate?: string | Date
+  endDate?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6655,7 +6657,7 @@ export interface StockSnapshotMarketValueOptions {
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6675,7 +6677,7 @@ export interface StockSnapshotOhlcOptions {
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6695,7 +6697,7 @@ export interface StockSnapshotQuoteOptions {
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request
@@ -6715,7 +6717,7 @@ export interface StockSnapshotTradeOptions {
   /** Venue/exchange filter. Accepted values: `nqb`, `utp_cta`. */
   venue?: string
   /** Minimum time filter */
-  minTime?: string | Date
+  minTime?: string
   /**
    * Per-call deadline as a non-negative whole number of milliseconds;
    * on expiry the returned Promise rejects and the underlying request

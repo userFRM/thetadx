@@ -979,6 +979,9 @@ fn write_sync_stream_terminal(
     out.push_str("                        }\n");
     out.push_str("                    };\n");
     out.push_str(
+        "                    let _reentry_guard = crate::DeliveryHandlerGuard::enter();\n",
+    );
+    out.push_str(
         "                    if let Err(e) = handler_for_closure.call1(py, (py_list,)) {\n",
     );
     out.push_str("                        *cb_err_for_closure.lock().unwrap() = Some(e);\n");
@@ -1102,6 +1105,9 @@ fn write_async_stream_terminal(
     out.push_str("                                    return;\n");
     out.push_str("                                }\n");
     out.push_str("                            };\n");
+    out.push_str(
+        "                            let _reentry_guard = crate::DeliveryHandlerGuard::enter();\n",
+    );
     out.push_str(
         "                            if let Err(e) = handler_for_task.call1(py, (py_list,)) {\n",
     );

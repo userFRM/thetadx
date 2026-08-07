@@ -283,6 +283,12 @@ pub enum ShardBand {
         start_date: String,
         /// Inclusive band end (`YYYYMMDD`).
         end_date: String,
+        /// Contract-side override for an option-chain fan-out, mirroring
+        /// [`Self::Time`]'s `right`: `Some("call")` / `Some("put")` restricts
+        /// the band to half the chain so the server assembles half the
+        /// contracts per band. `None` for every non-chain band, which leaves
+        /// the query's own `right` untouched.
+        right: Option<String>,
     },
     /// Inclusive intraday window (`HH:MM:SS.mmm`, both ends), matching the
     /// server's inclusive `start_time` / `end_time` semantics at
@@ -658,6 +664,18 @@ fn splittable_by_right(q: &ShardQuery) -> bool {
     chain_cross_product(q) && matches!(q.right.as_deref(), None | Some("both"))
 }
 
+/// Whether the query is a tick pull (no bar interval). The server accepts a
+/// tick *chain* only one day at a time, so a tick pull's bands must never span
+/// more than one day (Auto assembles a multi-day tick chain from single-day
+/// bands, which the single stream rejects); a bar interval carries no such
+/// limit and bands freely across days.
+fn is_tick_pull(q: &ShardQuery) -> bool {
+    q.interval.as_deref().is_none_or(|s| {
+        let s = s.trim();
+        s.is_empty() || s.eq_ignore_ascii_case("tick")
+    })
+}
+
 /// Pick the shard axis for a query shape, if any.
 ///
 /// Priority mirrors the balance the axes deliver: a multi-day range cuts
@@ -715,12 +733,16 @@ fn time_bands(start_ms: i64, end_ms: i64, n: i64, right: Option<&str>) -> Vec<Sh
 /// Bands are contiguous inclusive `[start_date, end_date]` sub-ranges
 /// covering the query's range exactly once, matching the server's
 /// inclusive date semantics; band day counts differ by at most one.
-fn date_bands(start_ord: i64, end_ord: i64, n: i64) -> Vec<ShardBand> {
+/// `right` restricts every band to one side of an option chain (`Some`)
+/// or leaves the query's own `right` untouched (`None`), mirroring
+/// [`time_bands`].
+fn date_bands(start_ord: i64, end_ord: i64, n: i64, right: Option<&str>) -> Vec<ShardBand> {
     let days = end_ord - start_ord + 1;
     (0..n)
         .map(|k| ShardBand::Date {
             start_date: Ymd::from_ord(start_ord + days * k / n).to_yyyymmdd(),
             end_date: Ymd::from_ord(start_ord + days * (k + 1) / n - 1).to_yyyymmdd(),
+            right: right.map(str::to_owned),
         })
         .collect()
 }
@@ -897,11 +919,7 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
             // an unrecognized spelling (the single stream is always
             // correct, and a fan-out is only ever a performance
             // transform) — stays on the single stream.
-            let tick_pull = q.interval.as_deref().is_none_or(|s| {
-                let s = s.trim();
-                s.is_empty() || s.eq_ignore_ascii_case("tick")
-            });
-            if !tick_pull {
+            if !is_tick_pull(q) {
                 return Err(ShardDecline::IntervalBars);
             }
             // A chain cross-product's cost is contract assembly, not
@@ -958,15 +976,52 @@ fn plan_query(endpoint: &str, q: &ShardQuery, width: usize) -> Result<ShardPlan,
                     }
                 }
             }
-            // Equal-day-count bands, at most one band per day.
-            // `select_axis` only picks the date axis for `span >= 2`, so
-            // with `width >= 2` (checked above) two bands always fit.
-            let n = (end_ord - start_ord + 1).min(width);
+            let days = end_ord - start_ord + 1;
+            // A both-rights chain over a short range under-fills the pool
+            // with date bands alone (at most one band per day). Split each
+            // right into its own date bands, mirroring the time axis, so
+            // calls and puts run as separate contract sets and take the idle
+            // lanes. The split keeps `strike = *`, so the identity columns
+            // survive and the ordered merge groups per contract exactly as
+            // the time-axis right split does. Only worth it while the range
+            // is shorter than the pool; at or beyond it, date bands already
+            // fill every lane and extra bands would only queue.
+            //
+            // A tick chain is the exception: the server accepts tick only one
+            // day at a time, so its bands must stay single-day. The right
+            // split halves the band count (`date_n = days.min(width / 2)`),
+            // which spans multiple days once `2 * days > width` — bands the
+            // server would reject. So right-split a tick chain only while the
+            // whole range still fits in single-day bands; past that, fall
+            // through to the day-per-band plan a tick chain has always used.
+            if splittable_by_right(q) && days < width && (!is_tick_pull(q) || 2 * days <= width) {
+                let date_n = days.min(width / 2).max(1);
+                let mut bands = date_bands(start_ord, end_ord, date_n, Some("call"));
+                bands.extend(date_bands(start_ord, end_ord, date_n, Some("put")));
+                return Ok(ShardPlan { bands });
+            }
+            // A tick CHAIN history pull is the single-day case: the server
+            // assembles the whole chain per day and accepts a tick chain only
+            // one day at a time, so it takes one band per day whatever the pool
+            // width (the surplus over `width` simply queues). A stock or
+            // single-contract tick pull, an interval-bar pull, and an as-of
+            // (`at_time`) chain all band multi-day and cap at the pool width.
+            // `at_time` carries no interval (so `is_tick_pull` is true) but is
+            // not tick data, hence the explicit endpoint guard. `select_axis`
+            // only picks the date axis for `span >= 2`, so with `width >= 2`
+            // (checked above) two bands always fit.
+            let single_day_tick_chain =
+                is_tick_pull(q) && chain_cross_product(q) && !endpoint.contains("at_time");
+            let n = if single_day_tick_chain {
+                days
+            } else {
+                days.min(width)
+            };
             if n < 2 {
                 return Err(ShardDecline::NarrowWindow);
             }
             Ok(ShardPlan {
-                bands: date_bands(start_ord, end_ord, n),
+                bands: date_bands(start_ord, end_ord, n, None),
             })
         }
     }
@@ -984,7 +1039,13 @@ pub(crate) fn band_span(band: &ShardBand) -> tracing::Span {
         ShardBand::Date {
             start_date,
             end_date,
-        } => tracing::debug_span!("shard_band", band_start = %start_date, band_end = %end_date),
+            right,
+        } => tracing::debug_span!(
+            "shard_band",
+            band_start = %start_date,
+            band_end = %end_date,
+            band_right = ?right,
+        ),
         ShardBand::Time {
             start_time,
             end_time,
@@ -1855,6 +1916,7 @@ mod tests {
         let date_band = ShardBand::Date {
             start_date: "20260101".into(),
             end_date: "20260131".into(),
+            right: None,
         };
 
         // A call-carrying time band rewrites right -> "call" AND the window.
@@ -2130,6 +2192,7 @@ mod tests {
                 ShardBand::Date {
                     start_date,
                     end_date,
+                    ..
                 } => (
                     Ymd::from_yyyymmdd(start_date).unwrap().to_ord(),
                     Ymd::from_yyyymmdd(end_date).unwrap().to_ord(),
@@ -2296,24 +2359,144 @@ mod tests {
     fn date_bands_partition_the_range_exactly() {
         let s = Ymd::from_yyyymmdd("20240101").unwrap().to_ord();
         let e = Ymd::from_yyyymmdd("20240131").unwrap().to_ord();
-        let bands = date_bands(s, e, 3);
+        let bands = date_bands(s, e, 3, None);
         assert_eq!(
             bands,
             vec![
                 ShardBand::Date {
                     start_date: "20240101".into(),
                     end_date: "20240110".into(),
+                    right: None,
                 },
                 ShardBand::Date {
                     start_date: "20240111".into(),
                     end_date: "20240120".into(),
+                    right: None,
                 },
                 ShardBand::Date {
                     start_date: "20240121".into(),
                     end_date: "20240131".into(),
+                    right: None,
                 },
             ]
         );
+    }
+
+    #[test]
+    fn short_range_both_rights_chain_splits_date_bands_by_right() {
+        // A 2-day both-rights chain at pool width 8: date bands alone give
+        // two bands and idle six lanes, so the plan right-splits into call
+        // and put date bands (two each) to take more of the pool. `strike`
+        // stays `*`, so the ordered merge still groups per contract.
+        let q = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("*".into()),
+            strike: Some("*".into()),
+            right: Some("both".into()),
+            start_date: Some("20240102".into()),
+            end_date: Some("20240103".into()),
+            interval: Some("tick".into()),
+            ..Default::default()
+        };
+        let plan = plan_query("option_history_quote", &q, 8).expect("chain should shard");
+        assert_eq!(
+            plan.bands,
+            vec![
+                ShardBand::Date {
+                    start_date: "20240102".into(),
+                    end_date: "20240102".into(),
+                    right: Some("call".into()),
+                },
+                ShardBand::Date {
+                    start_date: "20240103".into(),
+                    end_date: "20240103".into(),
+                    right: Some("call".into()),
+                },
+                ShardBand::Date {
+                    start_date: "20240102".into(),
+                    end_date: "20240102".into(),
+                    right: Some("put".into()),
+                },
+                ShardBand::Date {
+                    start_date: "20240103".into(),
+                    end_date: "20240103".into(),
+                    right: Some("put".into()),
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn tick_chain_over_short_range_stays_single_day_not_right_split() {
+        // The server accepts a tick chain only one day at a time, so a
+        // multi-day tick chain must fan out into single-day bands. A 6-day
+        // tick both-rights chain at width 8 must NOT right-split: the halved
+        // band count would span two days per band, which the server rejects.
+        // It falls through to one band per day (the plan a tick chain has
+        // always used), no right override.
+        let q = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("*".into()),
+            strike: Some("*".into()),
+            right: Some("both".into()),
+            start_date: Some("20240102".into()),
+            end_date: Some("20240107".into()), // 6 days
+            interval: Some("tick".into()),
+            ..Default::default()
+        };
+        let plan = plan_query("option_history_quote", &q, 8).expect("chain should shard");
+        assert_eq!(plan.bands.len(), 6, "one band per day");
+        for band in &plan.bands {
+            match band {
+                ShardBand::Date {
+                    start_date,
+                    end_date,
+                    right,
+                } => {
+                    assert_eq!(start_date, end_date, "each tick band must be a single day");
+                    assert_eq!(
+                        right.as_deref(),
+                        None,
+                        "no right split for a multi-day tick chain"
+                    );
+                }
+                ShardBand::Time { .. } => panic!("expected date bands"),
+            }
+        }
+    }
+
+    #[test]
+    fn tick_chain_over_wide_range_stays_single_day_per_band() {
+        // Regression: a tick chain longer than the pool width must still take
+        // one band per day, not `width` bands that each span several days (the
+        // server rejects a tick band wider than a day). A 12-day chain at
+        // width 8 caps every OTHER family at 8 bands; tick takes all 12.
+        let q = ShardQuery {
+            symbol: Some("SPXW".into()),
+            expiration: Some("*".into()),
+            strike: Some("*".into()),
+            right: Some("both".into()),
+            start_date: Some("20240102".into()),
+            end_date: Some("20240113".into()), // 12 days > width 8
+            interval: Some("tick".into()),
+            ..Default::default()
+        };
+        let plan = plan_query("option_history_quote", &q, 8).expect("chain should shard");
+        assert_eq!(
+            plan.bands.len(),
+            12,
+            "one band per day even past the pool width"
+        );
+        for band in &plan.bands {
+            match band {
+                ShardBand::Date {
+                    start_date,
+                    end_date,
+                    ..
+                } => assert_eq!(start_date, end_date, "each tick band must be a single day"),
+                ShardBand::Time { .. } => panic!("expected date bands"),
+            }
+        }
     }
 
     // ── time / interval parsing ──
@@ -3138,6 +3321,7 @@ mod tests {
             .map(|i| ShardBand::Date {
                 start_date: format!("2024010{}", i + 1),
                 end_date: format!("2024010{}", i + 1),
+                right: None,
             })
             .collect()
     }

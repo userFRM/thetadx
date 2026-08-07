@@ -189,6 +189,7 @@ pub(crate) async fn sleep_for_retry(
     attempt: u32,
     endpoint: &'static str,
     err: &crate::error::Error,
+    remaining_budget: Option<std::time::Duration>,
 ) {
     let mut delay = policy.delay_for_attempt(attempt);
     if let crate::error::Error::Grpc {
@@ -211,6 +212,13 @@ pub(crate) async fn sleep_for_retry(
             delay = hint;
         }
     }
+    // Never sleep past the wall-clock envelope: `max_elapsed` promises a
+    // total retry budget, so a long backoff or server hint is clipped to the
+    // time that remains. The caller stops the loop once the envelope is spent;
+    // clipping keeps any single delay from overshooting it.
+    if let Some(remaining) = remaining_budget {
+        delay = delay.min(remaining);
+    }
     metrics::counter!(
         "thetadatadx.grpc.retries",
         "endpoint" => endpoint
@@ -225,6 +233,20 @@ pub(crate) async fn sleep_for_retry(
     );
     if !delay.is_zero() {
         tokio::time::sleep(delay).await;
+    }
+}
+
+/// Time left in the retry policy's wall-clock envelope, or `None` when the
+/// envelope is disabled (`max_elapsed == 0`). Clips the next backoff so a
+/// retry sequence cannot overshoot `max_elapsed`.
+fn remaining_elapsed_budget(
+    policy: &crate::config::RetryPolicy,
+    started: std::time::Instant,
+) -> Option<std::time::Duration> {
+    if policy.max_elapsed.is_zero() {
+        None
+    } else {
+        Some(policy.max_elapsed.saturating_sub(started.elapsed()))
     }
 }
 
@@ -374,7 +396,19 @@ where
                 if can_post_refresh {
                     refresh_retry_used = true;
                 } else {
-                    sleep_for_retry(policy, attempt, endpoint, &err).await;
+                    sleep_for_retry(
+                        policy,
+                        attempt,
+                        endpoint,
+                        &err,
+                        remaining_elapsed_budget(policy, started),
+                    )
+                    .await;
+                    // The clipped sleep may have consumed the last of the
+                    // envelope; stop rather than start an attempt past it.
+                    if !policy.within_elapsed_budget(started.elapsed()) {
+                        return Err(err);
+                    }
                 }
                 attempt += 1;
             }
@@ -458,7 +492,17 @@ where
                 {
                     return Err(err);
                 }
-                sleep_for_retry(policy, attempt, endpoint, &err).await;
+                sleep_for_retry(
+                    policy,
+                    attempt,
+                    endpoint,
+                    &err,
+                    remaining_elapsed_budget(policy, started),
+                )
+                .await;
+                if !policy.within_elapsed_budget(started.elapsed()) {
+                    return Err(err);
+                }
                 attempt += 1;
             }
         }
@@ -796,14 +840,15 @@ macro_rules! shard_apply_field {
     // The option `right` lives inside `contract_spec` (the top-level
     // `right` slot is the always-empty legacy field), so a chain band's
     // call/put override rewrites `contract_spec.right`, mirroring how
-    // `shard_read_field!` reads it. Endpoints without a `contract_spec`
-    // never emit this arm; a Time band carrying no `right` leaves it as
-    // issued.
+    // `shard_read_field!` reads it. Both Time and Date bands can carry the
+    // override (the date axis right-splits short-range chains too). Endpoints
+    // without a `contract_spec` never emit this arm; a band carrying no
+    // `right` leaves it as issued.
     ($params:ident, $band:ident, contract_spec) => {
-        if let $crate::mdds::shard::ShardBand::Time {
-            right: Some(right), ..
-        } = $band
-        {
+        if let Some(right) = (match $band {
+            $crate::mdds::shard::ShardBand::Time { right, .. }
+            | $crate::mdds::shard::ShardBand::Date { right, .. } => right.as_deref(),
+        }) {
             if let Some(cs) = $params.contract_spec.as_mut() {
                 $crate::mdds::shard::set_wire_str(&mut cs.right, right);
             }
@@ -2291,6 +2336,44 @@ mod refresh_retry_disabled_tests {
         (result, count)
     }
 
+    #[tokio::test]
+    async fn unary_retry_clips_backoff_to_elapsed_envelope() {
+        // `max_elapsed` is the binding wall-clock cap: a huge per-attempt
+        // backoff must be clipped to the remaining envelope, and the loop
+        // must stop on the envelope rather than sleep the full delay past it.
+        // Pre-fix this slept the whole 10 s despite a 100 ms envelope.
+        let session = fake_token("v-init");
+        let policy = RetryPolicy {
+            initial_delay: std::time::Duration::from_secs(10),
+            max_delay: std::time::Duration::from_secs(10),
+            max_elapsed: std::time::Duration::from_millis(100),
+            jitter: false,
+            ..RetryPolicy::default()
+        };
+        let started = std::time::Instant::now();
+        let (result, attempts) = drive_unary(
+            &session,
+            &policy,
+            vec![
+                Err(grpc(GrpcStatusKind::Unavailable)),
+                Err(grpc(GrpcStatusKind::Unavailable)),
+                Err(grpc(GrpcStatusKind::Unavailable)),
+                Err(grpc(GrpcStatusKind::Unavailable)),
+            ],
+        )
+        .await;
+        let elapsed = started.elapsed();
+        assert!(result.is_err(), "envelope exhausted surfaces the error");
+        assert!(
+            attempts <= 3,
+            "stopped on the 100 ms envelope, not the 20-attempt budget; got {attempts}"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(1),
+            "backoff clipped to the envelope, not the 10 s delay; got {elapsed:?}"
+        );
+    }
+
     /// Streaming sibling of [`drive_unary`].
     ///
     /// `deliver_on` names the attempt numbers (1-based) that mark a
@@ -2650,7 +2733,7 @@ mod retry_hint_clamp_tests {
         };
         let clamped = tokio::time::timeout(
             Duration::from_secs(5),
-            sleep_for_retry(&policy, 1, "test", &err),
+            sleep_for_retry(&policy, 1, "test", &err, None),
         )
         .await;
         assert!(clamped.is_ok(), "retry sleep was not clamped to max_delay");

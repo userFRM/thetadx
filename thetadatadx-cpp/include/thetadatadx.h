@@ -943,15 +943,15 @@ ThetaDataDxArrowBytes thetadatadx_trade_quote_ticks_to_arrow_ipc_projected(const
  *  entry points for the same handle. */
 typedef struct ThetaDataDxRecordBatchStream ThetaDataDxRecordBatchStream;
 
-/** Backpressure: lossless block (applies backpressure to the wire). */
+/** Backpressure: block — the reader backpressures with no queue-side drops, though a sustained reader stall can still overflow the upstream event ring. */
 #define THETADATADX_BACKPRESSURE_BLOCK 0
 /** Backpressure: bounded buffer, drop the oldest batch on overflow (counted
  *  by thetadatadx_record_batch_stream_dropped). */
 #define THETADATADX_BACKPRESSURE_DROP_OLDEST 1
 
 /** Open a pull-based Arrow RecordBatch reader over the unified client's
- *  stream — a sibling to thetadatadx_client_set_callback. Subscribe first on
- *  the same surface, then open. Starts the streaming session.
+ *  stream — a sibling to thetadatadx_client_set_callback. Open first — this
+ *  starts the streaming session — then subscribe on the same surface.
  *  @param handle Client from thetadatadx_client_connect.
  *  @param batch_size Rows per batch (0 clamped to 1).
  *  @param linger_ms Partial-batch flush deadline in ms (quiet-stream flush).
@@ -2218,6 +2218,12 @@ void thetadatadx_string_free(char* s);
  *  `ctx` is the opaque pointer registered alongside the callback; it is passed
  *  back unchanged on every invocation.
  *
+ *  The callback runs SERIALLY, but not necessarily on the thread that called
+ *  the `_stream` entry point: the library may invoke it from an internal
+ *  runtime worker while the calling thread blocks in the drain. Do not assume
+ *  the calling thread's thread-local / UI / COM affinity is available inside
+ *  the callback; marshal to the owning thread if you need it.
+ *
  *  This callback must not unwind across the C ABI. A C++ throw or a C longjmp
  *  that escapes the callback into the calling frame is undefined behavior, the
  *  same as for any C library. The library wraps each invocation to contain a
@@ -2457,9 +2463,9 @@ typedef void (*ThetaDataDxStreamCallback)(const ThetaDataDxStreamEvent* event, v
  *  ## Lifecycle contract (one-shot rule)
  *
  *  Must be called exactly ONCE per handle. After thetadatadx_streaming_shutdown() this
- *  handle is terminal: a second register, a register-after-shutdown, a
- *  reconnect-after-shutdown, or a double-shutdown all return -1 with a
- *  clear thetadatadx_last_error() string ("streaming callback already installed -- ..."
+ *  handle is terminal: a second register, a register-after-shutdown, or a
+ *  reconnect-after-shutdown all return -1 with a clear thetadatadx_last_error()
+ *  string ("streaming callback already installed -- ..."
  *  or "streaming handle has already been shut down -- this is terminal").
  *
  *  This is intentionally stricter than thetadatadx_client_set_callback(), where
@@ -2539,8 +2545,10 @@ char* thetadatadx_streaming_last_connected_addr(const ThetaDataDxStreamHandle* h
 uint64_t thetadatadx_streaming_panic_count(const ThetaDataDxStreamHandle* h);
 
 /** Shut down the streaming client. Terminal: every subsequent
- *  set_callback / reconnect / shutdown call on this handle returns -1
- *  with a clear thetadatadx_last_error() string. The handle remains valid for
+ *  set_callback / reconnect call on this handle returns -1 with a clear
+ *  thetadatadx_last_error() string. This function itself returns void, so a
+ *  repeated shutdown is a safe no-op that sets thetadatadx_last_error() but has
+ *  no return value to check. The handle remains valid for
  *  thetadatadx_streaming_free() only. Returns asynchronously: in-flight events
  *  continue draining through the registered callback until the shutdown
  *  signal is observed.
@@ -2569,6 +2577,12 @@ int thetadatadx_streaming_await_drain(const ThetaDataDxStreamHandle* h, uint64_t
  *  be firing, so user code must keep ctx valid past return. Under normal
  *  operation drain completes in low single-digit milliseconds, so ctx is
  *  safe to free immediately on return.
+ *  @warning Do NOT call this from inside the registered callback. The drain
+ *           barrier waits for the callback to return, so a self-call blocks for
+ *           the full 5-second timeout, then destroys the handle and resumes the
+ *           callback against freed state (use-after-free). Tear the handle down
+ *           from another thread: signal the callback to stop and free after it
+ *           returns, or free from the owning thread once streaming is done.
  *  @param h The streaming handle; no-op when NULL. Call exactly once. */
 void thetadatadx_streaming_free(ThetaDataDxStreamHandle* h);
 
@@ -2652,7 +2666,7 @@ typedef struct {
     const char* expiration;   /* per-contract option only */
     const char* strike;       /* per-contract option only */
     const char* right;        /* per-contract option only */
-    const char* sec_type;     /* full-stream only */
+    const char* sec_type;     /* full-stream; or STOCK/INDEX for a per-contract underlier (NULL defaults to stock) */
 } ThetaDataDxSubscriptionRequest;
 
 /** Polymorphic subscribe on the unified client.
@@ -2806,6 +2820,12 @@ uint64_t thetadatadx_client_panic_count(const ThetaDataDxClient* handle);
  *  may still be firing, so user code must keep ctx valid past return. Under
  *  normal operation drain completes in low single-digit milliseconds, so ctx
  *  is safe to free immediately on return.
+ *  @warning Do NOT call this from inside the registered callback. The drain
+ *           barrier waits for the callback to return, so a self-call blocks for
+ *           the full 5-second timeout, then destroys the handle and resumes the
+ *           callback against freed state (use-after-free). Tear the handle down
+ *           from another thread: signal the callback to stop and free after it
+ *           returns, or free from the owning thread once streaming is done.
  *  @param handle The unified handle; no-op when NULL. Call exactly once. */
 void thetadatadx_client_free(ThetaDataDxClient* handle);
 

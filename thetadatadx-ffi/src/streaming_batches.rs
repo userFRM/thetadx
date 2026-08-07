@@ -78,8 +78,8 @@ pub struct ThetaDataDxRecordBatchStream {
 /// stream.
 ///
 /// Subscriptions are managed on the same surface as the callback path
-/// (`thetadatadx_client_*` subscribe entry points); subscribe first, then
-/// open the reader. Starts the FPSS session, so this is an alternative to
+/// (`thetadatadx_client_*` subscribe entry points). Open the reader first —
+/// that starts the FPSS session — then subscribe. This is an alternative to
 /// `thetadatadx_client_set_callback`, not a concurrent consumer.
 ///
 /// `batch_size` rows per batch (`0` is clamped to 1). `linger_ms` is the

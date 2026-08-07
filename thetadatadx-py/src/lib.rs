@@ -1512,6 +1512,14 @@ pub(crate) const ALLOWED_UNIFIED_PROXY_METHODS: &[&str] = &[
     "panic_count",
     "ring_occupancy",
     "ring_capacity",
+    // Session health / liveness — StreamView getters, siblings of the
+    // diagnostics above.
+    "is_authenticated",
+    "millis_since_last_event",
+    "last_event_received_at_unix_nanos",
+    "last_connected_addr",
+    // Arrow RecordBatch reader — StreamView.
+    "batches",
     // FLATFILES namespace getter.
     "flat_files",
     // NOTE: `session_uuid` / `subscription_info` are NOT on
@@ -1559,6 +1567,11 @@ const HANDWRITTEN_UNIFIED_PYMETHODS: &[&str] = &[
     "panic_count",
     "ring_occupancy",
     "ring_capacity",
+    // Session health / liveness getters on the `client.stream` StreamView.
+    "is_authenticated",
+    "millis_since_last_event",
+    "last_event_received_at_unix_nanos",
+    "last_connected_addr",
 ];
 
 /// `const fn` byte-equal helper for the compile-time guards in this
@@ -1756,7 +1769,13 @@ impl AsyncClient {
         // `async_client.subscribe(...)`) over the restructured client.
         if name.ends_with("_async") {
             let market_data = bound.getattr("market_data")?;
-            return Ok(market_data.getattr(name)?.unbind());
+            if let Ok(method) = market_data.getattr(name) {
+                return Ok(method.unbind());
+            }
+            // Flat-file async terminals (e.g. `flatfile_to_path_async`) live on
+            // the `flat_files` namespace, not `market_data`.
+            let flat_files = bound.getattr("flat_files")?;
+            return Ok(flat_files.getattr(name)?.unbind());
         }
         if ALLOWED_UNIFIED_PROXY_METHODS.contains(&name) && !DIRECT_ON_CLIENT.contains(&name) {
             let stream = bound.getattr("stream")?;

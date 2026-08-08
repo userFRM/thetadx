@@ -212,10 +212,8 @@ pub(crate) async fn sleep_for_retry(
             delay = hint;
         }
     }
-    // Never sleep past the wall-clock envelope: `max_elapsed` promises a
-    // total retry budget, so a long backoff or server hint is clipped to the
-    // time that remains. The caller stops the loop once the envelope is spent;
-    // clipping keeps any single delay from overshooting it.
+    // Clip to the remaining `max_elapsed` budget so a long backoff or server
+    // hint can't sleep past the wall-clock envelope; the caller then stops.
     if let Some(remaining) = remaining_budget {
         delay = delay.min(remaining);
     }

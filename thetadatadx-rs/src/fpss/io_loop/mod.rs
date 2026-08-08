@@ -893,19 +893,12 @@ where
                 {
                     Ok(FrameRead::SkippedUnknown) => {
                         // An unknown-code frame was consumed to stay aligned.
-                        // Deliberately do NOT advance `last_frame_at`: an unknown
-                        // frame is not proof of data-plane liveness. Fall through
-                        // to Phase 2 (rather than `continue`) so queued commands
-                        // still drain during an unknown-frame burst.
-                        //
-                        // But a *flood* of unknown frames keeps each short read
-                        // returning before its per-read timeout, so the read-
-                        // timeout arm below would never run and the session could
-                        // deliver nothing usable indefinitely. Apply the same
-                        // liveness guard here: if no recognised frame (data,
-                        // control, or heartbeat PING — all of which refresh
-                        // `last_frame_at`) has arrived within `read_timeout`, the
-                        // session is dead to us, so drop it and reconnect.
+                        // Don't advance `last_frame_at` (an unknown frame is not
+                        // liveness) and fall through, not `continue`, so queued
+                        // commands still drain. But a flood of unknown frames
+                        // returns each read before its timeout, so the read-timeout
+                        // arm never fires: guard here too, no recognised frame
+                        // within `read_timeout` means the session is dead, reconnect.
                         let quiet = last_frame_at.elapsed();
                         if quiet >= read_timeout {
                             tracing::warn!(

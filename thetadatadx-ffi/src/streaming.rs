@@ -753,7 +753,10 @@ unsafe fn coerce_subscription(
                 THETADATADX_SUB_KIND_OPEN_INTEREST => SubscriptionKind::OpenInterest,
                 THETADATADX_SUB_KIND_MARKET_VALUE => SubscriptionKind::MarketValue,
                 other => {
-                    set_error(&format!("invalid kind {other}"));
+                    set_error_with_code(
+                        &format!("invalid kind {other}"),
+                        crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                    );
                     return None;
                 }
             };
@@ -809,15 +812,24 @@ unsafe fn coerce_subscription(
                 THETADATADX_SUB_KIND_TRADE => FullSubscriptionKind::Trades,
                 THETADATADX_SUB_KIND_OPEN_INTEREST => FullSubscriptionKind::OpenInterest,
                 THETADATADX_SUB_KIND_QUOTE => {
-                    set_error("full-stream Quote is not a valid subscription");
+                    set_error_with_code(
+                        "full-stream Quote is not a valid subscription",
+                        crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                    );
                     return None;
                 }
                 THETADATADX_SUB_KIND_MARKET_VALUE => {
-                    set_error("full-stream MarketValue is not a valid subscription");
+                    set_error_with_code(
+                        "full-stream MarketValue is not a valid subscription",
+                        crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                    );
                     return None;
                 }
                 other => {
-                    set_error(&format!("invalid kind {other}"));
+                    set_error_with_code(
+                        &format!("invalid kind {other}"),
+                        crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                    );
                     return None;
                 }
             };
@@ -827,16 +839,20 @@ unsafe fn coerce_subscription(
                 "OPTION" => thetadatadx::SecType::Option,
                 "INDEX" => thetadatadx::SecType::Index,
                 other => {
-                    set_error(&format!(
-                        "invalid sec_type {other:?} (expected STOCK, OPTION, INDEX)"
-                    ));
+                    set_error_with_code(
+                        &format!("invalid sec_type {other:?} (expected STOCK, OPTION, INDEX)"),
+                        crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+                    );
                     return None;
                 }
             };
             Some(Subscription::Full { sec_type, kind })
         }
         other => {
-            set_error(&format!("invalid scope {other}"));
+            set_error_with_code(
+                &format!("invalid scope {other}"),
+                crate::error::THETADATADX_ERR_INVALID_PARAMETER,
+            );
             None
         }
     }

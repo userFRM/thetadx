@@ -1196,8 +1196,9 @@ pub(crate) type ShardStreamFuture<'a> =
 /// `parsed_endpoint!`) holds no request permit while this runs — each
 /// band future acquires its own, which is what keeps the fan-out
 /// deadlock-free at any pool size (worst case the bands serialize).
-/// Every completion event re-polls the remaining set; the set is capped
-/// by the pool size, so the sweep is noise next to a chunk decode.
+/// Every completion event re-polls the remaining set; the set is bounded
+/// by the band count (in-flight requests stay capped by the pool), so the
+/// sweep is noise next to a chunk decode.
 ///
 /// Mirrors [`join_shards`]: a band the server holds no rows for errors
 /// gRPC `NotFound`, which folds to an empty contribution; only when
@@ -1942,13 +1943,29 @@ mod tests {
             Some("both")
         );
 
-        // A date band never carries a right and never touches contract_spec.
+        // A date band with no right override leaves contract_spec as issued.
         let mut q3 = query();
         let band = &date_band;
         shard_apply_field!(q3, band, contract_spec);
         assert_eq!(
             q3.contract_spec.as_ref().unwrap().right.as_deref(),
             Some("both")
+        );
+
+        // A right-carrying date band (call/put split of a multi-day both-rights
+        // chain) must rewrite contract_spec.right on the wire, like a time band.
+        let put_date_band = ShardBand::Date {
+            start_date: "20260101".into(),
+            end_date: "20260131".into(),
+            right: Some("put".into()),
+        };
+        let mut q4 = query();
+        let band = &put_date_band;
+        shard_apply_field!(q4, band, contract_spec);
+        assert_eq!(
+            q4.contract_spec.as_ref().unwrap().right.as_deref(),
+            Some("put"),
+            "a right-carrying date band must rewrite contract_spec.right on the wire"
         );
     }
 

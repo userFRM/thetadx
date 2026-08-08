@@ -117,7 +117,14 @@ where
     // this call would wait on. Neither can make progress, so reject it fast
     // with the same guidance the core reentrancy guard gives.
     if in_delivery_handler_thread() {
-        return Err(to_py_err(tick::Error::HandlerReentrancy));
+        // Same type as `to_py_err(HandlerReentrancy)` (base `ThetaDataError`), but
+        // the core's "use a second client" advice is wrong for this thread-scoped guard.
+        return Err(crate::errors::ThetaDataError::new_err(
+            "a synchronous market-data call was made from inside a Python streaming \
+             delivery handler, which would deadlock; issue the request from a \
+             background thread instead (a second client on the delivery thread is \
+             rejected the same way)",
+        ));
     }
     py.detach(|| {
         // VOCAB-OK: tokio Runtime::block_on in PyO3 bridge, not PyO3 allow_threads GIL-hold pattern

@@ -537,7 +537,9 @@ pub(crate) fn validate_timeout_ms(timeout_ms: f64) -> napi::Result<u64> {
     Ok(validate_nonneg_whole(
         "timeoutMs",
         timeout_ms,
-        u64::MAX as f64,
+        // MAX_SAFE_INTEGER: largest f64 with an exact u64. A u64::MAX bound
+        // rounds to 2^64 as f64, so 2**64 would pass it and saturate on the cast.
+        9_007_199_254_740_991.0,
         Some("millisecond"),
     )? as u64)
 }

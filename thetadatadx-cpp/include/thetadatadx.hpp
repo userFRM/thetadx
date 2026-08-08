@@ -1164,6 +1164,10 @@ public:
      *  failure the existing `callback_` is left untouched so the
      *  still-live registration keeps pointing at valid storage. */
     void set_callback(std::function<void(const StreamEvent&)> fn) {
+        if (!fn) {
+            throw InvalidParameterError(
+                "set_callback requires a callable target; an empty std::function was passed");
+        }
         auto staged = std::make_unique<std::function<void(const StreamEvent&)>>(std::move(fn));
         int rc = thetadatadx_streaming_set_callback(handle_.get(), &StreamingClient::callback_shim, staged.get());
         if (rc < 0) {
@@ -1201,11 +1205,13 @@ public:
         return handle_ ? thetadatadx_streaming_ring_capacity(handle_.get()) : 0;
     }
 
-    /** Cumulative count of user-callback failures contained by the
-     *  per-invocation isolation boundary since the current stream
-     *  started. If the callback aborts on a given event, the failure is
-     *  contained, recorded here, and does not stop event delivery — the
-     *  next event continues normally. Returns 0 when no callback has been
+    /** Cumulative count of user-callback failures contained by the core's
+     *  per-invocation isolation boundary since the current stream started,
+     *  so one aborting event never stops delivery — the next continues.
+     *  Note the C++ boundary: an exception thrown from your callback is
+     *  caught at the C ABI shim (unwinding across C is undefined behavior)
+     *  and swallowed there, so it does NOT increment this count — handle
+     *  errors inside the callback. Returns 0 when no callback has been
      *  installed yet. Safe to call from any thread without blocking. */
     uint64_t panic_count() const {
         return handle_ ? thetadatadx_streaming_panic_count(handle_.get()) : 0;

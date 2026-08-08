@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-08-03
+## [0.4.0] - 2026-08-08
 
 ### Removed
 
@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The public API surface is tightened to what the SDK exposes for use.** Internal modules that were reachable by path (`auth` beyond `Credentials`, `backoff` beyond `JitterMode`, `util`) and a few internal decode helpers are now crate-private or hidden from the documented surface. The user-facing types stay exported at the crate root exactly as before (`Credentials`, `JitterMode`), so ordinary code is unaffected; only code that reached into the `auth` or `backoff` module path directly switches to those root re-exports.
-- **Multi-day option-chain pulls now fan the date shard axis out by call/put.** A both-rights chain (`right = "both"`, `strike = "*"`) pulled over a date range shorter than the request pool cut one shard per day and left the rest of the pool idle; it now also splits each date band into a call band and a put band, so more lanes run at once and the pull finishes sooner. The merged rows are exactly the single stream's, in the SDK's canonical chain order (ascending expiration, strike, right). The `ShardBand::Date` band (surfaced only through `Error::PartialShardFetch`) gains a `right` field; code that matches or builds it updates for the new field.
+- **Multi-day option-chain pulls now fan the date shard axis out by call/put.** A both-rights chain (`right = "both"`, `strike = "*"`) pulled over a date range shorter than the request pool cut one shard per day and left the rest of the pool idle; it now also splits each date band into a call band and a put band, so more lanes run at once and the pull finishes sooner. A tick chain is served one day per band, so its date bands split by right only while the resulting call and put single-day bands still fit the request pool. The merged rows are exactly the single stream's, in the SDK's canonical chain order (ascending expiration, strike, right). The `ShardBand::Date` band (surfaced only through `Error::PartialShardFetch`) gains a `right` field; code that matches or builds it updates for the new field.
 
 - **TypeScript date and time arguments take a wire-format string only, not a JS `Date`.** A calendar date (`startDate`, `endDate`, `expiration`) or an intraday time (`startTime`, `endTime`, `timeOfDay`) was accepted either as the `"YYYYMMDD"` / `"HH:MM:SS"` wire string or as a JS `Date`. A `Date` is an instant, not a calendar day, so the SDK rendered it in UTC and shifted the requested day for a caller in a non-UTC zone (`new Date(2024, 0, 1)` in Central Europe queried `20231231`). These parameters now accept the wire-format string exclusively. This is a breaking change to the TypeScript surface; format a `Date` yourself before passing it.
 
@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Per-call `timeout_ms = 0` disables the deadline on every endpoint family.** On the Python and TypeScript list endpoints (`option_list_expirations`, `stock_list_symbols`, and the like) a zero `timeout_ms` / `timeoutMs` raced the call against a zero-duration timer and failed immediately, while the history and snapshot endpoints read zero as "no deadline" (matching `with_deadline(Duration::ZERO)`). Zero now means "no per-call deadline" uniformly; any other value runs under the configured request timeout.
 
-- **The TypeScript numeric config setters reject an out-of-range value instead of silently wrapping it.** napi decoded these arguments with V8 `ToUint32`, so `setMaxConcurrentRequests(-1n)` wrapped to `4294967295` and drove a multi-billion-entry pool allocation, `1.5` truncated to `1`, and `2**32` wrapped to `0`. The setters now take the value as a number and reject a non-finite, negative, fractional, or over-`u32` input with `InvalidParameterError`; the port setters keep their `0..=65535` range check on top.
+- **The TypeScript numeric config setters reject an out-of-range value instead of silently wrapping it.** napi decoded these arguments with V8 `ToUint32`, so `setMaxConcurrentRequests(-1)` wrapped to `4294967295` and drove a multi-billion-entry pool allocation, `1.5` truncated to `1`, and `2**32` wrapped to `0`. The setters now take the value as a number and reject a non-finite, negative, fractional, or over-`u32` input with `InvalidParameterError`; the port setters keep their `0..=65535` range check on top.
 
 - **A rejected BigInt config value names its actual cause.** A negative or over-`u64` BigInt passed to a `*Ms` config setter reported "magnitude must fit in u64", which is wrong for a negative value — the magnitude fits, the sign does not. The message now names the cause (a negative sign or an over-`u64` magnitude). The error stays a plain `Error`, matching the built-in `OverflowError` the Python binding raises for the same input.
 
@@ -164,7 +164,8 @@ The SDK ships under per-language package names: `thetadatadx-rs` (crates.io), `t
 - The streaming login wipes the account password from memory the moment the login frame is sent, so the cleartext password is not retained in released heap or a buffered protocol frame after authentication, on the first connect and every reconnect.
 - Authentication errors carry only the HTTP status and never the upstream response body, the auth client does not follow redirects, and session UUIDs are redacted from `Debug` output.
 
-[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/userFRM/ThetaDataDx/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/userFRM/ThetaDataDx/releases/tag/v0.4.0
 [0.3.0]: https://github.com/userFRM/ThetaDataDx/releases/tag/v0.3.0
 [0.2.0]: https://github.com/userFRM/ThetaDataDx/releases/tag/v0.2.0
 [0.1.0]: https://github.com/userFRM/ThetaDataDx/releases/tag/v0.1.0
